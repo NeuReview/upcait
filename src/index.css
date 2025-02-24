@@ -1,0 +1,104 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  }
+
+  body {
+    @apply antialiased text-gray-900 bg-white;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    font-family: 'SF Pro Display', 'Inter', system-ui, -apple-system, sans-serif;
+  }
+}
+
+@layer components {
+  .btn-primary {
+    @apply inline-flex items-center px-6 py-3 bg-neural-purple text-white font-medium rounded-lg hover:bg-tech-lavender transition-colors duration-200;
+  }
+
+  .btn-secondary {
+    @apply inline-flex items-center px-6 py-3 border-2 border-neural-purple text-neural-purple font-medium rounded-lg hover:bg-gray-50 transition-colors duration-200;
+  }
+
+  .input-primary {
+    @apply w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-neural-purple focus:border-neural-purple transition-all duration-200;
+  }
+
+  .card {
+    @apply bg-white rounded-lg shadow-neural p-6 hover:shadow-xl transition-all duration-300 hover:-translate-y-1;
+  }
+
+  .nav-link {
+    @apply text-gray-600 hover:text-neural-purple transition-colors duration-200;
+  }
+
+  .section-title {
+    @apply text-3xl font-bold text-gray-900 mb-6;
+  }
+
+  .gradient-text {
+    @apply bg-gradient-to-r from-neural-purple to-tech-lavender bg-clip-text text-transparent;
+  }
+
+  .perspective-1000 {
+    perspective: 1000px;
+  }
+
+  .transform-style-3d {
+    transform-style: preserve-3d;
+  }
+
+  .backface-hidden {
+    backface-visibility: hidden;
+  }
+
+  .rotate-y-180 {
+    transform: rotateY(180deg);
+  }
+
+  .hover-card-effect {
+    @apply transition-all duration-300 hover:shadow-xl hover:-translate-y-1;
+  }
+}
+
+/* Custom animations */
+@keyframes float {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+}
+
+.animate-float {
+  animation: float 3s ease-in-out infinite;
+}
+
+/* Progress bar animation */
+@keyframes progress {
+  0% {
+    width: 0%;
+  }
+  100% {
+    width: 60%;
+  }
+}
+
+.animate-progress {
+  animation: progress 2s ease-out forwards;
+}
+
+/* Neural network background pattern */
+.neural-bg {
+  background-image: radial-gradient(#6B46C1 1px, transparent 1px),
+                    radial-gradient(#9F7AEA 1px, transparent 1px);
+  background-size: 40px 40px;
+  background-position: 0 0, 20px 20px;
+  opacity: 0.1;
+}
