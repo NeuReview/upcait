@@ -14,6 +14,7 @@ import PricingSection from './components/PricingSection';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
 import ResetPasswordPage from './pages/ResetPasswordPage';
+import PreOrderPage from './pages/PreOrderPage';
 
 // Protected Route component
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
@@ -59,6 +60,11 @@ function App() {
             <Route path="/dashboard" element={
               <ProtectedRoute>
                 <DashboardPage />
+              </ProtectedRoute>
+            } />
+            <Route path="/preorder" element={
+              <ProtectedRoute>
+                <PreOrderPage />
               </ProtectedRoute>
             } />
           </Routes>
