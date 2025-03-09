@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { useAuthStore } from './store/authStore';
 import Navbar from './components/Navbar';
@@ -21,22 +21,55 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const { user } = useAuthStore();
 
   if (!user) {
-    return <Navigate to="/login" replace />;
+    return <Navigate to="/preorder" replace />;
+  }
+
+  return <>{children}</>;
+};
+
+// Auth Route component - redirects to dashboard if already logged in
+const AuthRoute = ({ children }: { children: React.ReactNode }) => {
+  const { user } = useAuthStore();
+
+  if (user) {
+    return <Navigate to="/dashboard" replace />;
   }
 
   return <>{children}</>;
 };
 
 function App() {
+  const { user } = useAuthStore();
+  const isPreorderPage = window.location.pathname === '/preorder' || 
+                        (!user && window.location.pathname === '/');
+
   return (
     <Router>
       <div className="min-h-screen bg-gray-50 flex flex-col">
-        <Navbar />
-        <div className="pt-16 flex-grow">
+        {/* Only show Navbar if not on preorder page */}
+        {!isPreorderPage && <Navbar />}
+        
+        <div className={`${!isPreorderPage ? 'pt-16' : ''} flex-grow`}>
           <Routes>
-            <Route path="/" element={<HomePage />} />
-            <Route path="/login" element={<LoginPage />} />
-            <Route path="/register" element={<RegisterPage />} />
+            {/* Redirect root to preorder for non-logged in users */}
+            <Route path="/" element={
+              user ? <HomePage /> : <Navigate to="/preorder" replace />
+            } />
+            
+            {/* Public PreOrder page - completely standalone */}
+            <Route path="/preorder" element={<PreOrderPage />} />
+            
+            {/* Auth Routes - not accessible from preorder page */}
+            <Route path="/login" element={
+              <AuthRoute>
+                <LoginPage />
+              </AuthRoute>
+            } />
+            <Route path="/register" element={
+              <AuthRoute>
+                <RegisterPage />
+              </AuthRoute>
+            } />
             <Route path="/reset-password" element={<ResetPasswordPage />} />
             <Route path="/pricing" element={<PricingSection />} />
             <Route path="/chatbot-test" element={<ChatbotTest />} />
@@ -62,14 +95,12 @@ function App() {
                 <DashboardPage />
               </ProtectedRoute>
             } />
-            <Route path="/preorder" element={
-              <ProtectedRoute>
-                <PreOrderPage />
-              </ProtectedRoute>
-            } />
           </Routes>
         </div>
-        <Chatbot />
+        
+        {/* Only show Chatbot if user is logged in and not on preorder page */}
+        {user && !isPreorderPage && <Chatbot />}
+        {/* Always show Footer */}
         <Footer />
       </div>
     </Router>
