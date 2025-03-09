@@ -11,40 +11,11 @@ const Footer = () => {
           {/* Brand and Description */}
           <div className="col-span-1 md:col-span-2">
             <Link to="/" className="text-2xl font-bold text-neural-purple">
-              UPCAiT
+              UPCaiT
             </Link>
             <p className="mt-4 text-gray-500">
               Your AI-powered companion for UPCAT success. We help aspiring UP students prepare effectively with personalized learning paths and comprehensive study materials.
             </p>
-          </div>
-
-          {/* Quick Links */}
-          <div>
-            <h3 className="text-sm font-semibold text-gray-400 tracking-wider uppercase">
-              Quick Links
-            </h3>
-            <ul className="mt-4 space-y-4">
-              <li>
-                <Link to="/quizzes" className="text-gray-500 hover:text-neural-purple">
-                  Practice Quizzes
-                </Link>
-              </li>
-              <li>
-                <Link to="/mock-exams" className="text-gray-500 hover:text-neural-purple">
-                  Mock Exams
-                </Link>
-              </li>
-              <li>
-                <Link to="/flashcards" className="text-gray-500 hover:text-neural-purple">
-                  Flashcards
-                </Link>
-              </li>
-              <li>
-                <Link to="/pricing" className="text-gray-500 hover:text-neural-purple">
-                  Pricing
-                </Link>
-              </li>
-            </ul>
           </div>
 
           {/* Contact */}
@@ -70,7 +41,7 @@ const Footer = () => {
         <div className="mt-8 pt-8 border-t border-gray-200">
           <div className="flex flex-col md:flex-row justify-between items-center">
             <p className="text-gray-400 text-sm">
-              © {currentYear} UPCAiT. All rights reserved.
+              © {currentYear} UPCaiT. All rights reserved.
             </p>
             <div className="mt-4 md:mt-0 flex space-x-6">
               <a href="#" className="text-gray-400 hover:text-neural-purple">

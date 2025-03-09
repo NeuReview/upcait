@@ -102,3 +102,51 @@
   background-position: 0 0, 20px 20px;
   opacity: 0.1;
 }
+
+/* PreOrder Page Styles */
+body.preorder-page {
+  overflow-x: hidden;
+}
+
+body.preorder-page .nav-link,
+body.preorder-page .login-button,
+body.preorder-page .signup-button,
+body.preorder-page .subscription-link {
+  display: none !important;
+}
+
+/* Hide any navigation elements that might appear on the preorder page */
+.preorder-page-container {
+  position: relative;
+  width: 100%;
+  min-height: 100vh;
+  z-index: 50;
+}
+
+/* Geometric patterns for PreOrder page */
+.grid-pattern {
+  background-image: 
+    linear-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.05) 1px, transparent 1px);
+  background-size: 40px 40px;
+  background-position: center center;
+}
+
+/* Additional decorative elements for PreOrder page */
+.geometric-dot {
+  position: absolute;
+  border-radius: 50%;
+  background-color: rgba(255, 255, 255, 0.2);
+  animation: pulse 4s infinite ease-in-out;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 0.2;
+  }
+  50% {
+    transform: scale(1.2);
+    opacity: 0.3;
+  }
+}

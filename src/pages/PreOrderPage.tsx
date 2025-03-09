@@ -41,6 +41,16 @@ const PreOrderPage = () => {
     return () => clearInterval(timer);
   }, []);
 
+  useEffect(() => {
+    // Hide any navigation elements when on this page
+    document.body.classList.add('preorder-page');
+    
+    // Clean up function
+    return () => {
+      document.body.classList.remove('preorder-page');
+    };
+  }, []);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -71,7 +81,32 @@ const PreOrderPage = () => {
   };
 
   return (
-    <div className="min-h-screen relative bg-gradient-to-br from-[#6B46C1] via-[#9F7AEA] to-white overflow-hidden">
+    <div className="h-screen relative bg-gradient-to-br from-[#6B46C1] via-[#9F7AEA] to-white overflow-hidden preorder-page-container">
+      {/* Geometric Patterns */}
+      <div className="absolute inset-0 pointer-events-none overflow-hidden">
+        {/* Circles */}
+        <div className="absolute top-0 right-0 w-64 h-64 bg-white opacity-10 rounded-full transform translate-x-1/3 -translate-y-1/3"></div>
+        <div className="absolute bottom-0 left-0 w-96 h-96 bg-[#F6E05E] opacity-5 rounded-full transform -translate-x-1/3 translate-y-1/3"></div>
+        
+        {/* Triangles */}
+        <svg className="absolute top-1/4 right-1/4 w-32 h-32 text-white opacity-5" viewBox="0 0 100 100">
+          <polygon points="50,0 100,100 0,100" fill="currentColor" />
+        </svg>
+        <svg className="absolute bottom-1/4 left-1/3 w-24 h-24 text-[#F6E05E] opacity-5 transform rotate-45" viewBox="0 0 100 100">
+          <polygon points="50,0 100,100 0,100" fill="currentColor" />
+        </svg>
+        
+        {/* Grid Pattern */}
+        <div className="absolute inset-0 grid-pattern"></div>
+        
+        {/* Geometric Dots */}
+        <div className="geometric-dot w-4 h-4" style={{ top: '15%', left: '10%', animationDelay: '0s' }}></div>
+        <div className="geometric-dot w-6 h-6" style={{ top: '25%', right: '15%', animationDelay: '0.5s' }}></div>
+        <div className="geometric-dot w-3 h-3" style={{ bottom: '30%', left: '20%', animationDelay: '1s' }}></div>
+        <div className="geometric-dot w-5 h-5" style={{ bottom: '15%', right: '25%', animationDelay: '1.5s' }}></div>
+        <div className="geometric-dot w-8 h-8" style={{ top: '40%', left: '30%', animationDelay: '2s', opacity: '0.1' }}></div>
+      </div>
+
       {/* Particle Effects */}
       <div className="absolute inset-0 pointer-events-none">
         <div className="absolute top-1/4 left-1/4 w-2 h-2 bg-white rounded-full animate-pulse"></div>
@@ -79,7 +114,6 @@ const PreOrderPage = () => {
         <div className="absolute top-2/3 left-1/2 w-2 h-2 bg-white rounded-full animate-pulse delay-150"></div>
         <div className="absolute bottom-1/4 right-1/4 w-2 h-2 bg-white rounded-full animate-pulse delay-300"></div>
       </div>
-
 
       {/* Main Content */}
       <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-32 pb-20 lg:pt-40 lg:pb-28">
@@ -148,7 +182,7 @@ const PreOrderPage = () => {
                 <img
                   src="/images/student-dashboard.png"
                   alt="AI-Powered Dashboard"
-                  className="w-[130%] h-auto max-w-none object-contain transform scale-125 -translate-y-6 -translate-x-12"
+                  className="w-full md:w-[110%] lg:w-[130%] h-auto max-w-none object-contain transform scale-100 md:scale-110 lg:scale-125 translate-y-0 md:-translate-y-13 lg:-translate-y-6 translate-x-0 md:-translate-x-6 lg:-translate-x-12 rounded-lg"
                 />
               </motion.div>
             </div>
