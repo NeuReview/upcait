@@ -20,6 +20,9 @@ function App() {
   const { user, fetchUser, otpPending, setOtpPending } = useAuthStore();
   const [loading, setLoading] = useState(true);
 
+  // ✅ Define isPreorderPage to hide Navbar and adjust layout
+  const isPreorderPage = window.location.pathname === '/preorder' || (!user && window.location.pathname === '/');
+
   // ✅ Fetch user session on app load
   useEffect(() => {
     const initializeAuth = async () => {
@@ -51,9 +54,10 @@ function App() {
   return (
     <Router>
       <div className="min-h-screen bg-gray-50 flex flex-col">
-        <Navbar /> {/* ✅ Navbar is always visible */}
+        {/* ✅ Hide Navbar on Preorder Page */}
+        {!isPreorderPage && <Navbar />}
 
-        <div className="flex-grow">
+        <div className={`${!isPreorderPage ? 'pt-16' : ''} flex-grow`}>
           <Routes>
             {/* ✅ First visit → Redirect to Preorder if not signed in */}
             <Route path="/" element={user ? <HomePage /> : <Navigate to="/preorder" replace />} />
@@ -79,8 +83,8 @@ function App() {
           </Routes>
         </div>
 
-        {/* ✅ Show Chatbot only if user is logged in */}
-        {user && <Chatbot />}
+        {/* ✅ Show Chatbot only if user is logged in and not on preorder page */}
+        {user && !isPreorderPage && <Chatbot />}
         <Footer />
       </div>
     </Router>
