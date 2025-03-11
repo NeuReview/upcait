@@ -7,38 +7,53 @@ const LoginPage = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [rememberMe, setRememberMe] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [loading, setLoading] = useState(false);
   const [isForgotPassword, setIsForgotPassword] = useState(false);
   const navigate = useNavigate();
-  const { signIn, resetPassword, checkEmailExists } = useAuthStore();
+  
+  // ✅ Import `setOtpPending` from Auth Store
+  const { signIn, sendOtp, resetPassword, googleSignIn, setOtpPending } = useAuthStore();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     setSuccess('');
     setLoading(true);
-
+  
     try {
       if (isForgotPassword) {
-        // Check if email exists before sending reset link
-        const exists = await checkEmailExists(email);
-        if (!exists) {
-          throw new Error('No account found with this email address');
-        }
-        
         await resetPassword(email);
         setSuccess('Password reset instructions have been sent to your email.');
         setIsForgotPassword(false);
       } else {
-        await signIn(email, password);
-        navigate('/dashboard');
+        await signIn(email, password); // ✅ Authenticate user with email/password
+        setOtpPending(true); // ✅ Ensure OTP is required
+
+        if (rememberMe) {
+          localStorage.setItem('rememberMe', email);
+        } else {
+          localStorage.removeItem('rememberMe');
+        }
+
+        localStorage.setItem('otp-email', email); // ✅ Store email for OTP verification
+        navigate('/otp'); // ✅ Redirect to OTP page after login
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleGoogleLogin = async () => {
+    try {
+      await googleSignIn();
+      navigate('/dashboard'); // ✅ Redirect Google Sign-In users directly to the dashboard
+    } catch (error) {
+      console.error('Google Sign-in failed:', error);
     }
   };
 
@@ -97,7 +112,7 @@ const LoginPage = () => {
                   <input
                     id="password"
                     name="password"
-                    type={showPassword ? "text" : "password"}
+                    type={showPassword ? 'text' : 'password'}
                     autoComplete="current-password"
                     required
                     value={password}
@@ -119,6 +134,7 @@ const LoginPage = () => {
               </div>
             )}
 
+            {/* ✅ "Remember Me" checkbox */}
             {!isForgotPassword && (
               <div className="flex items-center justify-between">
                 <div className="flex items-center">
@@ -126,6 +142,8 @@ const LoginPage = () => {
                     id="remember-me"
                     name="remember-me"
                     type="checkbox"
+                    checked={rememberMe}
+                    onChange={() => setRememberMe(!rememberMe)}
                     className="h-4 w-4 text-neural-purple focus:ring-neural-purple border-gray-300 rounded"
                   />
                   <label htmlFor="remember-me" className="ml-2 block text-sm text-gray-900">
@@ -135,32 +153,48 @@ const LoginPage = () => {
               </div>
             )}
 
+            {/* ✅ "Forgot Password?" button */}
+            <div className="flex justify-end">
+              <button
+                type="button"
+                onClick={() => {
+                  setIsForgotPassword(!isForgotPassword);
+                  setError('');
+                  setSuccess('');
+                }}
+                className="text-sm text-neural-purple hover:text-tech-lavender"
+              >
+                {isForgotPassword ? 'Back to sign in' : 'Forgot your password?'}
+              </button>
+            </div>
+
             <div>
               <button
                 type="submit"
                 disabled={loading}
                 className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-neural-purple hover:bg-tech-lavender focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-neural-purple disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {loading 
-                  ? (isForgotPassword ? 'Sending reset link...' : 'Signing in...') 
-                  : (isForgotPassword ? 'Send reset link' : 'Sign in')}
+                {loading ? 'Signing in...' : 'Sign in'}
               </button>
             </div>
           </form>
 
-          <div className="mt-6">
-            <button
-              type="button"
-              onClick={() => {
-                setIsForgotPassword(!isForgotPassword);
-                setError('');
-                setSuccess('');
-              }}
-              className="w-full text-center text-sm text-neural-purple hover:text-tech-lavender"
-            >
-              {isForgotPassword ? 'Back to sign in' : 'Forgot your password?'}
-            </button>
-          </div>
+          {/* ✅ Hide Google Sign-In when "Forgot Password?" is active */}
+          {!isForgotPassword && (
+            <div className="mt-6 flex items-center justify-center">
+              <button
+                onClick={handleGoogleLogin}
+                className="w-full flex items-center justify-center py-2 px-4 border border-gray-300 rounded-md shadow-sm bg-white hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-400"
+              >
+                <img
+                  src="https://cdn4.iconfinder.com/data/icons/logos-brands-7/512/google_logo-google_icongoogle-1024.png"
+                  alt="Google logo"
+                  className="w-5 h-5 mr-2"
+                />
+                <span className="text-sm font-medium text-gray-700">Sign in with Google</span>
+              </button>
+            </div>
+          )}
         </div>
       </div>
     </div>

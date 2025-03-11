@@ -1,10 +1,9 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { useAuthStore } from './store/authStore';
 import Navbar from './components/Navbar';
 import Footer from './components/Footer';
 import Chatbot from './components/Chatbot';
-import ChatbotTest from './components/ChatbotTest';
 import HomePage from './pages/HomePage';
 import DashboardPage from './pages/DashboardPage';
 import QuizzesPage from './pages/QuizzesPage';
@@ -15,61 +14,73 @@ import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
 import ResetPasswordPage from './pages/ResetPasswordPage';
 import PreOrderPage from './pages/PreOrderPage';
-
-// Protected Route component
-const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
-  const { user } = useAuthStore();
-
-  if (!user) {
-    return <Navigate to="/login" replace />;
-  }
-
-  return <>{children}</>;
-};
+import OtpPage from './pages/OtpPage';
 
 function App() {
+  const { user, fetchUser, otpPending, setOtpPending } = useAuthStore();
+  const [loading, setLoading] = useState(true);
+
+  // ✅ Fetch user session on app load
+  useEffect(() => {
+    const initializeAuth = async () => {
+      await fetchUser();
+      setLoading(false);
+    };
+    initializeAuth();
+  }, []);
+
+  // ✅ Redirect logged-in users to OTP if verification is pending
+  useEffect(() => {
+    if (user && otpPending && window.location.pathname !== '/otp') {
+      window.location.replace('/otp'); // Ensures immediate OTP redirection
+    }
+  }, [user, otpPending]);
+
+  const handleOtpVerified = () => {
+    setOtpPending(false); // ✅ Marks OTP as verified
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center text-gray-500">
+        Loading...
+      </div>
+    );
+  }
+
   return (
     <Router>
       <div className="min-h-screen bg-gray-50 flex flex-col">
-        <Navbar />
-        <div className="pt-16 flex-grow">
+        <Navbar /> {/* ✅ Navbar is always visible */}
+
+        <div className="flex-grow">
           <Routes>
-            <Route path="/" element={<HomePage />} />
-            <Route path="/login" element={<LoginPage />} />
-            <Route path="/register" element={<RegisterPage />} />
+            {/* ✅ First visit → Redirect to Preorder if not signed in */}
+            <Route path="/" element={user ? <HomePage /> : <Navigate to="/preorder" replace />} />
+            <Route path="/preorder" element={<PreOrderPage />} />
+
+            {/* ✅ Login & Registration */}
+            <Route path="/login" element={user ? <Navigate to={otpPending ? "/otp" : "/dashboard"} replace /> : <LoginPage />} />
+            <Route path="/register" element={user ? <Navigate to={otpPending ? "/otp" : "/dashboard"} replace /> : <RegisterPage />} />
             <Route path="/reset-password" element={<ResetPasswordPage />} />
             <Route path="/pricing" element={<PricingSection />} />
-            <Route path="/chatbot-test" element={<ChatbotTest />} />
-            
-            {/* Protected Routes */}
-            <Route path="/quizzes" element={
-              <ProtectedRoute>
-                <QuizzesPage />
-              </ProtectedRoute>
-            } />
-            <Route path="/mock-exams" element={
-              <ProtectedRoute>
-                <MockExamsPage />
-              </ProtectedRoute>
-            } />
-            <Route path="/flashcards" element={
-              <ProtectedRoute>
-                <FlashcardsPage />
-              </ProtectedRoute>
-            } />
-            <Route path="/dashboard" element={
-              <ProtectedRoute>
-                <DashboardPage />
-              </ProtectedRoute>
-            } />
-            <Route path="/preorder" element={
-              <ProtectedRoute>
-                <PreOrderPage />
-              </ProtectedRoute>
-            } />
+
+            {/* ✅ OTP Verification Route */}
+            <Route 
+              path="/otp" 
+              element={user && otpPending ? <OtpPage onOtpVerified={handleOtpVerified} /> : <Navigate to="/dashboard" replace />} 
+            />
+
+            {/* ✅ Protected Routes - Ensure OTP Verification Before Access */}
+            <Route path="/dashboard" element={user ? (otpPending ? <Navigate to="/otp" replace /> : <DashboardPage />) : <Navigate to="/preorder" replace />} />
+            <Route path="/quizzes" element={user ? (otpPending ? <Navigate to="/otp" replace /> : <QuizzesPage />) : <Navigate to="/preorder" replace />} />
+            <Route path="/mock-exams" element={user ? (otpPending ? <Navigate to="/otp" replace /> : <MockExamsPage />) : <Navigate to="/preorder" replace />} />
+            <Route path="/flashcards" element={user ? (otpPending ? <Navigate to="/otp" replace /> : <FlashcardsPage />) : <Navigate to="/preorder" replace />} />
           </Routes>
         </div>
-        <Chatbot />
+
+        {/* ✅ Show Chatbot only if user is logged in */}
+        {user && <Chatbot />}
         <Footer />
       </div>
     </Router>
