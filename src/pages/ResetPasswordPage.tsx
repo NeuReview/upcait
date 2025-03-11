@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { EyeIcon, EyeSlashIcon } from '@heroicons/react/24/outline';
+import { EyeIcon, EyeSlashIcon, CheckCircleIcon, XCircleIcon } from '@heroicons/react/24/outline';
 import { supabase } from '../lib/supabase';
+import { validatePassword } from '../utils/passwordValidation';
 
 const ResetPasswordPage = () => {
   const [password, setPassword] = useState('');
@@ -11,18 +12,18 @@ const ResetPasswordPage = () => {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
+  const [errors, setErrors] = useState<string[]>([]); // ✅ Password validation errors
   const navigate = useNavigate();
 
   useEffect(() => {
     const handlePasswordReset = async () => {
-      const hash = window.location.hash;
       const query = new URLSearchParams(window.location.search);
       const accessToken = query.get('access_token');
       const refreshToken = query.get('refresh_token');
-      
+
       if (accessToken && refreshToken) {
         try {
-          const { data, error } = await supabase.auth.setSession({
+          const { error } = await supabase.auth.setSession({
             access_token: accessToken,
             refresh_token: refreshToken
           });
@@ -34,29 +35,44 @@ const ResetPasswordPage = () => {
     };
 
     handlePasswordReset();
-  }, [navigate]);
+  }, []);
+
+  // ✅ Validate password on input change
+  useEffect(() => {
+    if (password) {
+      const validation = validatePassword(password);
+      setErrors(validation.errors);
+    } else {
+      setErrors([]);
+    }
+  }, [password]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     setSuccess(false);
 
+    // ✅ Validate password before submitting
+    const validation = validatePassword(password);
+    if (!validation.isValid) {
+      setErrors(validation.errors);
+      return;
+    }
+
     if (password !== confirmPassword) {
-      setError('Passwords do not match');
+      setErrors(['Passwords do not match']);
       return;
     }
 
     try {
       setLoading(true);
-      const { error } = await supabase.auth.updateUser({ 
-        password: password
-      });
+      const { error } = await supabase.auth.updateUser({ password });
 
       if (error) throw error;
 
       setSuccess(true);
       await supabase.auth.signOut();
-      
+
       setTimeout(() => {
         navigate('/login', { 
           state: { message: 'Password has been reset successfully. Please sign in with your new password.' }
@@ -155,10 +171,39 @@ const ResetPasswordPage = () => {
               </div>
             </div>
 
+            {/* ✅ Password Requirements */}
+            {password && (
+              <div className="space-y-2">
+                <h3 className="text-sm font-medium text-gray-700">Password Requirements:</h3>
+                <div className="space-y-1">
+                  <RequirementCheck passed={password.length >= 12} text="At least 12 characters long" />
+                  <RequirementCheck passed={/[A-Z]/.test(password)} text="Contains uppercase letter" />
+                  <RequirementCheck passed={/[a-z]/.test(password)} text="Contains lowercase letter" />
+                  <RequirementCheck passed={/\d/.test(password)} text="Contains number" />
+                  <RequirementCheck passed={/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password)} text="Contains special character" />
+                </div>
+              </div>
+            )}
+
+            {errors.length > 0 && (
+              <div className="rounded-md bg-alert-red/10 p-4">
+                <div className="flex">
+                  <XCircleIcon className="h-5 w-5 text-alert-red" aria-hidden="true" />
+                  <div className="ml-3 text-sm text-alert-red">
+                    <ul className="list-disc pl-5 space-y-1">
+                      {errors.map((error, index) => (
+                        <li key={index}>{error}</li>
+                      ))}
+                    </ul>
+                  </div>
+                </div>
+              </div>
+            )}
+
             <div>
               <button
                 type="submit"
-                disabled={loading || success}
+                disabled={loading || success || errors.length > 0}
                 className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-neural-purple hover:bg-tech-lavender focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-neural-purple disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {loading ? 'Updating password...' : 'Update password'}
@@ -170,5 +215,12 @@ const ResetPasswordPage = () => {
     </div>
   );
 };
+
+const RequirementCheck = ({ passed, text }: { passed: boolean; text: string }) => (
+  <div className="flex items-center space-x-2">
+    {passed ? <CheckCircleIcon className="h-4 w-4 text-growth-green" /> : <XCircleIcon className="h-4 w-4 text-alert-red" />}
+    <span className={`text-sm ${passed ? 'text-growth-green' : 'text-alert-red'}`}>{text}</span>
+  </div>
+);
 
 export default ResetPasswordPage;

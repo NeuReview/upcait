@@ -1,111 +1,192 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { supabase } from '../lib/supabase';
+import { supabase, signInWithGoogle } from '../lib/supabase';
 import { User, AuthError } from '@supabase/supabase-js';
 import { validatePassword } from '../utils/passwordValidation';
 
 interface AuthState {
   user: User | null;
   loading: boolean;
+  otpPending: boolean;
   signIn: (email: string, password: string) => Promise<void>;
+  sendOtp: (email: string) => Promise<void>;
+  verifyOtp: (email: string, token: string) => Promise<void>;
   signUp: (email: string, password: string) => Promise<void>;
-  signOut: () => Promise<void>;
   resetPassword: (email: string) => Promise<void>;
-  checkEmailExists: (email: string) => Promise<boolean>;
+  signOut: () => Promise<void>;
+  googleSignIn: () => Promise<void>;
+  fetchUser: () => Promise<void>;
+  setOtpPending: (pending: boolean) => void;
 }
 
 export const useAuthStore = create<AuthState>()(
   persist(
-    (set) => ({
+    (set, get) => ({
       user: null,
       loading: false,
+      otpPending: false,
+
+      // ✅ Authenticate User with Email & Password
       signIn: async (email: string, password: string) => {
         try {
           set({ loading: true });
-          const { data, error } = await supabase.auth.signInWithPassword({
+
+          const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+          if (error) throw error;
+
+          // ✅ Store OTP pending state ONLY for email/password users
+          set({ user: data.user, otpPending: true });
+          localStorage.setItem('otp-email', email);
+        } catch (error) {
+          throw new Error((error as AuthError).message);
+        } finally {
+          set({ loading: false });
+        }
+      },
+
+      // ✅ Send OTP after successful login
+      sendOtp: async (email: string) => {
+        try {
+          set({ loading: true });
+
+          const { error } = await supabase.auth.signInWithOtp({
             email,
-            password,
+            options: { shouldCreateUser: false }, // ✅ Ensure only existing users receive OTP
           });
 
           if (error) throw error;
-          set({ user: data.user });
         } catch (error) {
-          const authError = error as AuthError;
-          throw new Error(authError.message);
+          throw new Error((error as AuthError).message);
         } finally {
           set({ loading: false });
         }
       },
-      signUp: async (email: string, password: string) => {
-        try {
-          // Validate password
-          const validation = validatePassword(password);
-          if (!validation.isValid) {
-            throw new Error(validation.errors[0]);
-          }
 
+      // ✅ Verify OTP and authenticate user
+      verifyOtp: async (email: string, token: string) => {
+        try {
           set({ loading: true });
-          const { data, error } = await supabase.auth.signUp({
+
+          const { data, error } = await supabase.auth.verifyOtp({
             email,
-            password,
-            options: {
-              emailRedirectTo: `${window.location.origin}/reset-password`
-            }
+            token,
+            type: 'email', // ✅ Ensure we're verifying an email OTP
           });
 
           if (error) throw error;
-          set({ user: data.user });
+
+          // ✅ Set authenticated user after OTP verification
+          set({ user: data.user, otpPending: false });
+          localStorage.removeItem('otp-email'); // ✅ Remove OTP tracking after verification
         } catch (error) {
-          const authError = error as AuthError;
-          throw new Error(authError.message);
+          throw new Error((error as AuthError).message);
         } finally {
           set({ loading: false });
         }
       },
-      signOut: async () => {
-        try {
-          set({ loading: true });
-          const { error } = await supabase.auth.signOut();
-          if (error) throw error;
-          set({ user: null });
-        } catch (error) {
-          const authError = error as AuthError;
-          throw new Error(authError.message);
-        } finally {
-          set({ loading: false });
-        }
-      },
+
+      // ✅ Reset Password
       resetPassword: async (email: string) => {
         try {
           set({ loading: true });
+
           const { error } = await supabase.auth.resetPasswordForEmail(email, {
-            redirectTo: `${window.location.origin}/reset-password`
+            redirectTo: `${window.location.origin}/reset-password`, // Redirect user to reset page
           });
+
           if (error) throw error;
         } catch (error) {
-          const authError = error as AuthError;
-          throw new Error(authError.message);
+          throw new Error((error as AuthError).message);
         } finally {
           set({ loading: false });
         }
       },
-      checkEmailExists: async (email: string) => {
+
+      // ✅ Register a new user
+      signUp: async (email: string, password: string) => {
         try {
-          // Try to send a password reset email - if the email doesn't exist,
-          // Supabase will return an error
-          const { error } = await supabase.auth.resetPasswordForEmail(email, {
-            redirectTo: `${window.location.origin}/reset-password`
+          const validation = validatePassword(password);
+          if (!validation.isValid) throw new Error(validation.errors[0]);
+
+          set({ loading: true });
+
+          const { data, error } = await supabase.auth.signUp({
+            email,
+            password,
+            options: { emailRedirectTo: `${window.location.origin}/reset-password` },
           });
-          
-          // If there's no error, the email exists
-          return !error;
+
+          if (error) throw error;
+
+          set({ user: data.user, otpPending: true }); // ✅ Set OTP required after registration
+          localStorage.setItem('otp-email', email);
         } catch (error) {
-          return false;
+          throw new Error((error as AuthError).message);
+        } finally {
+          set({ loading: false });
         }
       },
+
+      // ✅ Google Sign-In (No OTP Required)
+      googleSignIn: async () => {
+        try {
+          set({ loading: true });
+
+          await signInWithGoogle();
+
+          // ✅ Fetch user after successful Google sign-in
+          const { data } = await supabase.auth.getUser();
+          set({ user: data?.user || null, otpPending: false });
+
+          // ✅ Ensure no OTP is required for Google users
+          localStorage.removeItem('otp-email');
+        } catch (error) {
+          throw new Error((error as AuthError).message);
+        } finally {
+          set({ loading: false });
+        }
+      },
+
+      // ✅ Sign out user
+      signOut: async () => {
+        try {
+          set({ loading: true });
+      
+          const { error } = await supabase.auth.signOut();
+          if (error) throw error;
+      
+          set({ user: null, otpPending: false });
+          localStorage.removeItem('otp-email');
+      
+          // ✅ Redirect to login page after logout
+          window.location.href = '/login';
+        } catch (error) {
+          throw new Error((error as AuthError).message);
+        } finally {
+          set({ loading: false });
+        }
+      },
+
+      // ✅ Fetch authenticated user session
+      fetchUser: async () => {
+        try {
+          set({ loading: true });
+
+          const { data: session } = await supabase.auth.getSession();
+          set({
+            user: session?.session?.user || null,
+            otpPending: localStorage.getItem('otp-email') !== null, // ✅ Set OTP status if email exists
+          });
+        } catch (error) {
+          console.error('Error fetching user session:', error);
+        } finally {
+          set({ loading: false });
+        }
+      },
+
+      // ✅ Set OTP Pending Status (Required in LoginPage.tsx)
+      setOtpPending: (pending: boolean) => set({ otpPending: pending }),
     }),
-    {
-      name: 'auth-storage',
-    }
+    { name: 'auth-storage' }
   )
 );
