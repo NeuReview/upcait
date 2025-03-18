@@ -5,24 +5,25 @@ import { Bars3Icon, XMarkIcon } from '@heroicons/react/24/outline';
 import { useAuthStore } from '../store/authStore';
 
 const Navbar = () => {
-  const { user, signOut } = useAuthStore();
+  const { user, signOut, otpPending } = useAuthStore(); // ✅ Include otpPending
   const navigate = useNavigate();
   const location = useLocation();
 
   const navigation = [
-    ...(user ? [
-      { name: 'Quizzes', href: '/quizzes' },
-      { name: 'Mock Exams', href: '/mock-exams' },
-      { name: 'Flashcards', href: '/flashcards' },
-      { name: 'Dashboard', href: '/dashboard' },
+    ...(user && !otpPending ? [ // ✅ Show links but restrict dashboard access if OTP is pending
+      { name: 'Quizzes', href: otpPending ? '#' : '/quizzes' },
+      { name: 'Mock Exams', href: otpPending ? '#' : '/mock-exams' },
+      { name: 'Flashcards', href: otpPending ? '#' : '/flashcards' },
+      { name: 'Dashboard', href: otpPending ? '#' : '/dashboard' },
     ] : []),
     { name: 'Subscription', href: '/pricing' },
   ];
+   
 
   const handleSignOut = async () => {
     try {
       await signOut();
-      navigate('/');
+      navigate('/login');
     } catch (error) {
       console.error('Error signing out:', error);
     }
@@ -59,7 +60,8 @@ const Navbar = () => {
 
               {/* Desktop auth buttons */}
               <div className="hidden sm:ml-6 sm:flex sm:items-center space-x-4">
-                {user ? (
+                {user && !otpPending ? (
+                  // ✅ Show Email & Sign Out when fully logged in
                   <>
                     <span className="text-sm text-gray-500">
                       {user.email}
@@ -72,6 +74,7 @@ const Navbar = () => {
                     </button>
                   </>
                 ) : (
+                  // ✅ Show "Log in" & "Sign up free" during login/OTP
                   <>
                     <Link
                       to="/login"
@@ -119,7 +122,7 @@ const Navbar = () => {
                 </Link>
               ))}
               {/* Mobile auth buttons */}
-              {user ? (
+              {user && !otpPending ? (
                 <div className="pt-4 pb-3 border-t border-gray-200">
                   <div className="space-y-1">
                     <span className="block pl-3 pr-4 py-2 text-base font-medium text-gray-500">

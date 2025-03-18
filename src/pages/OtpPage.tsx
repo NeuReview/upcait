@@ -1,11 +1,10 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useRef } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { CheckCircleIcon, XCircleIcon } from '@heroicons/react/24/outline';
 import { useAuthStore } from '../store/authStore';
 
-// ✅ Define Prop Type
 interface OtpPageProps {
-  onOtpVerified: () => void; // ✅ Function to update OTP verification status
+  onOtpVerified: () => void;
 }
 
 const OtpPage: React.FC<OtpPageProps> = ({ onOtpVerified }) => {
@@ -13,43 +12,51 @@ const OtpPage: React.FC<OtpPageProps> = ({ onOtpVerified }) => {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [otpSent, setOtpSent] = useState(false); // ✅ Ensures OTP field appears after sending
+  const [otpSent, setOtpSent] = useState(false);
   const navigate = useNavigate();
   const { sendOtp, verifyOtp } = useAuthStore();
   const email = localStorage.getItem('otp-email');
 
   const inputRefs = useRef<HTMLInputElement[]>([]);
 
-  // ✅ Redirect to login if no email is found
-  useEffect(() => {
-    if (!email) {
-      navigate('/login');
-    }
-  }, [email, navigate]);
-
-  // ✅ Handle OTP Input Change
   const handleChange = (index: number, e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value.replace(/\D/, ''); // Only allow numbers
-    if (!value) return;
+    const value = e.target.value.replace(/\D/g, '');
+
+    if (!value) {
+      const newOtp = [...otp];
+      newOtp[index] = '';
+      setOtp(newOtp);
+      return;
+    }
 
     const newOtp = [...otp];
-    newOtp[index] = value[0]; // Allow only one character
-    setOtp(newOtp);
 
-    // Move focus to the next input box
-    if (index < 5 && value) {
-      inputRefs.current[index + 1]?.focus();
+    if (value.length > 1) {
+      const pastedArray = value.split('').slice(0, otp.length);
+      pastedArray.forEach((char, i) => {
+        newOtp[index + i] = char;
+      });
+
+      setOtp(newOtp);
+
+      const lastFilledIndex = Math.min(index + pastedArray.length, otp.length - 1);
+      inputRefs.current[lastFilledIndex]?.focus();
+    } else {
+      newOtp[index] = value[0];
+      setOtp(newOtp);
+
+      if (index < otp.length - 1) {
+        inputRefs.current[index + 1]?.focus();
+      }
     }
   };
 
-  // ✅ Handle OTP Backspace
   const handleKeyDown = (index: number, e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Backspace' && !otp[index] && index > 0) {
       inputRefs.current[index - 1]?.focus();
     }
   };
 
-  // ✅ Send OTP
   const handleSendOtp = async () => {
     setError('');
     setLoading(true);
@@ -64,29 +71,43 @@ const OtpPage: React.FC<OtpPageProps> = ({ onOtpVerified }) => {
     }
   };
 
-  // ✅ Verify OTP
-  const handleVerifyOtp = async (e: React.FormEvent) => {
+  // OtpPage.tsx (partial update)
+const handleVerifyOtp = async (e: React.FormEvent) => {
+  e.preventDefault();
+  setError('');
+  setSuccess(false);
+  setLoading(true);
+
+  const otpValue = otp.join('');
+
+  try {
+    await verifyOtp(email!, otpValue);
+    localStorage.removeItem('otp-email');
+    
+    // ✅ 1. Show success message
+    setSuccess(true); 
+
+    // ✅ 2. Wait 2 seconds for the message to display
+    setTimeout(() => {
+      // ✅ 3. Update OTP verification status and navigate
+      onOtpVerified(); // This sets otpPending to false in App.tsx
+      navigate('/dashboard');
+    }, 2000);
+  } catch (err) {
+    setError(err instanceof Error ? err.message : 'Invalid OTP. Try again.');
+  } finally {
+    setLoading(false);
+  }
+};
+
+  const handlePaste = (e: React.ClipboardEvent<HTMLInputElement>) => {
     e.preventDefault();
-    setError('');
-    setSuccess(false);
-    setLoading(true);
-
-    const otpValue = otp.join('');
-
-    try {
-      await verifyOtp(email!, otpValue);
-      localStorage.removeItem('otp-email');
-      onOtpVerified();
-      setSuccess(true);
-
-      setTimeout(() => {
-        navigate('/dashboard');
-      }, 2000);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Invalid OTP. Try again.');
-    } finally {
-      setLoading(false);
-    }
+    const pastedText = e.clipboardData.getData('text').replace(/\D/g, '');
+    if (!pastedText) return;
+    const newOtp = pastedText.split('').slice(0, otp.length);
+    setOtp(newOtp);
+    const lastFilledIndex = Math.min(newOtp.length - 1, otp.length - 1);
+    inputRefs.current[lastFilledIndex]?.focus();
   };
 
   return (
@@ -112,10 +133,9 @@ const OtpPage: React.FC<OtpPageProps> = ({ onOtpVerified }) => {
           {success && (
             <div className="mb-4 p-2 text-sm text-growth-green bg-growth-green/10 rounded flex items-center">
               <CheckCircleIcon className="h-5 w-5 text-growth-green mr-2" />
-              OTP Verified! Redirecting to dashboard...
+              Your device is successfully verified. Redirecting to dashboard...
             </div>
-          )}
-
+          )}  
           {!otpSent ? (
             <button
               onClick={handleSendOtp}
@@ -126,7 +146,6 @@ const OtpPage: React.FC<OtpPageProps> = ({ onOtpVerified }) => {
             </button>
           ) : (
             <form className="space-y-6" onSubmit={handleVerifyOtp}>
-              {/* ✅ OTP Input Fields */}
               <div className="flex justify-center space-x-3">
                 {otp.map((digit, index) => (
                   <input
@@ -137,6 +156,7 @@ const OtpPage: React.FC<OtpPageProps> = ({ onOtpVerified }) => {
                     value={digit}
                     onChange={(e) => handleChange(index, e)}
                     onKeyDown={(e) => handleKeyDown(index, e)}
+                    onPaste={handlePaste}
                     className="w-12 h-12 border border-gray-300 text-center text-xl rounded-lg focus:ring-neural-purple focus:border-neural-purple outline-none"
                   />
                 ))}
@@ -152,7 +172,6 @@ const OtpPage: React.FC<OtpPageProps> = ({ onOtpVerified }) => {
                 </button>
               </div>
 
-              {/* ✅ Resend & Help Links */}
               <div className="flex justify-between mt-4">
                 <button
                   type="button"

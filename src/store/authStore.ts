@@ -62,28 +62,28 @@ export const useAuthStore = create<AuthState>()(
         }
       },
 
-      // ✅ Verify OTP and authenticate user
-      verifyOtp: async (email: string, token: string) => {
-        try {
-          set({ loading: true });
+      /// authStore.ts (partial update)
+        verifyOtp: async (email: string, token: string) => {
+          try {
+            set({ loading: true });
 
-          const { data, error } = await supabase.auth.verifyOtp({
-            email,
-            token,
-            type: 'email', // ✅ Ensure we're verifying an email OTP
-          });
+            const { data, error } = await supabase.auth.verifyOtp({
+              email,
+              token,
+              type: 'email',
+            });
 
-          if (error) throw error;
+            if (error) throw error;
 
-          // ✅ Set authenticated user after OTP verification
-          set({ user: data.user, otpPending: false });
-          localStorage.removeItem('otp-email'); // ✅ Remove OTP tracking after verification
-        } catch (error) {
-          throw new Error((error as AuthError).message);
-        } finally {
-          set({ loading: false });
-        }
-      },
+            // ✅ Remove `otpPending: false` here
+            set({ user: data.user });
+            localStorage.removeItem('otp-email');
+          } catch (error) {
+            throw new Error((error as AuthError).message);
+          } finally {
+            set({ loading: false });
+          }
+        },
 
       // ✅ Reset Password
       resetPassword: async (email: string) => {
