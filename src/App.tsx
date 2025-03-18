@@ -55,7 +55,8 @@ function App() {
     <Router>
       <div className="min-h-screen bg-gray-50 flex flex-col">
         {/* ✅ Hide Navbar on Preorder Page */}
-        {!isPreorderPage && <Navbar />}
+        {!isPreorderPage && user && !otpPending && window.location.pathname !== '/otp' && <Navbar />}
+
 
         <div className={`${!isPreorderPage ? 'pt-16' : ''} flex-grow`}>
           <Routes>
@@ -91,4 +92,4 @@ function App() {
   );
 }
 
-export default App;
+export default App; 
