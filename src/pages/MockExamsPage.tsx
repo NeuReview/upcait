@@ -204,9 +204,11 @@ const MockExamsPage = () => {
   const [timeRemaining, setTimeRemaining] = useState(examSections[0].timeLimit * 60);
   const [showLeaveConfirmation, setShowLeaveConfirmation] = useState(false);
   const { questions, loading, error, fetchQuestions } = useMockExam();
-  const [correctAnswers, setCorrectAnswers] = useState<Set<number>>(new Set());
+  const [correctAnswers, setCorrectAnswers] = useState<{ [category: string]: Set<number> }>({});
   const [startTime, setStartTime] = useState<number | null>(null);
   const [score, setScore] = useState<ExamScore | null>(null);
+  const [allQuestions, setAllQuestions] = useState<Question[]>([]); // Stores all sections' questions
+
 
   useEffect(() => {
     let timer: number | undefined;
@@ -231,45 +233,46 @@ const MockExamsPage = () => {
   const calculateScore = () => {
     const endTime = Date.now();
     const timeSpent = startTime ? Math.floor((endTime - startTime) / 1000) : 0;
-    
+  
     const categoryScores: { [key: string]: { total: number; correct: number; percentage: number } } = {};
-    
+  
     questions.forEach((q, index) => {
       if (!categoryScores[q.category]) {
         categoryScores[q.category] = { total: 0, correct: 0, percentage: 0 };
       }
+  
       categoryScores[q.category].total++;
-      if (correctAnswers.has(index)) {
+  
+      if (correctAnswers[q.category]?.has(index)) {
         categoryScores[q.category].correct++;
       }
     });
-
-    Object.values(categoryScores).forEach(score => {
-      score.percentage = Math.round((score.correct / score.total) * 100);
+  
+    // Compute percentage scores
+    Object.keys(categoryScores).forEach(category => {
+      const score = categoryScores[category];
+      score.percentage = score.total > 0 ? Math.round((score.correct / score.total) * 100) : 0;
     });
-
-    const totalCorrect = correctAnswers.size;
-    const scoreData: ExamScore = {
+  
+    setScore({
       total: questions.length,
-      correct: totalCorrect,
-      incorrect: questions.length - totalCorrect,
-      percentage: Math.round((totalCorrect / questions.length) * 100),
+      correct: Object.values(correctAnswers).reduce((sum, set) => sum + set.size, 0),
+      incorrect: questions.length - Object.values(correctAnswers).reduce((sum, set) => sum + set.size, 0),
+      percentage: questions.length > 0 ? Math.round((Object.values(correctAnswers).reduce((sum, set) => sum + set.size, 0) / questions.length) * 100) : 0,
       timeSpent,
       categoryScores
-    };
-
-    setScore(scoreData);
+    });
   };
-
+  
   const startExam = async () => {
     try {
-      await fetchQuestions(examSections[currentSection].category);
+      await fetchQuestions(examSections[currentSection].category, false);
       setExamStarted(true);
       setCurrentSection(0);
       setCurrentQuestion(0);
       setSelectedAnswer(null);
       setShowExplanation(false);
-      setCorrectAnswers(new Set());
+      setCorrectAnswers({});
       setScore(null);
       setStartTime(Date.now());
       if (isTimeBased) {
@@ -283,9 +286,15 @@ const MockExamsPage = () => {
   const handleAnswerSelect = (answer: string) => {
     setSelectedAnswer(answer);
     setShowExplanation(true);
-    
+  
     if (answer === questions[currentQuestion].answer) {
-      setCorrectAnswers(prev => new Set(prev).add(currentQuestion));
+      setCorrectAnswers(prev => ({
+        ...prev,
+        [examSections[currentSection].category]: new Set<number>([
+          ...(prev[examSections[currentSection].category] ?? new Set<number>()),
+          currentQuestion
+        ])
+      }));
     }
   };
 
@@ -312,7 +321,8 @@ const MockExamsPage = () => {
     setCurrentQuestion(0);
     setSelectedAnswer(null);
     setShowExplanation(false);
-    setCorrectAnswers(new Set());
+    setCorrectAnswers({});
+
   };
 
   const handleNextQuestion = async () => {
@@ -322,7 +332,7 @@ const MockExamsPage = () => {
       setCurrentQuestion(currentQuestion + 1);
     } else if (currentSection < examSections.length - 1) {
       try {
-        await fetchQuestions(examSections[currentSection + 1].category);
+        await fetchQuestions(examSections[currentSection + 1].category, false);
         setCurrentSection(currentSection + 1);
         setCurrentQuestion(0);
         setSelectedAnswer(null);
@@ -511,12 +521,7 @@ const MockExamsPage = () => {
                   ))}
                 </div>
 
-                {showExplanation && (
-                  <div className="mt-6 p-4 bg-gray-50 rounded-lg">
-                    <h3 className="font-semibold text-gray-900 mb-2">Explanation:</h3>
-                    <p className="text-gray-600">{questions[currentQuestion].explanation}</p>
-                  </div>
-                )}
+                
               </div>
             )}
 
@@ -528,21 +533,8 @@ const MockExamsPage = () => {
                 <ArrowLeftIcon className="w-5 h-5 mr-2" />
                 Leave Exam
               </button>
-              <div className="flex space-x-4">
-                <button
-                  onClick={() => {
-                    setSelectedAnswer(null);
-                    setShowExplanation(false);
-                    if (currentQuestion > 0) {
-                      setCurrentQuestion(currentQuestion - 1);
-                    }
-                  }}
-                  disabled={currentQuestion === 0}
-                  className="px-4 py-2 rounded-lg border border-gray-200 text-gray-600 hover:border-neural-purple disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  Previous
-                </button>
-                {showExplanation && (
+              <div className="flex justify-end">
+                {selectedAnswer && ( // UPDATED: Check only if an answer is selected
                   <button
                     onClick={handleNextQuestion}
                     className="px-4 py-2 rounded-lg bg-neural-purple text-white hover:bg-tech-lavender"
