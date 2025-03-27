@@ -6,7 +6,7 @@ interface UseMockExamReturn {
   questions: Question[];
   loading: boolean;
   error: string | null;
-  fetchQuestions: (category: string) => Promise<void>;
+  fetchQuestions: (category: string, append?: boolean) => Promise<void>; // ✅ Now allows 2 arguments
   updateUserStats: (correctAnswers: number, totalAnswers: number) => Promise<void>;
 }
 
@@ -15,27 +15,29 @@ export function useMockExam(): UseMockExamReturn {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchQuestions = useCallback(async (category: string) => {
+  const fetchQuestions = useCallback(async (category: string, append: boolean = false) => {
     try {
       setLoading(true);
       setError(null);
-
+  
       const { data, error: supabaseError } = await supabase
         .from('question_bank')
         .select('*')
         .eq('category', category)
-        .limit(20);
-
+        .limit(1);
+  
       if (supabaseError) throw supabaseError;
-
+  
       if (!data || data.length === 0) {
         throw new Error(`No questions found for ${category}. Please try a different category.`);
       }
-
+  
       // Shuffle questions
       const shuffledQuestions = [...data].sort(() => Math.random() - 0.5);
-      setQuestions(shuffledQuestions);
-
+  
+      // Append new questions if append = true; otherwise, replace
+      setQuestions(prevQuestions => append ? [...prevQuestions, ...shuffledQuestions] : shuffledQuestions); 
+  
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'An unknown error occurred';
       setError(errorMessage);
@@ -44,6 +46,7 @@ export function useMockExam(): UseMockExamReturn {
       setLoading(false);
     }
   }, []);
+  
 
   const updateUserStats = async (correctAnswers: number, totalAnswers: number) => {
     try {
