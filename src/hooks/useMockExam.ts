@@ -6,8 +6,9 @@ interface UseMockExamReturn {
   questions: Question[];
   loading: boolean;
   error: string | null;
-  fetchQuestions: (category: string, append?: boolean) => Promise<void>; // ✅ Now allows 2 arguments
+  fetchQuestions: (category: string, append?: boolean) => Promise<void>;
   updateUserStats: (correctAnswers: number, totalAnswers: number) => Promise<void>;
+  clearError: () => void; // ✅ Added
 }
 
 export function useMockExam(): UseMockExamReturn {
@@ -15,79 +16,138 @@ export function useMockExam(): UseMockExamReturn {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchQuestions = useCallback(async (category: string, append: boolean = false) => {
-    try {
-      setLoading(true);
-      setError(null);
-  
-      const { data, error: supabaseError } = await supabase
-        .from('question_bank')
-        .select('*')
-        .eq('category', category)
-        .limit(1);
-  
-      if (supabaseError) throw supabaseError;
-  
-      if (!data || data.length === 0) {
-        throw new Error(`No questions found for ${category}. Please try a different category.`);
+  const normalizeQuestion = (q: any, category: string) => ({
+    question_id: q.question_id,
+    question: q.question,
+    option_a: q.option_a || q.option_A,
+    option_b: q.option_b || q.option_B,
+    option_c: q.option_c || q.option_C,
+    option_d: q.option_d || q.option_D,
+    answer: q.answer,
+    explanation: q.explanation || 'No explanation provided.',
+    category,
+  });
+
+  const fetchQuestions = useCallback(
+    async (category: string, append: boolean = false) => {
+      try {
+        setLoading(true);
+        setError(null);
+
+        let data: any[] = [];
+
+        if (category === 'Language Proficiency') {
+          const { data: englishData, error: englishError } = await supabase
+            .from('question_bank_english_lang_prof')
+            .select('*')
+            .limit(2);
+
+          if (englishError) throw englishError;
+
+          const { data: filipinoData, error: filipinoError } = await supabase
+            .from('question_bank_filipino_lang_prof')
+            .select('*')
+            .limit(2);
+
+          if (filipinoError) throw filipinoError;
+
+          data = [
+            ...englishData.map((q) => normalizeQuestion(q, 'Language Proficiency')),
+            ...filipinoData.map((q) => normalizeQuestion(q, 'Language Proficiency')),
+          ];
+        } else if (category === 'Mathematics') {
+          const { data: mathData, error: mathError } = await supabase
+            .from('question_bank_math')
+            .select('*')
+            .limit(2);
+
+          if (mathError) throw mathError;
+
+          data = mathData.map((q) => normalizeQuestion(q, 'Mathematics'));
+        } else if (category === 'Science') {
+          const { data: scienceData, error: scienceError } = await supabase
+            .from('question_bank_science')
+            .select('*')
+            .limit(2);
+
+          if (scienceError) throw scienceError;
+
+          data = scienceData.map((q) => normalizeQuestion(q, 'Science'));
+        } else if (category === 'Reading Comprehension') {
+          const { data: readingData, error: readingError } = await supabase
+            .from('question_bank')
+            .select('*')
+            .eq('category', 'Reading Comprehension')
+            .limit(2);
+
+          if (readingError) throw readingError;
+
+          data = readingData.map((q) => normalizeQuestion(q, 'Reading Comprehension'));
+        } else {
+          throw new Error(`Unknown category: ${category}`);
+        }
+
+        if (!data || data.length === 0) {
+          throw new Error(`No questions found for ${category}.`);
+        }
+
+        // Shuffle
+        const shuffled = data.sort(() => Math.random() - 0.5);
+
+        setQuestions((prev) => (append ? [...prev, ...shuffled] : shuffled));
+      } catch (err) {
+        const errorMessage = err instanceof Error ? err.message : 'Unknown error';
+        setError(errorMessage);
+        setQuestions([]);
+      } finally {
+        setLoading(false);
       }
-  
-      // Shuffle questions
-      const shuffledQuestions = [...data].sort(() => Math.random() - 0.5);
-  
-      // Append new questions if append = true; otherwise, replace
-      setQuestions(prevQuestions => append ? [...prevQuestions, ...shuffledQuestions] : shuffledQuestions); 
-  
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'An unknown error occurred';
-      setError(errorMessage);
-      setQuestions([]);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-  
+    },
+    []
+  );
 
   const updateUserStats = async (correctAnswers: number, totalAnswers: number) => {
     try {
-      const user = supabase.auth.getUser();
-      if (!user) return;
+      const user = await supabase.auth.getUser();
+      if (!user.data.user) return;
 
       const { data: existingStats, error: fetchError } = await supabase
         .from('user_statistics')
         .select('*')
-        .eq('user_id', (await user).data.user?.id)
+        .eq('user_id', user.data.user.id)
         .single();
 
       if (fetchError && fetchError.code !== 'PGRST116') throw fetchError;
 
       if (existingStats) {
-        // Update existing stats
         const { error: updateError } = await supabase
           .from('user_statistics')
           .update({
             questions_answered: existingStats.questions_answered + totalAnswers,
-            correct_answers: existingStats.correct_answers + correctAnswers
+            correct_answers: existingStats.correct_answers + correctAnswers,
           })
-          .eq('user_id', (await user).data.user?.id);
+          .eq('user_id', user.data.user.id);
 
         if (updateError) throw updateError;
       } else {
-        // Create new stats
         const { error: insertError } = await supabase
           .from('user_statistics')
-          .insert([{
-            user_id: (await user).data.user?.id,
-            questions_answered: totalAnswers,
-            correct_answers: correctAnswers
-          }]);
+          .insert([
+            {
+              user_id: user.data.user.id,
+              questions_answered: totalAnswers,
+              correct_answers: correctAnswers,
+            },
+          ]);
 
         if (insertError) throw insertError;
       }
     } catch (err) {
-      console.error('Error updating user statistics:', err);
+      console.error('Error updating user stats:', err);
     }
   };
 
-  return { questions, loading, error, fetchQuestions, updateUserStats };
+  const clearError = () => setError(null); // ✅ Added
+
+  return { questions, loading, error, fetchQuestions, updateUserStats, clearError };
 }

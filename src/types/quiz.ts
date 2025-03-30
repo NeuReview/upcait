@@ -1,7 +1,6 @@
 export interface Question {
   question_id: number;
   category: string;
-  difficulty_level: string;
   question: string;
   option_a: string;
   option_b: string;
@@ -9,8 +8,9 @@ export interface Question {
   option_d: string;
   answer: string;
   explanation: string;
-  created_at?: string;
+  difficulty_level: string; // ⬅️ REQUIRED
 }
+
 
 export type QuizState = {
   questions: Question[];
