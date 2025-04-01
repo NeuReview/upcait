@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { 
   AcademicCapIcon, 
   ChartBarIcon, 
@@ -10,6 +10,10 @@ import {
   CheckCircleIcon
 } from '@heroicons/react/24/outline';
 import UserProfile from '../components/UserProfile';
+import { useAuthStore } from '../store/authStore';
+import { useMasteryStore } from '../store/masteryStore';
+import { useSkillsStore } from '../store/skillsStore';
+import MasteryRadarChart from '../components/MasteryRadarChart';
 
 // Sample data for demonstration
 const studentData = {
@@ -35,10 +39,10 @@ const studentData = {
     totalQuestions: 1000,
     accuracyRate: 68,
     subjectMastery: {
-      math: 60,
-      science: 75,
-      english: 80,
-      reading: 70,
+      'Math': 60,
+      'Science': 75,
+      'Reading Comprehension': 80,
+      'Language Proficiency': 70,
     },
     weeklyProgress: {
       lastWeek: 58,
@@ -52,6 +56,20 @@ const studentData = {
 };
 
 const DashboardPage = () => {
+  const { user } = useAuthStore();
+  const { masteryData, loading: masteryLoading, fetchMasteryData } = useMasteryStore();
+  const { skillsData, loading: skillsLoading, fetchSkillsData } = useSkillsStore();
+
+  useEffect(() => {
+    if (user) {
+      fetchMasteryData(user.id);
+    }
+  }, [user, fetchMasteryData]);
+
+  useEffect(() => {
+    fetchSkillsData();
+  }, [fetchSkillsData]);
+
   return (
     <div className="min-h-screen bg-gray-50 py-6">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -216,6 +234,11 @@ const DashboardPage = () => {
               ))}
             </div>
           </div>
+        </div>
+
+        {/* Professional Skills Radar Chart */}
+        <div className="mt-6">
+          <MasteryRadarChart data={skillsData} loading={skillsLoading} />
         </div>
 
         {/* Events and Newsletter */}

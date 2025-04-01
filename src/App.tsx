@@ -21,7 +21,7 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const { user } = useAuthStore();
 
   if (!user) {
-    return <Navigate to="/preorder" replace />;
+    return <Navigate to="/login" replace />;
   }
 
   return <>{children}</>;
@@ -40,26 +40,23 @@ const AuthRoute = ({ children }: { children: React.ReactNode }) => {
 
 function App() {
   const { user } = useAuthStore();
-  const isPreorderPage = window.location.pathname === '/preorder' || 
-                        (!user && window.location.pathname === '/');
+  const isPreorderPage = window.location.pathname === '/preorder';
 
   return (
     <Router>
       <div className="min-h-screen bg-gray-50 flex flex-col">
-        {/* Only show Navbar if not on preorder page */}
+        {/* Show Navbar on all pages except preorder */}
         {!isPreorderPage && <Navbar />}
         
         <div className={`${!isPreorderPage ? 'pt-16' : ''} flex-grow`}>
           <Routes>
-            {/* Redirect root to preorder for non-logged in users */}
-            <Route path="/" element={
-              user ? <HomePage /> : <Navigate to="/preorder" replace />
-            } />
+            {/* Homepage is accessible to all */}
+            <Route path="/" element={<HomePage />} />
             
             {/* Public PreOrder page - completely standalone */}
             <Route path="/preorder" element={<PreOrderPage />} />
             
-            {/* Auth Routes - not accessible from preorder page */}
+            {/* Auth Routes */}
             <Route path="/login" element={
               <AuthRoute>
                 <LoginPage />

@@ -1,10 +1,16 @@
 import { create } from 'zustand';
 import { supabase } from '../lib/supabase';
-import type { Database } from '../types/supabase';
 
-type Profile = Database['public']['Tables']['profiles']['Row'];
+interface Profile {
+  id: number;
+  created_at: string;
+  user_id: string;
+  user_fullname: string | null;
+  user_year_level: string | null;
+  user_school: string | null;
+}
 
-interface ProfileState {
+interface ProfileStore {
   profile: Profile | null;
   loading: boolean;
   error: string | null;
@@ -12,7 +18,7 @@ interface ProfileState {
   updateProfile: (userId: string, data: Partial<Profile>) => Promise<void>;
 }
 
-export const useProfileStore = create<ProfileState>((set) => ({
+export const useProfileStore = create<ProfileStore>((set) => ({
   profile: null,
   loading: false,
   error: null,
@@ -22,18 +28,16 @@ export const useProfileStore = create<ProfileState>((set) => ({
       set({ loading: true, error: null });
       
       const { data, error } = await supabase
-        .from('profiles')
+        .from('user_profile')
         .select('*')
         .eq('user_id', userId)
-        .single();
+        .maybeSingle();
 
       if (error) throw error;
-      set({ profile: data });
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Failed to fetch profile';
-      set({ error: errorMessage });
-    } finally {
-      set({ loading: false });
+
+      set({ profile: data, loading: false });
+    } catch (error: any) {
+      set({ error: error.message, loading: false });
     }
   },
 
@@ -42,38 +46,28 @@ export const useProfileStore = create<ProfileState>((set) => ({
       set({ loading: true, error: null });
 
       const { data: existingProfile } = await supabase
-        .from('profiles')
-        .select('*')
+        .from('user_profile')
+        .select('id')
         .eq('user_id', userId)
+        .maybeSingle();
+
+      const { data, error } = await supabase
+        .from('user_profile')
+        .upsert({
+          ...(existingProfile?.id ? { id: existingProfile.id } : {}),
+          user_id: userId,
+          user_fullname: profileData.user_fullname,
+          user_year_level: profileData.user_year_level,
+          user_school: profileData.user_school,
+        })
+        .select()
         .single();
 
-      if (existingProfile) {
-        // Update existing profile
-        const { data, error } = await supabase
-          .from('profiles')
-          .update(profileData)
-          .eq('user_id', userId)
-          .select()
-          .single();
+      if (error) throw error;
 
-        if (error) throw error;
-        set({ profile: data });
-      } else {
-        // Create new profile
-        const { data, error } = await supabase
-          .from('profiles')
-          .insert([{ user_id: userId, ...profileData }])
-          .select()
-          .single();
-
-        if (error) throw error;
-        set({ profile: data });
-      }
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Failed to update profile';
-      set({ error: errorMessage });
-    } finally {
-      set({ loading: false });
+      set({ profile: data, loading: false });
+    } catch (error: any) {
+      set({ error: error.message, loading: false });
     }
-  }
+  },
 }));

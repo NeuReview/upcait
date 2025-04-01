@@ -1,5 +1,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
+import { useAuthStore } from '../store/authStore';
+import GeometricShapes from '../components/GeometricShapes';
 import { 
   AcademicCapIcon, 
   BeakerIcon, 
@@ -9,7 +11,10 @@ import {
   LightBulbIcon,
   CpuChipIcon,
   RocketLaunchIcon,
-  BoltIcon
+  BoltIcon,
+  PlayCircleIcon,
+  BookOpenIcon,
+  CheckCircleIcon
 } from '@heroicons/react/24/outline';
 import Leaderboard from '../components/Leaderboard';
 
@@ -83,38 +88,69 @@ const plans = [
 ];
 
 const HomePage = () => {
+  const { user } = useAuthStore();
+
   return (
     <div className="min-h-screen">
-      {/* Hero Section with Neural Network Background */}
+      {/* Enhanced Hero Section */}
       <div className="relative overflow-hidden bg-gradient-to-br from-neural-purple via-tech-lavender to-white">
+        <GeometricShapes />
         <div className="absolute inset-0 neural-bg opacity-10"></div>
         <div className="absolute inset-0 bg-gradient-to-b from-white/0 via-white/0 to-white"></div>
-        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-16 pb-20 lg:pt-24 lg:pb-28">
-          <div className="text-center lg:text-left lg:grid lg:grid-cols-2 lg:gap-12 items-center">
-            <div>
+        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-20 pb-24 lg:pt-32 lg:pb-36">
+          <div className="text-center lg:text-left lg:grid lg:grid-cols-12 lg:gap-8 items-center">
+            <div className="col-span-7">
               <h1 className="text-4xl tracking-tight font-bold text-white sm:text-5xl md:text-6xl lg:text-5xl xl:text-6xl">
-                <span className="block">Your AI-Powered</span>
-                <span className="block text-success-gold">UPCAT Journey</span>
+                <span className="block">Prepare for UPCAT</span>
+                <span className="block text-success-gold">with AI-Powered Learning</span>
               </h1>
-              <p className="mt-6 text-lg text-white/90 max-w-xl">
-                Transform your UPCAT preparation with personalized AI learning paths, comprehensive study materials, and real-time progress tracking.
+              <p className="mt-6 text-xl text-white/90 max-w-2xl">
+                Join thousands of students who have transformed their UPCAT preparation with UPCAiT's personalized learning experience.
               </p>
-              <div className="mt-8 sm:flex sm:justify-center lg:justify-start space-x-4">
-                <Link
-                  to="/register"
-                  className="btn-primary bg-white text-neural-purple hover:bg-success-gold hover:text-white"
-                >
-                  Start Free Trial
-                </Link>
-                <Link
-                  to="/login"
-                  className="btn-secondary border-white text-white hover:bg-white/10"
-                >
-                  Learn More
-                </Link>
+              <div className="mt-8 flex flex-col sm:flex-row gap-4 justify-center lg:justify-start">
+                {!user ? (
+                  <>
+                    <Link
+                      to="/register"
+                      className="btn-primary bg-white text-neural-purple hover:bg-success-gold hover:text-white flex items-center justify-center gap-2"
+                    >
+                      <RocketLaunchIcon className="w-5 h-5" />
+                      Start Free Trial
+                    </Link>
+                    <Link
+                      to="/login"
+                      className="btn-secondary border-white text-white hover:bg-white/10 flex items-center justify-center gap-2"
+                    >
+                      <PlayCircleIcon className="w-5 h-5" />
+                      Watch Demo
+                    </Link>
+                  </>
+                ) : (
+                  <Link
+                    to="/dashboard"
+                    className="btn-primary bg-white text-neural-purple hover:bg-success-gold hover:text-white flex items-center justify-center gap-2"
+                  >
+                    <ArrowRightIcon className="w-5 h-5" />
+                    Go to Dashboard
+                  </Link>
+                )}
+              </div>
+              <div className="mt-12 grid grid-cols-3 gap-4">
+                <div className="text-center">
+                  <div className="text-3xl font-bold text-white">10k+</div>
+                  <div className="text-sm text-white/80">Active Students</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-3xl font-bold text-white">95%</div>
+                  <div className="text-sm text-white/80">Success Rate</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-3xl font-bold text-white">24/7</div>
+                  <div className="text-sm text-white/80">AI Support</div>
+                </div>
               </div>
             </div>
-            <div className="mt-12 lg:mt-0">
+            <div className="col-span-5 mt-12 lg:mt-0">
               <div className="bg-white/90 backdrop-blur-sm rounded-2xl shadow-neural p-8 transform hover:-translate-y-1 transition-all duration-300">
                 <div className="space-y-6">
                   <div className="flex items-center space-x-4">
@@ -123,20 +159,31 @@ const HomePage = () => {
                     </div>
                     <div className="flex-1">
                       <h3 className="text-xl font-semibold text-gray-900">AI-Powered Learning</h3>
+                      <p className="text-sm text-gray-600">Personalized for your success</p>
                     </div>
                   </div>
                   <div className="space-y-4">
                     <div className="bg-gray-50/80 p-4 rounded-lg">
-                      <p className="text-sm text-gray-600">Personalizing your study path...</p>
-                      <div className="w-full bg-gray-200 rounded-full h-2 mt-2">
+                      <div className="flex items-center gap-2 mb-2">
+                        <BookOpenIcon className="w-5 h-5 text-neural-purple" />
+                        <span className="text-sm font-medium text-gray-900">Learning Progress</span>
+                      </div>
+                      <div className="w-full bg-gray-200 rounded-full h-2">
                         <div className="bg-gradient-to-r from-neural-purple to-tech-lavender h-2 rounded-full animate-progress" style={{ width: '60%' }}></div>
                       </div>
                     </div>
-                    {/* Neural Network Animation */}
-                    <div className="relative h-32 bg-gradient-to-br from-neural-purple/5 to-tech-lavender/5 rounded-lg overflow-hidden">
-                      <div className="absolute inset-0 neural-bg opacity-20"></div>
-                      <div className="absolute inset-0 flex items-center justify-center">
-                        <BoltIcon className="w-12 h-12 text-neural-purple animate-float" />
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="bg-gray-50/80 p-4 rounded-lg">
+                        <div className="flex items-center gap-2">
+                          <CheckCircleIcon className="w-5 h-5 text-growth-green" />
+                          <span className="text-sm text-gray-900">Smart Quizzes</span>
+                        </div>
+                      </div>
+                      <div className="bg-gray-50/80 p-4 rounded-lg">
+                        <div className="flex items-center gap-2">
+                          <ChartBarIcon className="w-5 h-5 text-energy-orange" />
+                          <span className="text-sm text-gray-900">Analytics</span>
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -147,9 +194,49 @@ const HomePage = () => {
         </div>
       </div>
 
+      {/* Quick Benefits Section */}
+      <div className="bg-white py-12 relative overflow-hidden">
+        <div className="absolute inset-0 opacity-30">
+          <GeometricShapes />
+        </div>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            <div className="flex items-center gap-4 p-6 rounded-xl bg-neural-purple/5 border border-neural-purple/10">
+              <div className="w-12 h-12 rounded-full bg-neural-purple/10 flex items-center justify-center">
+                <CpuChipIcon className="w-6 h-6 text-neural-purple" />
+              </div>
+              <div>
+                <h3 className="font-semibold text-gray-900">AI-Powered</h3>
+                <p className="text-sm text-gray-600">Personalized learning path</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-4 p-6 rounded-xl bg-tech-lavender/5 border border-tech-lavender/10">
+              <div className="w-12 h-12 rounded-full bg-tech-lavender/10 flex items-center justify-center">
+                <BookOpenIcon className="w-6 h-6 text-tech-lavender" />
+              </div>
+              <div>
+                <h3 className="font-semibold text-gray-900">Comprehensive</h3>
+                <p className="text-sm text-gray-600">Complete UPCAT coverage</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-4 p-6 rounded-xl bg-success-gold/5 border border-success-gold/10">
+              <div className="w-12 h-12 rounded-full bg-success-gold/10 flex items-center justify-center">
+                <ChartBarIcon className="w-6 h-6 text-success-gold" />
+              </div>
+              <div>
+                <h3 className="font-semibold text-gray-900">Track Progress</h3>
+                <p className="text-sm text-gray-600">Real-time analytics</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
       {/* Add Leaderboard Section after Hero */}
-      <div className="py-16 bg-gradient-to-br from-neural-purple/5 to-tech-lavender/5 relative">
-        <div className="absolute inset-0 neural-bg opacity-5"></div>
+      <div className="py-16 bg-gradient-to-br from-neural-purple/5 to-tech-lavender/5 relative overflow-hidden">
+        <div className="absolute inset-0 opacity-20">
+          <GeometricShapes />
+        </div>
         <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-12">
             <h2 className="text-base text-neural-purple font-semibold tracking-wide uppercase">Top Performers</h2>
@@ -166,7 +253,9 @@ const HomePage = () => {
 
       {/* Features Section with Enhanced Visual Elements */}
       <div className="py-16 bg-white relative overflow-hidden">
-        <div className="absolute inset-0 neural-bg opacity-5"></div>
+        <div className="absolute inset-0 opacity-30">
+          <GeometricShapes />
+        </div>
         <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-12">
             <h2 className="text-base text-neural-purple font-semibold tracking-wide uppercase">Features</h2>
@@ -189,8 +278,10 @@ const HomePage = () => {
       </div>
 
       {/* Testimonials Section with Enhanced Design */}
-      <div className="py-16 bg-gradient-to-br from-neural-purple/5 to-tech-lavender/5 relative">
-        <div className="absolute inset-0 neural-bg opacity-5"></div>
+      <div className="py-16 bg-gradient-to-br from-neural-purple/5 to-tech-lavender/5 relative overflow-hidden">
+        <div className="absolute inset-0 opacity-20">
+          <GeometricShapes />
+        </div>
         <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-12">
             <h2 className="text-3xl font-bold text-gray-900">What Our Students Say</h2>
@@ -214,7 +305,9 @@ const HomePage = () => {
 
       {/* Pricing Section with Enhanced Visual Elements */}
       <div className="py-16 bg-white relative overflow-hidden">
-        <div className="absolute inset-0 neural-bg opacity-5"></div>
+        <div className="absolute inset-0 opacity-30">
+          <GeometricShapes />
+        </div>
         <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-12">
             <h2 className="text-3xl font-bold text-gray-900">Choose Your Plan</h2>
@@ -262,7 +355,9 @@ const HomePage = () => {
 
       {/* CTA Section with Enhanced Design */}
       <div className="bg-gradient-to-br from-neural-purple to-tech-lavender py-16 relative overflow-hidden">
-        <div className="absolute inset-0 neural-bg opacity-10"></div>
+        <div className="absolute inset-0 opacity-20">
+          <GeometricShapes />
+        </div>
         <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <h2 className="text-3xl font-bold text-white mb-8">
             Start Your UPCAT Journey Today

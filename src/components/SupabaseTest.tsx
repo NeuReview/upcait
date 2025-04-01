@@ -18,7 +18,7 @@ const SupabaseTest = () => {
         setTestResults(results);
 
         // If all tests passed, fetch some sample questions
-        if (results.every(r => r.success)) {
+        if (results.every((r: ConnectionTestResult) => r.success)) {
           const { data, error: fetchError } = await supabase
             .from('question_bank')
             .select('*')
@@ -148,7 +148,7 @@ const SupabaseTest = () => {
                 <h3 className="text-sm font-semibold text-gray-700 mb-2">Data Issues Found</h3>
                 <div className="bg-alert-red/5 p-4 rounded-lg border border-alert-red/20">
                   <ul className="space-y-2">
-                    {diagnostics.dataIssues.map((issue) => (
+                    {diagnostics.dataIssues.map((issue: { question_id: number; category: string; difficulty_level: string }) => (
                       <li key={issue.question_id} className="text-sm text-alert-red">
                         Question ID {issue.question_id}: {issue.category} ({issue.difficulty_level})
                       </li>

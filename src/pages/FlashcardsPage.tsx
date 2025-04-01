@@ -9,12 +9,20 @@ import {
   BookOpenIcon,
   LanguageIcon,
   ExclamationTriangleIcon,
+  ArrowUturnLeftIcon,
+  SparklesIcon,
   CheckCircleIcon,
   XCircleIcon
 } from '@heroicons/react/24/outline';
 import { useFlashcards } from '../hooks/useFlashcards';
 
 const topics = [
+  {
+    id: 'General',
+    name: 'General',
+    icon: SparklesIcon,
+    description: 'Mixed questions from all categories'
+  },
   {
     id: 'Reading Comprehension',
     name: 'Reading Comprehension',
@@ -45,11 +53,17 @@ const FlashcardsPage = () => {
   const [isStarted, setIsStarted] = useState(false);
   const [selectedTopic, setSelectedTopic] = useState('');
   const [currentCard, setCurrentCard] = useState(0);
-  const [selectedAnswer, setSelectedAnswer] = useState<string | null>(null);
-  const [showAnswer, setShowAnswer] = useState(false);
+  const [isFlipped, setIsFlipped] = useState(false);
   const [isTimeBased, setIsTimeBased] = useState(false);
   const [timeRemaining, setTimeRemaining] = useState(15 * 60);
+  const [selectedChoice, setSelectedChoice] = useState<string | null>(null);
   const { flashcards, loading, error, fetchFlashcards } = useFlashcards();
+
+  // Reset selected choice when moving to next/previous card
+  useEffect(() => {
+    setSelectedChoice(null);
+    setIsFlipped(false);
+  }, [currentCard]);
 
   useEffect(() => {
     let timer: number | undefined;
@@ -59,7 +73,6 @@ const FlashcardsPage = () => {
         setTimeRemaining(prev => {
           if (prev <= 1) {
             clearInterval(timer);
-            setIsStarted(false);
             return 0;
           }
           return prev - 1;
@@ -79,8 +92,8 @@ const FlashcardsPage = () => {
       await fetchFlashcards(selectedTopic);
       setIsStarted(true);
       setCurrentCard(0);
-      setSelectedAnswer(null);
-      setShowAnswer(false);
+      setIsFlipped(false);
+      setSelectedChoice(null);
       if (isTimeBased) {
         setTimeRemaining(15 * 60);
       }
@@ -92,36 +105,34 @@ const FlashcardsPage = () => {
   const nextCard = () => {
     if (currentCard < flashcards.length - 1) {
       setCurrentCard(currentCard + 1);
-      setSelectedAnswer(null);
-      setShowAnswer(false);
+      setIsFlipped(false);
+      setSelectedChoice(null);
     }
   };
 
   const previousCard = () => {
     if (currentCard > 0) {
       setCurrentCard(currentCard - 1);
-      setSelectedAnswer(null);
-      setShowAnswer(false);
+      setIsFlipped(false);
+      setSelectedChoice(null);
     }
   };
 
-  const shuffleCards = async () => {
-    if (!selectedTopic) return;
-    setCurrentCard(0);
-    setSelectedAnswer(null);
-    setShowAnswer(false);
-    await fetchFlashcards(selectedTopic);
+  const handleKeyPress = (e: KeyboardEvent) => {
+    if (e.key === 'ArrowRight') nextCard();
+    if (e.key === 'ArrowLeft') previousCard();
+    if (e.key === ' ') setIsFlipped(!isFlipped);
   };
+
+  useEffect(() => {
+    window.addEventListener('keydown', handleKeyPress);
+    return () => window.removeEventListener('keydown', handleKeyPress);
+  }, [currentCard, isFlipped]);
 
   const formatTime = (seconds: number) => {
     const minutes = Math.floor(seconds / 60);
     const remainingSeconds = seconds % 60;
     return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
-  };
-
-  const handleAnswerSelect = (answer: string) => {
-    setSelectedAnswer(answer);
-    setShowAnswer(true);
   };
 
   if (loading) {
@@ -143,10 +154,10 @@ const FlashcardsPage = () => {
             <div className="text-center">
               <h1 className="text-3xl font-bold text-gray-900">Flashcards</h1>
               <p className="mt-2 text-gray-600">
-                Test your knowledge with randomized flashcards
+                Test your knowledge with interactive flashcards
               </p>
               <p className="mt-1 text-sm text-gray-500">
-                Click cards to flip • Swipe or use arrow keys to navigate
+                Click to flip • Use arrow keys to navigate • Space to flip
               </p>
             </div>
 
@@ -160,7 +171,6 @@ const FlashcardsPage = () => {
               </div>
             )}
 
-            {/* Topic Selection */}
             <div>
               <h2 className="text-xl font-semibold text-gray-900 mb-4">Select Topic</h2>
               <div className="grid md:grid-cols-2 gap-4">
@@ -192,7 +202,6 @@ const FlashcardsPage = () => {
               </div>
             </div>
 
-            {/* Timer Option */}
             <div className="flex items-center justify-center space-x-4">
               <label className="flex items-center space-x-2">
                 <input
@@ -205,7 +214,6 @@ const FlashcardsPage = () => {
               </label>
             </div>
 
-            {/* Start Button */}
             <div className="text-center">
               <button
                 onClick={startSession}
@@ -221,12 +229,17 @@ const FlashcardsPage = () => {
             </div>
           </div>
         ) : (
-          <div className="max-w-3xl mx-auto space-y-6">
-            {/* Progress and Controls */}
+          <div className="max-w-3xl mx-auto space-y-8">
+            {/* Progress Bar */}
             <div className="bg-white rounded-lg shadow-md p-4">
               <div className="flex justify-between items-center">
                 <div className="text-gray-600">
                   Card {currentCard + 1} of {flashcards.length}
+                  {selectedTopic === 'General' && flashcards[currentCard] && (
+                    <span className="ml-2 text-sm text-neural-purple">
+                      ({flashcards[currentCard].category})
+                    </span>
+                  )}
                 </div>
                 <div className="flex items-center space-x-4">
                   {isTimeBased && (
@@ -236,7 +249,12 @@ const FlashcardsPage = () => {
                     </div>
                   )}
                   <button
-                    onClick={shuffleCards}
+                    onClick={() => {
+                      setCurrentCard(0);
+                      setIsFlipped(false);
+                      setSelectedChoice(null);
+                      fetchFlashcards(selectedTopic);
+                    }}
                     className="text-neural-purple hover:text-tech-lavender"
                   >
                     <ArrowPathIcon className="w-5 h-5" />
@@ -253,91 +271,139 @@ const FlashcardsPage = () => {
               </div>
             </div>
 
-            {/* Question Card */}
             {flashcards[currentCard] && (
-              <div className="bg-white rounded-lg shadow-lg overflow-hidden">
+              <div className="space-y-8">
                 {/* Question */}
-                <div className="p-8">
-                  <h2 className="text-2xl font-semibold text-gray-900 text-center">
+                <div className="bg-white rounded-lg shadow-lg p-6">
+                  <h2 className="text-xl font-semibold text-gray-900">
                     {flashcards[currentCard].question}
                   </h2>
                 </div>
 
-                {/* Options */}
-                <div className="p-6 space-y-3">
+                {/* Choices */}
+                <div className="grid grid-cols-1 gap-4">
                   {[
                     { key: 'A', value: flashcards[currentCard].option_a },
                     { key: 'B', value: flashcards[currentCard].option_b },
                     { key: 'C', value: flashcards[currentCard].option_c },
-                    { key: 'D', value: flashcards[currentCard].option_d },
+                    { key: 'D', value: flashcards[currentCard].option_d }
                   ].map((option) => (
                     <button
                       key={option.key}
-                      onClick={() => handleAnswerSelect(option.key)}
-                      disabled={showAnswer}
-                      className={`w-full p-4 rounded-lg border-2 text-left transition-all duration-200 ${
-                        selectedAnswer === option.key
-                          ? option.key === flashcards[currentCard].answer
-                            ? 'border-growth-green bg-growth-green/10'
-                            : 'border-alert-red bg-alert-red/10'
-                          : 'border-gray-200 hover:border-neural-purple'
-                      }`}
+                      onClick={() => {
+                        setSelectedChoice(option.key);
+                        if (!isFlipped) setIsFlipped(true);
+                      }}
+                      className={`group relative transition-all duration-300 ${
+                        selectedChoice === option.key
+                          ? isFlipped
+                            ? option.key === flashcards[currentCard].answer
+                              ? 'bg-growth-green/10 border-growth-green'
+                              : 'bg-alert-red/10 border-alert-red'
+                            : 'bg-neural-purple/10 border-neural-purple'
+                          : 'bg-white hover:bg-gray-50 border-gray-200'
+                      } border-2 rounded-xl p-4`}
                     >
-                      <div className="flex items-center justify-between">
-                        <span>{option.value}</span>
-                        {showAnswer && selectedAnswer === option.key && (
+                      <div className="flex items-center space-x-4">
+                        <div className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center ${
+                          selectedChoice === option.key
+                            ? isFlipped
+                              ? option.key === flashcards[currentCard].answer
+                                ? 'bg-growth-green text-white'
+                                : 'bg-alert-red text-white'
+                              : 'bg-neural-purple text-white'
+                            : 'bg-gray-100 text-gray-500 group-hover:bg-neural-purple/10 group-hover:text-neural-purple'
+                        }`}>
+                          {option.key}
+                        </div>
+                        <p className={`flex-1 text-left ${
+                          selectedChoice === option.key && isFlipped
+                            ? option.key === flashcards[currentCard].answer
+                              ? 'text-growth-green'
+                              : 'text-alert-red'
+                            : selectedChoice === option.key
+                              ? 'text-neural-purple'
+                              : 'text-gray-700'
+                        }`}>
+                          {option.value}
+                        </p>
+                        {selectedChoice === option.key && isFlipped && (
                           option.key === flashcards[currentCard].answer
-                            ? <CheckCircleIcon className="w-6 h-6 text-growth-green" />
-                            : <XCircleIcon className="w-6 h-6 text-alert-red" />
+                            ? <CheckCircleIcon className="w-5 h-5 text-growth-green ml-2" />
+                            : <XCircleIcon className="w-5 h-5 text-alert-red ml-2" />
                         )}
                       </div>
                     </button>
                   ))}
                 </div>
 
-                {/* Explanation */}
-                {showAnswer && (
-                  <div className="p-6 bg-gray-50 border-t">
-                    <div className="mb-2">
-                      <span className="font-medium text-gray-900">Correct Answer: </span>
-                      <span className="text-growth-green font-medium">
-                        {flashcards[currentCard].answer}
-                      </span>
+                {/* Explanation Card */}
+                <div className="relative h-[200px] perspective-1000">
+                  <div
+                    className={`absolute inset-0 w-full h-full transition-transform duration-700 transform-style-3d cursor-pointer ${
+                      isFlipped ? 'rotate-y-180' : ''
+                    }`}
+                    onClick={() => setIsFlipped(!isFlipped)}
+                  >
+                    {/* Front */}
+                    <div className="absolute inset-0 w-full h-full backface-hidden bg-white rounded-lg shadow-lg p-6 flex flex-col items-center justify-center">
+                      <h3 className="text-xl font-semibold text-gray-900">
+                        Click to reveal explanation
+                      </h3>
+                      <p className="mt-2 text-sm text-gray-500">
+                        Press spacebar or click to flip
+                      </p>
                     </div>
-                    <p className="text-gray-600">{flashcards[currentCard].explanation}</p>
+
+                    {/* Back */}
+                    <div className="absolute inset-0 w-full h-full backface-hidden bg-white rounded-lg shadow-lg p-6 rotate-y-180">
+                      <div className="h-full flex flex-col justify-center">
+                        <div className="p-4 bg-growth-green/5 border border-growth-green/10 rounded-lg">
+                          <p className="text-sm font-medium text-growth-green mb-2">
+                            Correct Answer: {flashcards[currentCard].answer}
+                          </p>
+                          <p className="text-sm text-gray-600">
+                            {flashcards[currentCard].explanation}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
                   </div>
-                )}
+                </div>
               </div>
             )}
 
             {/* Navigation */}
-            <div className="flex justify-between items-center">
-              <button
-                onClick={previousCard}
-                disabled={currentCard === 0}
-                className="px-4 py-2 rounded-lg border border-gray-200 text-gray-600 hover:border-neural-purple disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
-              >
-                <ArrowLeftIcon className="w-5 h-5" />
-                <span>Previous</span>
-              </button>
-              <button
-                onClick={() => setIsStarted(false)}
-                className="px-4 py-2 rounded-lg border border-neural-purple text-neural-purple hover:bg-neural-purple hover:text-white transition-colors duration-200"
-              >
-                Finish
-              </button>
+            <div className="flex justify-between items-center pt-4">
               <button
                 onClick={() => {
-                  setSelectedAnswer(null);
-                  setShowAnswer(false);
-                  nextCard();
+                  setIsStarted(false);
+                  setSelectedChoice(null);
+                  setIsFlipped(false);
                 }}
-                disabled={currentCard === flashcards.length - 1}
-                className="px-4 py-2 rounded-lg border border-gray-200 text-gray-600 hover:border-neural-purple disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
+                className="flex items-center px-4 py-2 text-gray-600 hover:text-neural-purple transition-colors duration-200"
               >
-                <span>Next</span>
-                <ArrowRightIcon className="w-5 h-5" />
+                <ArrowUturnLeftIcon className="w-5 h-5 mr-2" />
+                Exit
               </button>
+              <div className="flex space-x-4">
+                <button
+                  onClick={previousCard}
+                  disabled={currentCard === 0}
+                  className="px-4 py-2 rounded-lg border border-gray-200 text-gray-600 hover:border-neural-purple disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
+                >
+                  <ArrowLeftIcon className="w-5 h-5" />
+                  <span>Previous</span>
+                </button>
+                <button
+                  onClick={nextCard}
+                  disabled={currentCard === flashcards.length - 1}
+                  className="px-4 py-2 rounded-lg border border-gray-200 text-gray-600 hover:border-neural-purple disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
+                >
+                  <span>Next</span>
+                  <ArrowRightIcon className="w-5 h-5" />
+                </button>
+              </div>
             </div>
           </div>
         )}

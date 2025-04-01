@@ -1,7 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { useAuthStore } from '../store/authStore';
 import { useProfileStore } from '../store/profileStore';
-import { UserIcon, AcademicCapIcon, BuildingLibraryIcon } from '@heroicons/react/24/outline';
+import { 
+  UserIcon, 
+  AcademicCapIcon, 
+  BuildingLibraryIcon,
+  PencilIcon,
+  CheckIcon,
+  XMarkIcon
+} from '@heroicons/react/24/outline';
 
 const yearLevels = [
   'Grade 11',
@@ -18,9 +25,9 @@ const UserProfile = () => {
   
   const [isEditing, setIsEditing] = useState(false);
   const [formData, setFormData] = useState({
-    full_name: '',
-    school: '',
-    year_level: ''
+    user_fullname: '',
+    user_school: '',
+    user_year_level: ''
   });
 
   useEffect(() => {
@@ -32,9 +39,9 @@ const UserProfile = () => {
   useEffect(() => {
     if (profile) {
       setFormData({
-        full_name: profile.full_name || '',
-        school: profile.school || '',
-        year_level: profile.year_level || ''
+        user_fullname: profile.user_fullname || '',
+        user_school: profile.user_school || '',
+        user_year_level: profile.user_year_level || ''
       });
     }
   }, [profile]);
@@ -53,13 +60,19 @@ const UserProfile = () => {
 
   if (loading) {
     return (
-      <div className="bg-white rounded-lg shadow-md p-6">
-        <div className="animate-pulse space-y-4">
-          <div className="h-4 bg-gray-200 rounded w-1/4"></div>
-          <div className="space-y-3">
-            <div className="h-4 bg-gray-200 rounded"></div>
-            <div className="h-4 bg-gray-200 rounded"></div>
-            <div className="h-4 bg-gray-200 rounded"></div>
+      <div className="relative bg-white rounded-lg shadow-neural p-4 overflow-hidden">
+        
+        <div className="animate-pulse space-y-4 relative">
+          <div className="flex items-center space-x-4">
+            <div className="h-12 w-12 bg-gray-200 rounded-full"></div>
+            <div className="flex-1">
+              <div className="h-4 bg-gray-200 rounded w-1/2"></div>
+              <div className="h-3 bg-gray-200 rounded w-1/3 mt-2"></div>
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="h-8 bg-gray-200 rounded"></div>
+            <div className="h-8 bg-gray-200 rounded"></div>
           </div>
         </div>
       </div>
@@ -67,123 +80,144 @@ const UserProfile = () => {
   }
 
   return (
-    <div className="bg-white rounded-lg shadow-md p-6">
-      <div className="flex justify-between items-center mb-6">
-        <h2 className="text-xl font-semibold text-gray-900">Profile Information</h2>
-        {!isEditing && (
-          <button
-            onClick={() => setIsEditing(true)}
-            className="text-sm text-neural-purple hover:text-tech-lavender"
-          >
-            Edit Profile
-          </button>
+    <div className="relative bg-white rounded-lg shadow-neural p-4 overflow-hidden">
+      
+      <div className="relative">
+        {/* Profile Header */}
+        <div className="flex items-center space-x-4 mb-4">
+          <div className="w-12 h-12 bg-neural-purple/10 rounded-full flex items-center justify-center">
+            <UserIcon className="w-6 h-6 text-neural-purple" />
+          </div>
+          <div className="flex-1">
+            <h2 className="text-lg font-semibold text-gray-900">{profile?.user_fullname || 'Complete Your Profile'}</h2>
+            <p className="text-sm text-gray-500">{profile?.user_school || 'Add your school information'}</p>
+          </div>
+          {!isEditing && (
+            <button
+              onClick={() => setIsEditing(true)}
+              className="inline-flex items-center px-3 py-1.5 text-sm text-neural-purple bg-neural-purple/10 rounded-md hover:bg-neural-purple/20"
+            >
+              <PencilIcon className="w-4 h-4 mr-1" />
+              Edit
+            </button>
+          )}
+        </div>
+
+        {error && (
+          <div className="mb-3 p-2 bg-alert-red/10 border border-alert-red/20 rounded">
+            <p className="text-xs text-alert-red text-center">{error}</p>
+          </div>
+        )}
+
+        {isEditing ? (
+          <form onSubmit={handleSubmit} className="space-y-3">
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <div className="relative">
+                  <UserIcon className="absolute left-2 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                  <input
+                    type="text"
+                    id="user_fullname"
+                    value={formData.user_fullname}
+                    onChange={(e) => setFormData({ ...formData, user_fullname: e.target.value })}
+                    className="pl-8 block w-full rounded border-gray-300 bg-gray-50 shadow-sm focus:border-neural-purple focus:ring-neural-purple text-sm py-2.5"
+                    placeholder="Full Name"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <div className="relative">
+                  <BuildingLibraryIcon className="absolute left-2 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                  <input
+                    type="text"
+                    id="user_school"
+                    value={formData.user_school}
+                    onChange={(e) => setFormData({ ...formData, user_school: e.target.value })}
+                    className="pl-8 block w-full rounded border-gray-300 bg-gray-50 shadow-sm focus:border-neural-purple focus:ring-neural-purple text-sm py-2.5"
+                    placeholder="School"
+                  />
+                </div>
+              </div>
+
+              <div className="col-span-2">
+                <div className="relative">
+                  <AcademicCapIcon className="absolute left-2 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                  <select
+                    id="user_year_level"
+                    value={formData.user_year_level}
+                    onChange={(e) => setFormData({ ...formData, user_year_level: e.target.value })}
+                    className="pl-8 block w-full rounded border-gray-300 bg-gray-50 shadow-sm focus:border-neural-purple focus:ring-neural-purple text-sm py-2.5"
+                  >
+                    <option value="">Select Year Level</option>
+                    {yearLevels.map((year) => (
+                      <option key={year} value={year}>{year}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex justify-end space-x-2 pt-2">
+              <button
+                type="button"
+                onClick={() => setIsEditing(false)}
+                className="inline-flex items-center px-3 py-1.5 text-sm text-gray-700 bg-white border border-gray-300 rounded hover:bg-gray-50"
+              >
+                <XMarkIcon className="w-4 h-4 mr-1" />
+                Cancel
+              </button>
+              <button
+                type="submit"
+                className="inline-flex items-center px-3 py-1.5 text-sm text-white bg-neural-purple rounded hover:bg-tech-lavender"
+              >
+                <CheckIcon className="w-4 h-4 mr-1" />
+                Save
+              </button>
+            </div>
+          </form>
+        ) : (
+          <div className="grid grid-cols-2 gap-3">
+            <div className="bg-gray-50 rounded p-3 transform hover:-translate-y-0.5 transition-all duration-200">
+              <div className="flex items-center space-x-3">
+                <div className="w-8 h-8 bg-neural-purple/10 rounded flex items-center justify-center">
+                  <UserIcon className="w-4 h-4 text-neural-purple" />
+                </div>
+                <div>
+                  <p className="text-xs text-gray-500">Full Name</p>
+                  <p className="text-sm font-medium text-gray-900">{profile?.user_fullname || 'Not set'}</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-gray-50 rounded p-3 transform hover:-translate-y-0.5 transition-all duration-200">
+              <div className="flex items-center space-x-3">
+                <div className="w-8 h-8 bg-neural-purple/10 rounded flex items-center justify-center">
+                  <BuildingLibraryIcon className="w-4 h-4 text-neural-purple" />
+                </div>
+                <div>
+                  <p className="text-xs text-gray-500">School</p>
+                  <p className="text-sm font-medium text-gray-900">{profile?.user_school || 'Not set'}</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="col-span-2 bg-gray-50 rounded p-3 transform hover:-translate-y-0.5 transition-all duration-200">
+              <div className="flex items-center space-x-3">
+                <div className="w-8 h-8 bg-neural-purple/10 rounded flex items-center justify-center">
+                  <AcademicCapIcon className="w-4 h-4 text-neural-purple" />
+                </div>
+                <div>
+                  <p className="text-xs text-gray-500">Year Level</p>
+                  <p className="text-sm font-medium text-gray-900">{profile?.user_year_level || 'Not set'}</p>
+                </div>
+              </div>
+            </div>
+          </div>
         )}
       </div>
-
-      {error && (
-        <div className="mb-4 p-3 bg-alert-red/10 border border-alert-red/20 rounded-lg">
-          <p className="text-sm text-alert-red">{error}</p>
-        </div>
-      )}
-
-      {isEditing ? (
-        <form onSubmit={handleSubmit} className="space-y-6">
-          <div>
-            <label htmlFor="full_name" className="block text-sm font-medium text-gray-700">
-              Full Name
-            </label>
-            <div className="mt-1">
-              <input
-                type="text"
-                id="full_name"
-                value={formData.full_name}
-                onChange={(e) => setFormData({ ...formData, full_name: e.target.value })}
-                className="block w-full rounded-md border-gray-300 shadow-sm focus:border-neural-purple focus:ring-neural-purple sm:text-sm"
-              />
-            </div>
-          </div>
-
-          <div>
-            <label htmlFor="school" className="block text-sm font-medium text-gray-700">
-              School
-            </label>
-            <div className="mt-1">
-              <input
-                type="text"
-                id="school"
-                value={formData.school}
-                onChange={(e) => setFormData({ ...formData, school: e.target.value })}
-                className="block w-full rounded-md border-gray-300 shadow-sm focus:border-neural-purple focus:ring-neural-purple sm:text-sm"
-              />
-            </div>
-          </div>
-
-          <div>
-            <label htmlFor="year_level" className="block text-sm font-medium text-gray-700">
-              Year Level
-            </label>
-            <div className="mt-1">
-              <select
-                id="year_level"
-                value={formData.year_level}
-                onChange={(e) => setFormData({ ...formData, year_level: e.target.value })}
-                className="block w-full rounded-md border-gray-300 shadow-sm focus:border-neural-purple focus:ring-neural-purple sm:text-sm"
-              >
-                <option value="">Select Year Level</option>
-                {yearLevels.map((year) => (
-                  <option key={year} value={year}>
-                    {year}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
-
-          <div className="flex justify-end space-x-3">
-            <button
-              type="button"
-              onClick={() => setIsEditing(false)}
-              className="px-4 py-2 text-sm text-gray-700 hover:text-gray-900"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              className="px-4 py-2 text-sm text-white bg-neural-purple rounded-md hover:bg-tech-lavender"
-            >
-              Save Changes
-            </button>
-          </div>
-        </form>
-      ) : (
-        <div className="space-y-6">
-          <div className="flex items-center space-x-3">
-            <UserIcon className="w-5 h-5 text-neural-purple" />
-            <div>
-              <p className="text-sm text-gray-500">Full Name</p>
-              <p className="font-medium">{profile?.full_name || 'Not set'}</p>
-            </div>
-          </div>
-
-          <div className="flex items-center space-x-3">
-            <BuildingLibraryIcon className="w-5 h-5 text-neural-purple" />
-            <div>
-              <p className="text-sm text-gray-500">School</p>
-              <p className="font-medium">{profile?.school || 'Not set'}</p>
-            </div>
-          </div>
-
-          <div className="flex items-center space-x-3">
-            <AcademicCapIcon className="w-5 h-5 text-neural-purple" />
-            <div>
-              <p className="text-sm text-gray-500">Year Level</p>
-              <p className="font-medium">{profile?.year_level || 'Not set'}</p>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 };
 
-export default UserProfile
+export default UserProfile;
