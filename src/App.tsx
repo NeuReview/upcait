@@ -7,14 +7,20 @@ import Chatbot from './components/Chatbot';
 import HomePage from './pages/HomePage';
 import DashboardPage from './pages/DashboardPage';
 import QuizzesPage from './pages/QuizzesPage';
+import QuizzesPageNew from './pages/QuizzesPageNew';
 import MockExamsPage from './pages/MockExamsPage';
 import FlashcardsPage from './pages/FlashcardsPage';
+import ResourcesPage from './pages/ResourcesPage';
+import ProfilePage from './pages/ProfilePage';
+import NotFoundPage from './pages/NotFoundPage';
 import PricingSection from './components/PricingSection';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
 import ResetPasswordPage from './pages/ResetPasswordPage';
 import PreOrderPage from './pages/PreOrderPage';
 import OtpPage from './pages/OtpPage';
+import { AuthProvider } from './context/AuthContext';
+import AuthRoute from './components/AuthRoute';
 
 function App() {
   const { user, fetchUser, otpPending, setOtpPending } = useAuthStore();
@@ -52,43 +58,48 @@ function App() {
   }
 
   return (
-    <Router>
-      <div className="min-h-screen bg-gray-50 flex flex-col">
-        {/* ✅ Hide Navbar on Preorder Page */}
-        {!isPreorderPage && user && !otpPending && window.location.pathname !== '/otp' && <Navbar />}
+    <AuthProvider>
+      <Router>
+        <div className="min-h-screen bg-gray-50 flex flex-col">
+          {/* ✅ Hide Navbar on Preorder Page */}
+          {!isPreorderPage && user && !otpPending && window.location.pathname !== '/otp' && <Navbar />}
 
+          <div className={`${!isPreorderPage ? 'pt-16' : ''} flex-grow`}>
+            <Routes>
+              {/* ✅ First visit → Redirect to Preorder if not signed in */}
+              <Route path="/" element={user ? <HomePage /> : <Navigate to="/preorder" replace />} />
+              <Route path="/preorder" element={<PreOrderPage />} />
 
-        <div className={`${!isPreorderPage ? 'pt-16' : ''} flex-grow`}>
-          <Routes>
-            {/* ✅ First visit → Redirect to Preorder if not signed in */}
-            <Route path="/" element={user ? <HomePage /> : <Navigate to="/preorder" replace />} />
-            <Route path="/preorder" element={<PreOrderPage />} />
+              {/* ✅ Login & Registration */}
+              <Route path="/login" element={user ? <Navigate to={otpPending ? "/otp" : "/dashboard"} replace /> : <LoginPage />} />
+              <Route path="/register" element={user ? <Navigate to={otpPending ? "/otp" : "/dashboard"} replace /> : <RegisterPage />} />
+              <Route path="/reset-password" element={<ResetPasswordPage />} />
+              <Route path="/pricing" element={<PricingSection />} />
 
-            {/* ✅ Login & Registration */}
-            <Route path="/login" element={user ? <Navigate to={otpPending ? "/otp" : "/dashboard"} replace /> : <LoginPage />} />
-            <Route path="/register" element={user ? <Navigate to={otpPending ? "/otp" : "/dashboard"} replace /> : <RegisterPage />} />
-            <Route path="/reset-password" element={<ResetPasswordPage />} />
-            <Route path="/pricing" element={<PricingSection />} />
+              {/* ✅ OTP Verification Route */}
+              <Route 
+                path="/otp" 
+                element={user && otpPending ? <OtpPage onOtpVerified={handleOtpVerified} /> : <Navigate to="/dashboard" replace />} 
+              />
 
-            {/* ✅ OTP Verification Route */}
-            <Route 
-              path="/otp" 
-              element={user && otpPending ? <OtpPage onOtpVerified={handleOtpVerified} /> : <Navigate to="/dashboard" replace />} 
-            />
+              {/* ✅ Protected Routes - Ensure OTP Verification Before Access */}
+              <Route path="/dashboard" element={user ? (otpPending ? <Navigate to="/otp" replace /> : <DashboardPage />) : <Navigate to="/preorder" replace />} />
+              <Route path="/quizzes" element={user ? (otpPending ? <Navigate to="/otp" replace /> : <QuizzesPage />) : <Navigate to="/preorder" replace />} />
+              <Route path="/quizzes-new" element={user ? (otpPending ? <Navigate to="/otp" replace /> : <QuizzesPageNew />) : <Navigate to="/preorder" replace />} />
+              <Route path="/mock-exams" element={user ? (otpPending ? <Navigate to="/otp" replace /> : <MockExamsPage />) : <Navigate to="/preorder" replace />} />
+              <Route path="/flashcards" element={user ? (otpPending ? <Navigate to="/otp" replace /> : <FlashcardsPage />) : <Navigate to="/preorder" replace />} />
+              <Route path="/resources" element={user ? (otpPending ? <Navigate to="/otp" replace /> : <ResourcesPage />) : <Navigate to="/preorder" replace />} />
+              <Route path="/profile" element={user ? (otpPending ? <Navigate to="/otp" replace /> : <ProfilePage />) : <Navigate to="/preorder" replace />} />
+              <Route path="*" element={<NotFoundPage />} />
+            </Routes>
+          </div>
 
-            {/* ✅ Protected Routes - Ensure OTP Verification Before Access */}
-            <Route path="/dashboard" element={user ? (otpPending ? <Navigate to="/otp" replace /> : <DashboardPage />) : <Navigate to="/preorder" replace />} />
-            <Route path="/quizzes" element={user ? (otpPending ? <Navigate to="/otp" replace /> : <QuizzesPage />) : <Navigate to="/preorder" replace />} />
-            <Route path="/mock-exams" element={user ? (otpPending ? <Navigate to="/otp" replace /> : <MockExamsPage />) : <Navigate to="/preorder" replace />} />
-            <Route path="/flashcards" element={user ? (otpPending ? <Navigate to="/otp" replace /> : <FlashcardsPage />) : <Navigate to="/preorder" replace />} />
-          </Routes>
+          {/* ✅ Show Chatbot only if user is logged in and not on preorder page */}
+          {user && !isPreorderPage && <Chatbot />}
+          <Footer />
         </div>
-
-        {/* ✅ Show Chatbot only if user is logged in and not on preorder page */}
-        {user && !isPreorderPage && <Chatbot />}
-        <Footer />
-      </div>
-    </Router>
+      </Router>
+    </AuthProvider>
   );
 }
 
