@@ -40,14 +40,14 @@ export function useMockExam(): UseMockExamReturn {
           const { data: englishData, error: englishError } = await supabase
             .from('question_bank_english_lang_prof')
             .select('*')
-            .limit(2);
+            .limit(5);
 
           if (englishError) throw englishError;
 
           const { data: filipinoData, error: filipinoError } = await supabase
             .from('question_bank_filipino_lang_prof')
             .select('*')
-            .limit(2);
+            .limit(5);
 
           if (filipinoError) throw filipinoError;
 
@@ -59,7 +59,7 @@ export function useMockExam(): UseMockExamReturn {
           const { data: mathData, error: mathError } = await supabase
             .from('question_bank_math')
             .select('*')
-            .limit(2);
+            .limit(5);
 
           if (mathError) throw mathError;
 
@@ -68,7 +68,7 @@ export function useMockExam(): UseMockExamReturn {
           const { data: scienceData, error: scienceError } = await supabase
             .from('question_bank_science')
             .select('*')
-            .limit(2);
+            .limit(5);
 
           if (scienceError) throw scienceError;
 
@@ -78,7 +78,7 @@ export function useMockExam(): UseMockExamReturn {
             .from('question_bank')
             .select('*')
             .eq('category', 'Reading Comprehension')
-            .limit(2);
+            .limit(5);
 
           if (readingError) throw readingError;
 
