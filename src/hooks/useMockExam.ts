@@ -12,6 +12,17 @@ interface UseMockExamReturn {
   clearError: () => void; // ✅ Added
 }
 
+interface UseMockExamReturn {
+  questions: Question[];
+  loading: boolean;
+  error: string | null;
+  fetchQuestions: (category: string, append?: boolean) => Promise<void>;
+  updateUserStats: (correctAnswers: number, totalAnswers: number) => Promise<void>;
+  clearError: () => void;
+  setQuestions: React.Dispatch<React.SetStateAction<Question[]>>; // ✅ Add this
+}
+
+
 export function useMockExam(): UseMockExamReturn {
   const [questions, setQuestions] = useState<Question[]>([]);
   const [loading, setLoading] = useState(false);
@@ -165,5 +176,5 @@ export function useMockExam(): UseMockExamReturn {
 
   const clearError = () => setError(null); // ✅ Added
 
-  return { questions, loading, error, fetchQuestions, updateUserStats, clearError };
+  return { questions, loading, error, fetchQuestions, updateUserStats, clearError, setQuestions};
 }
