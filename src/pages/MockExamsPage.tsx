@@ -69,7 +69,6 @@ const QuestionReviewPanel = ({ reviewData }: { reviewData: ReviewItem[] }) => {
 
   return (
     <>
-      {/* Floating Sidebar */}
       <div className="hidden md:block fixed top-24 right-4 w-64 bg-white border rounded-lg shadow p-4 h-[80vh] overflow-y-auto">
         <h3 className="font-semibold mb-4 text-gray-800">Question Review</h3>
         {Object.entries(grouped).map(([category, items]) => (
@@ -92,7 +91,8 @@ const QuestionReviewPanel = ({ reviewData }: { reviewData: ReviewItem[] }) => {
             </div>
           </div>
         ))}
-      </div>
+      </div>{/* Floating Sidebar */}
+      
 
       {/* Modal */}
       {showModal && selectedQuestion && (
@@ -544,19 +544,14 @@ const MockExamsPage = () => {
         await fetchQuestions(firstSection.category, false);
       }
   
+      // Manually start the exam after questions are loaded
+      setExamStarted(true); // 🟢 Add this line
       setStartTime(Date.now());
     } catch (err) {
       console.error('Failed to start exam:', err);
       setLocalError('Failed to load exam questions.');
     }
   };
-  
-  useEffect(() => {
-    // Automatically start exam display once questions are fetched
-    if (questions.length > 0 && !examStarted) {
-      setExamStarted(true);
-    }
-  }, [questions, examStarted]);
 
   const resetExam = async () => {
     try {
@@ -572,16 +567,11 @@ const MockExamsPage = () => {
       setShowLeaveConfirmation(false);
       setTimeRemaining(examSections[0].timeLimit * 60);
   
-      // 🟢 Clear error before resetting
-      setLocalError(null);
-  
-      // Clear error coming from useMockExam hook
+      // 🟢 Clear error
       if (typeof error !== 'undefined') {
-        clearError(); // ✅ Use this instead
-// 👈 optional, depends how useMockExam handles error
+        clearError();
       }
   
-      await fetchQuestions('', true);
     } catch (err) {
       console.error('Error resetting exam:', err);
     }
@@ -593,10 +583,6 @@ const MockExamsPage = () => {
     navigate('/mock-exams'); // ✅ Change to your route path
   };
   
-  
-  
-
-
   const handleAnswerSelect = (answer: string) => {
     const question = questions[currentQuestion];
   
@@ -626,11 +612,26 @@ const MockExamsPage = () => {
     setShowLeaveConfirmation(true);
   };
 
-  const confirmLeaveExam = async () => {
-    await resetExam();
+  const leaveExam = () => {
+    setExamStarted(false);
+    setCurrentSection(0);
+    setCurrentQuestion(0);
+    setSelectedAnswer(null);
+    setShowExplanation(false);
+    setScore(null);
+    setAllQuestions([]);
+    setUserAnswers({});
+    setLocalError(null);
+    setShowLeaveConfirmation(false);
+    setTimeRemaining(examSections[0].timeLimit * 60);
+    navigate('/mock-exams', { replace: true }); // ✅ Redirect to landing
   };
   
 
+  const confirmLeaveExam = async () => {
+    leaveExam();
+  };
+  
   const handleNextQuestion = async () => {
     if (currentQuestion < questions.length - 1) {
       // Go to next question in current section
