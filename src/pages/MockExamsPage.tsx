@@ -21,7 +21,6 @@ import { useNavigate } from 'react-router-dom';
 
 
 
-
 interface ReviewItem {
   question_id: number;
   question: string;
@@ -159,7 +158,7 @@ const ExamSummary = ({
   onRetry,
 }: {
   score: ExamScore;
-  onRetry: () => Promise<void>;
+  onRetry: () => void;
 }) => {
   const scoreCategory = getScoreCategory(score.percentage);
   const minutes = Math.floor(score.timeSpent / 60);
@@ -437,7 +436,7 @@ const MockExamsPage = () => {
   const [showExplanation, setShowExplanation] = useState(false);
   const [timeRemaining, setTimeRemaining] = useState(examSections[0].timeLimit * 60);
   const [showLeaveConfirmation, setShowLeaveConfirmation] = useState(false);
-  const { questions, loading, error, fetchQuestions, clearError } = useMockExam();
+  const { questions, loading, error, fetchQuestions, clearError, setQuestions } = useMockExam();
   const [correctAnswers, setCorrectAnswers] = useState<{ [category: string]: Set<number> }>({});
   const [startTime, setStartTime] = useState<number | null>(null);
   const [score, setScore] = useState<ExamScore | null>(null);
@@ -445,6 +444,7 @@ const MockExamsPage = () => {
   const [userAnswers, setUserAnswers] = useState<{ [questionId: number]: string }>({});
   const [localError, setLocalError] = useState<string | null>(null);
   const navigate = useNavigate();
+  
 
 
 
@@ -523,43 +523,7 @@ const MockExamsPage = () => {
   
   const startExam = async () => {
     try {
-      setExamStarted(false); // Reset state
-      setCurrentSection(0);
-      setCurrentQuestion(0);
-      setSelectedAnswer(null);
-      setShowExplanation(false);
-      setScore(null);
-      setAllQuestions([]);
-      setUserAnswers({});
-      setLocalError(null);
-      if (isTimeBased) {
-        setTimeRemaining(examSections[0].timeLimit * 60);
-      }
-  
-      const firstSection = examSections[0];
-  
-      if (firstSection.category === 'Language Proficiency') {
-        await fetchQuestions('Language Proficiency', false);
-      } else {
-        await fetchQuestions(firstSection.category, false);
-      }
-  
-      setStartTime(Date.now());
-    } catch (err) {
-      console.error('Failed to start exam:', err);
-      setLocalError('Failed to load exam questions.');
-    }
-  };
-  
-  useEffect(() => {
-    // Automatically start exam display once questions are fetched
-    if (questions.length > 0 && !examStarted) {
-      setExamStarted(true);
-    }
-  }, [questions, examStarted]);
-
-  const resetExam = async () => {
-    try {
+      // Reset internal state
       setExamStarted(false);
       setCurrentSection(0);
       setCurrentQuestion(0);
@@ -569,29 +533,55 @@ const MockExamsPage = () => {
       setAllQuestions([]);
       setUserAnswers({});
       setLocalError(null);
-      setShowLeaveConfirmation(false);
-      setTimeRemaining(examSections[0].timeLimit * 60);
+      setQuestions([]); // ✅ Clear previously fetched questions
   
-      // 🟢 Clear error before resetting
-      setLocalError(null);
-  
-      // Clear error coming from useMockExam hook
-      if (typeof error !== 'undefined') {
-        clearError(); // ✅ Use this instead
-// 👈 optional, depends how useMockExam handles error
+      if (isTimeBased) {
+        setTimeRemaining(examSections[0].timeLimit * 60);
       }
   
-      await fetchQuestions('', true);
+      const firstSection = examSections[0];
+  
+      // ✅ Fetch questions for the first section
+      if (firstSection.category === 'Language Proficiency') {
+        await fetchQuestions('Language Proficiency', false);
+      } else {
+        await fetchQuestions(firstSection.category, false);
+      }
+  
+      // ✅ After questions are fetched, trigger the exam
+      setStartTime(Date.now());
+      setExamStarted(true);
     } catch (err) {
-      console.error('Error resetting exam:', err);
+      console.error('Failed to start exam:', err);
+      setLocalError('Failed to load exam questions.');
     }
   };
   
+  const resetExam = () => {
+    setExamStarted(false);
+    setCurrentSection(0);
+    setCurrentQuestion(0);
+    setSelectedAnswer(null);
+    setShowExplanation(false);
+    setScore(null);
+    setAllQuestions([]);
+    setUserAnswers({});
+    setShowLeaveConfirmation(false);
+    setLocalError(null);
+    setQuestions([]); // ✅ clear fetched questions to prevent auto-start
   
-  const handleRetry = async () => {
-    await resetExam();
-    navigate('/mock-exams'); // ✅ Change to your route path
+    if (isTimeBased) {
+      setTimeRemaining(examSections[0].timeLimit * 60);
+    }
   };
+  
+
+  
+const handleRetry = async () => {
+  resetExam();        // ✅ Reset internal state
+  await startExam();  // ✅ Start a new exam without navigating
+};
+
   
   
   
@@ -632,8 +622,9 @@ const MockExamsPage = () => {
   };
 
   const confirmLeaveExam = async () => {
-    await resetExam();
+    resetExam();       
   };
+  
   
 
   const handlePrevQuestion = () => {
@@ -697,12 +688,31 @@ const MockExamsPage = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <ExamSummary 
           score={score} 
-          onRetry={handleRetry}
-          />
+          onRetry={() => {
+            resetExam();        // ✅ Reset state
+            // ❌ Do NOT call startExam()
+            // ✅ This will now return user to intro screen
+        }} 
+        />
+
         </div>
       </div>
     );
   }
+
+    // ✅ Place this here 👇 before the main JSX render
+  type ExtendedQuestion = Question & { sectionIndex: number };
+
+  const combinedAllQuestions: ExtendedQuestion[] = [
+    ...allQuestions.map((q, i) => ({ ...q, sectionIndex: i })),
+    ...questions.map((q) => ({ ...q, sectionIndex: currentSection })),
+  ];
+
+  const groupedSidebarQuestions = combinedAllQuestions.reduce<Record<string, ExtendedQuestion[]>>((acc, q) => {
+    if (!acc[q.category]) acc[q.category] = [];
+    acc[q.category].push(q);
+    return acc;
+  }, {});
 
   return (
     <div className="min-h-screen bg-gray-50 py-6">
@@ -888,40 +898,59 @@ const MockExamsPage = () => {
             </button>
           </div>
         </div>
-
-          </div>
+      </div>
         
           {/* ✅ Right-side Floating Question Review Sidebar */}
           <div className="hidden md:block fixed top-24 right-4 w-64 bg-white border rounded-lg shadow p-4 h-[80vh] overflow-y-auto z-40">
-            <h3 className="font-semibold mb-4 text-gray-800">Question Review</h3>
-            <div className="grid grid-cols-5 gap-2">
-              {questions.map((q, index) => {
-                const userAnswer = userAnswers[q.question_id] || null;
-                const isCorrect = userAnswer === q.answer;
-                const isAnswered = userAnswer !== null;
-        
-                return (
-                  <button
-                  key={`section${currentSection}-question${q.question_id}`}
-                    onClick={() => {
-                      setCurrentQuestion(index);
-                      setSelectedAnswer(userAnswer);
-                      setShowExplanation(isAnswered);
-                    }}
-                    className={`rounded-lg px-2 py-1 text-sm font-medium flex items-center justify-center ${
-                      !isAnswered
-                        ? 'bg-gray-100 text-gray-600'
-                        : isCorrect
-                        ? 'bg-green-100 text-green-700'
-                        : 'bg-red-100 text-red-700'
-                    }`}
-                  >
-                    {index + 1}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
+  <h3 className="font-semibold mb-4 text-gray-800">Question Review</h3>
+  {Object.entries(groupedSidebarQuestions).map(
+    ([category, items]: [string, ExtendedQuestion[]]) => (
+      <div key={category} className="mb-4">
+        <h4 className="text-sm font-medium text-gray-700 mb-2">{category}</h4>
+        <div className="flex flex-wrap gap-2">
+          {items.map((q, idx) => {
+            const userAnswer = userAnswers[q.question_id] || null;
+            const isCorrect = userAnswer === q.answer;
+            const isAnswered = userAnswer !== null;
+
+            return (
+              <button
+                key={q.question_id}
+                onClick={() => {
+                  if (q.sectionIndex !== currentSection) {
+                    setAllQuestions((prev) => [...prev, ...questions]);
+                    setCurrentSection(q.sectionIndex);
+                    setTimeout(() => {
+                      setCurrentQuestion(0); // default to 1st question in new section
+                    }, 0);
+                  } else {
+                    const indexInCurrent = questions.findIndex((qq) => qq.question_id === q.question_id);
+                    if (indexInCurrent !== -1) {
+                      setCurrentQuestion(indexInCurrent);
+                    }
+                  }
+                  
+                  setSelectedAnswer(userAnswer);
+                  setShowExplanation(isAnswered);
+                }}
+                className={`w-8 h-8 rounded-full text-sm font-medium flex items-center justify-center ${
+                  !isAnswered
+                    ? 'bg-gray-100 text-gray-600'
+                    : isCorrect
+                    ? 'bg-green-100 text-green-700'
+                    : 'bg-red-100 text-red-700'
+                }`}
+              >
+                {idx + 1}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+    )
+  )}
+</div>
+
         </div>
         )}
 
