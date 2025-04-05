@@ -600,15 +600,20 @@ const MockExamsPage = () => {
   const handleAnswerSelect = (answer: string) => {
     const question = questions[currentQuestion];
   
-    setSelectedAnswer(answer);
-    setShowExplanation(true);
+    // ✅ Log for debugging only (do not modify the ID)
+    console.log("Selected Question Index:", currentQuestion);
+    console.log("Selected Question ID:", question.question_id);
+    console.log("Answer Selected:", answer);
+    console.log("All Question IDs:", questions.map(q => q.question_id));
   
-    // Store user answer by question_id
+    setShowExplanation(false);
+  
     setUserAnswers((prev) => ({
       ...prev,
       [question.question_id]: answer,
     }));
   };
+  
 
   const formatTime = (minutes: number) => {
     const hours = Math.floor(minutes / 60);
@@ -631,46 +636,49 @@ const MockExamsPage = () => {
   };
   
 
+  const handlePrevQuestion = () => {
+    if (currentQuestion > 0) {
+      const prevQuestion = questions[currentQuestion - 1];
+      const userAnswer = userAnswers[prevQuestion.question_id] || null;
+  
+      setCurrentQuestion(currentQuestion - 1);
+      setSelectedAnswer(userAnswer);
+      setShowExplanation(!!userAnswer);
+    }
+  };
+  
   const handleNextQuestion = async () => {
     if (currentQuestion < questions.length - 1) {
-      // Go to next question in current section
+      const nextQuestion = questions[currentQuestion + 1];
+      const userAnswer = userAnswers[nextQuestion.question_id] || null;
+  
+      setCurrentQuestion(currentQuestion + 1);
+      setSelectedAnswer(userAnswer);
+      setShowExplanation(!!userAnswer);
+    } else if (currentSection < examSections.length - 1) {
+      setAllQuestions((prev) => [...prev, ...questions]);
+      const nextSection = examSections[currentSection + 1];
+  
+      if (nextSection.category === 'Language Proficiency') {
+        await fetchQuestions('Language Proficiency', false);
+      } else {
+        await fetchQuestions(nextSection.category, false);
+      }
+  
+      setCurrentSection(currentSection + 1);
+      setCurrentQuestion(0);
       setSelectedAnswer(null);
       setShowExplanation(false);
-      setCurrentQuestion(currentQuestion + 1);
-    } else if (currentSection < examSections.length - 1) {
-      // Move to next section
-      try {
-        // Save current section's questions
-        setAllQuestions((prev) => [...prev, ...questions]);
   
-        const nextSection = examSections[currentSection + 1];
-  
-        // Fetch next section questions
-        if (nextSection.category === 'Language Proficiency') {
-          await fetchQuestions('Language Proficiency', false);
-        } else {
-          await fetchQuestions(nextSection.category, false);
-        }
-  
-        // Update section state
-        setCurrentSection(currentSection + 1);
-        setCurrentQuestion(0);
-        setSelectedAnswer(null);
-        setShowExplanation(false);
-  
-        // Reset timer
-        if (isTimeBased) {
-          setTimeRemaining(nextSection.timeLimit * 60);
-        }
-      } catch (err) {
-        console.error('Error loading next section:', err);
+      if (isTimeBased) {
+        setTimeRemaining(nextSection.timeLimit * 60);
       }
     } else {
-      // Last section, finalize exam
       setAllQuestions((prev) => [...prev, ...questions]);
       calculateScore();
     }
   };
+  
 
   if (loading) {
     return (
@@ -777,7 +785,8 @@ const MockExamsPage = () => {
             </div>
           </div>
         ) : (
-          <div className="max-w-3xl mx-auto space-y-6">
+          <div className="relative">
+          <div className="max-w-3xl mx-auto space-y-6 mr-72">
             <div className="bg-white rounded-lg shadow-md p-4">
               <div className="flex justify-between items-center">
                 <div>
@@ -804,73 +813,116 @@ const MockExamsPage = () => {
                 />
               </div>
             </div>
-
+        
             {questions[currentQuestion] && (
               <div className="bg-white rounded-lg shadow-lg p-6">
                 <h2 className="text-xl font-semibold text-gray-900 mb-4">
                   {questions[currentQuestion].question}
                 </h2>
-
+        
                 <div className="space-y-3">
                   {[
                     { key: 'A', value: questions[currentQuestion].option_a },
                     { key: 'B', value: questions[currentQuestion].option_b },
                     { key: 'C', value: questions[currentQuestion].option_c },
                     { key: 'D', value: questions[currentQuestion].option_d },
-                  ].map((option) => (
-                    <button
-                      key={option.key}
-                      onClick={() => handleAnswerSelect(option.key)}
-                      disabled={showExplanation}
-                      className={`w-full p-4 rounded-lg border-2 text-left transition-all duration-200 ${
-                        selectedAnswer === option.key
-                          ? option.key === questions[currentQuestion].answer
-                            ? 'border-growth-green bg-growth-green/10'
-                            : 'border-alert-red bg-alert-red/10'
-                          : 'border-gray-200 hover:border-neural-purple'
-                      }`}
-                    >
-                      <div className="flex items-center justify-between">
-                        <span>{option.value}</span>
-                        {showExplanation && selectedAnswer === option.key && (
-                          option.key === questions[currentQuestion].answer
-                            ? <CheckCircleIcon className="w-6 h-6 text-growth-green" />
-                            : <XCircleIcon className="w-6 h-6 text-alert-red" />
-                        )}
-                      </div>
-                    </button>
-                  ))}
-                </div>
+                  ].map((option) => {
+                    const currentQuestionId = questions[currentQuestion].question_id;
+                    const isSelected = userAnswers[currentQuestionId] === option.key;
 
-                
+                    return (
+                      <button
+                        key={option.key}
+                        onClick={() => handleAnswerSelect(option.key)}
+                        disabled={showExplanation}
+                        className={`w-full p-4 rounded-lg border-2 text-left transition-all duration-200 ${
+                          isSelected
+                            ? 'border-neural-purple bg-neural-purple/10'
+                            : 'border-gray-200 hover:border-neural-purple'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between">
+                          <span>{option.value}</span>
+                          {isSelected && (
+                            <span className="w-3 h-3 rounded-full bg-neural-purple inline-block ml-2" />
+                          )}
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
             )}
+        
+        <div className="flex justify-between items-center mt-6">
+          <button
+            onClick={handleLeaveExam}
+            className="flex items-center px-4 py-2 text-gray-600 hover:text-neural-purple transition-colors duration-200"
+          >
+            <ArrowLeftIcon className="w-5 h-5 mr-2" />
+            Leave Exam
+          </button>
 
-            <div className="flex justify-between items-center">
-              <button
-                onClick={handleLeaveExam}
-                className="flex items-center px-4 py-2 text-gray-600 hover:text-neural-purple transition-colors duration-200"
-              >
-                <ArrowLeftIcon className="w-5 h-5 mr-2" />
-                Leave Exam
-              </button>
-              <div className="flex justify-end">
-                {selectedAnswer && ( // UPDATED: Check only if an answer is selected
+          <div className="flex gap-2">
+            <button
+              onClick={handlePrevQuestion}
+              disabled={currentQuestion === 0}
+              className={`px-4 py-2 rounded-lg ${
+                currentQuestion === 0
+                  ? 'bg-gray-200 text-gray-500 cursor-not-allowed'
+                  : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-100'
+              }`}
+            >
+              Previous
+            </button>
+
+            <button
+              onClick={handleNextQuestion}
+              className="px-4 py-2 rounded-lg bg-neural-purple text-white hover:bg-tech-lavender transition-colors duration-200"
+            >
+              {currentQuestion < questions.length - 1
+                ? 'Next Question'
+                : currentSection < examSections.length - 1
+                ? 'Next Section'
+                : 'Finish Exam'}
+            </button>
+          </div>
+        </div>
+
+          </div>
+        
+          {/* ✅ Right-side Floating Question Review Sidebar */}
+          <div className="hidden md:block fixed top-24 right-4 w-64 bg-white border rounded-lg shadow p-4 h-[80vh] overflow-y-auto z-40">
+            <h3 className="font-semibold mb-4 text-gray-800">Question Review</h3>
+            <div className="grid grid-cols-5 gap-2">
+              {questions.map((q, index) => {
+                const userAnswer = userAnswers[q.question_id] || null;
+                const isCorrect = userAnswer === q.answer;
+                const isAnswered = userAnswer !== null;
+        
+                return (
                   <button
-                    onClick={handleNextQuestion}
-                    className="px-4 py-2 rounded-lg bg-neural-purple text-white hover:bg-tech-lavender"
+                  key={`section${currentSection}-question${q.question_id}`}
+                    onClick={() => {
+                      setCurrentQuestion(index);
+                      setSelectedAnswer(userAnswer);
+                      setShowExplanation(isAnswered);
+                    }}
+                    className={`rounded-lg px-2 py-1 text-sm font-medium flex items-center justify-center ${
+                      !isAnswered
+                        ? 'bg-gray-100 text-gray-600'
+                        : isCorrect
+                        ? 'bg-green-100 text-green-700'
+                        : 'bg-red-100 text-red-700'
+                    }`}
                   >
-                    {currentQuestion < questions.length - 1 
-                      ? 'Next Question' 
-                      : currentSection < examSections.length - 1 
-                        ? 'Next Section' 
-                        : 'Finish Exam'
-                    }
+                    {index + 1}
                   </button>
-                )}
-              </div>
+                );
+              })}
             </div>
           </div>
+        </div>
         )}
 
         {showLeaveConfirmation && (
