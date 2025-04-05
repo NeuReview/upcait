@@ -102,3 +102,20 @@
   background-position: 0 0, 20px 20px;
   opacity: 0.1;
 }
+
+.perspective {
+  perspective: 1000px;
+}
+
+.transform-style {
+  transform-style: preserve-3d;
+  position: relative;
+}
+
+.backface-hidden {
+  backface-visibility: hidden;
+}
+
+.rotate-x-180 {
+  transform: rotateX(180deg);
+}
