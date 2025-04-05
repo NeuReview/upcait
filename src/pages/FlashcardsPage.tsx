@@ -12,7 +12,9 @@ import {
   CheckCircleIcon,
   XCircleIcon,
   ChartBarIcon,
-  SparklesIcon
+  SparklesIcon,
+  ArrowUturnUpIcon,
+  ArrowUturnDownIcon
 } from '@heroicons/react/24/outline';
 import { useFlashcards } from '../hooks/useFlashcards';
 
@@ -31,13 +33,24 @@ const FlashcardsPage = () => {
   const [selectedTopic, setSelectedTopic] = useState('');
   const [currentCard, setCurrentCard] = useState(0);
   const [selectedAnswer, setSelectedAnswer] = useState<string | null>(null);
-  const [showAnswer, setShowAnswer] = useState(false);
+  const [isFlipping, setIsFlipping] = useState(false);
+  const [showBack, setShowBack] = useState(false);
   const [isTimeBased, setIsTimeBased] = useState(false);
   const [timeRemaining, setTimeRemaining] = useState(15 * 60);
   const [correctAnswers, setCorrectAnswers] = useState(0);
   const [incorrectAnswers, setIncorrectAnswers] = useState(0);
   const [showScoreSummary, setShowScoreSummary] = useState(false);
   const { flashcards, loading, error, fetchFlashcards } = useFlashcards();
+
+  const handleFlip = () => {
+    setIsFlipping(true);
+  
+    setTimeout(() => {
+      setShowBack((prev) => !prev);
+      setIsFlipping(false);
+    }, 700); // match your flip animation duration
+  };
+  
 
   useEffect(() => {
     let timer: number | undefined;
@@ -62,44 +75,53 @@ const FlashcardsPage = () => {
 
   const startSession = async () => {
     if (!selectedTopic) return;
-
+  
     try {
-      await fetchFlashcards(selectedTopic);
-      setIsStarted(true);
+      // Reset state first
+      setIsStarted(false);
       setCurrentCard(0);
       setSelectedAnswer(null);
-      setShowAnswer(false);
       setCorrectAnswers(0);
       setIncorrectAnswers(0);
+      setShowScoreSummary(false);
       if (isTimeBased) {
         setTimeRemaining(15 * 60);
       }
+  
+      // Fetch flashcards from Supabase
+      await fetchFlashcards(selectedTopic);
+  
+      // Optional: log to debug what's returned
+      console.log('Fetched flashcards:', flashcards);
+  
+      // Start session only if flashcards were fetched
+      setIsStarted(true);
+  
     } catch (err) {
       console.error('Error starting flashcard session:', err);
     }
   };
-
+  
   const nextCard = () => {
     if (currentCard < flashcards.length - 1) {
       setCurrentCard(currentCard + 1);
       setSelectedAnswer(null);
-      setShowAnswer(false);
+      setShowBack(false); // Flip to front when going to next card
     }
   };
-
+  
   const previousCard = () => {
     if (currentCard > 0) {
       setCurrentCard(currentCard - 1);
       setSelectedAnswer(null);
-      setShowAnswer(false);
+      setShowBack(false); // Flip to front when going to previous card
     }
-  };
+  };  
 
   const shuffleCards = async () => {
     if (!selectedTopic) return;
     setCurrentCard(0);
-    setSelectedAnswer(null);
-    setShowAnswer(false);
+    setSelectedAnswer(null)
     await fetchFlashcards(selectedTopic);
   };
 
@@ -111,7 +133,6 @@ const FlashcardsPage = () => {
 
   const handleAnswerSelect = (answer: string) => {
     setSelectedAnswer(answer);
-    setShowAnswer(true);
     
     if (flashcards[currentCard] && answer === flashcards[currentCard].answer) {
       setCorrectAnswers(prev => prev + 1);
@@ -265,61 +286,65 @@ const FlashcardsPage = () => {
 
               {/* Question Card */}
               {flashcards[currentCard] && (
-                <div className="bg-white rounded-lg shadow-lg overflow-hidden">
-                  {/* Question */}
-                  <div className="p-8">
-                    <h2 className="text-2xl font-semibold text-gray-900 text-center">
-                      {flashcards[currentCard].question}
-                    </h2>
-                  </div>
+  <div className="relative w-full max-w-3xl mx-auto perspective h-[300px]">
+    <div
+      className={`transition-transform duration-700 transform-style preserve-3d w-full h-full ${
+        showBack ? 'rotate-x-180' : ''
+      }`}
+    >
+      {/* Front side */}
+      <div className="absolute w-full h-full backface-hidden bg-white rounded-xl shadow-lg p-8 text-center flex flex-col justify-center items-center">
+        <h2 className="text-xl font-bold text-gray-800 mb-6">
+          {flashcards[currentCard]?.question}
+        </h2>
+        <button
+          onClick={handleFlip}
+          className="text-neural-purple hover:text-tech-lavender transition duration-200">
+          <ArrowUturnUpIcon className="w-6 h-6" />
+        </button>
+      </div>
 
-                  {/* Options */}
-                  <div className="p-6 space-y-3">
-                    {[
-                      { key: 'A', value: flashcards[currentCard].option_a },
-                      { key: 'B', value: flashcards[currentCard].option_b },
-                      { key: 'C', value: flashcards[currentCard].option_c },
-                      { key: 'D', value: flashcards[currentCard].option_d },
-                    ].map((option) => (
-                      <button
-                        key={option.key}
-                        onClick={() => handleAnswerSelect(option.key)}
-                        disabled={showAnswer}
-                        className={`w-full p-4 rounded-lg border-2 text-left transition-all duration-200 ${
-                          selectedAnswer === option.key
-                            ? option.key === flashcards[currentCard].answer
-                              ? 'border-growth-green bg-growth-green/10'
-                              : 'border-alert-red bg-alert-red/10'
-                            : 'border-gray-200 hover:border-neural-purple'
-                        }`}
-                      >
-                        <div className="flex items-center justify-between">
-                          <span>{option.value}</span>
-                          {showAnswer && selectedAnswer === option.key && (
-                            option.key === flashcards[currentCard].answer
-                              ? <CheckCircleIcon className="w-6 h-6 text-growth-green" />
-                              : <XCircleIcon className="w-6 h-6 text-alert-red" />
-                          )}
-                        </div>
-                      </button>
-                    ))}
-                  </div>
 
-                  {/* Explanation */}
-                  {showAnswer && (
-                    <div className="p-6 bg-gray-50 border-t">
-                      <div className="mb-2">
-                        <span className="font-medium text-gray-900">Correct Answer: </span>
-                        <span className="text-growth-green font-medium">
-                          {flashcards[currentCard].answer}
-                        </span>
-                      </div>
-                      <p className="text-gray-600">{flashcards[currentCard].explanation}</p>
-                    </div>
-                  )}
-                </div>
-              )}
+      {/* Back side */}
+      <div className="absolute w-full h-full backface-hidden rotate-x-180 bg-white rounded-xl shadow-lg p-8 text-center flex flex-col justify-center items-center">
+        <h2 className="text-xl font-bold text-gray-800 mb-6">
+          {flashcards[currentCard]?.question}
+        </h2>
 
+        {showBack && (
+          <>
+            <p className="text-sm text-gray-500">Answer:</p>
+            <p className="text-2xl font-bold text-growth-green text-center">
+              {(() => {
+                const answerKey = flashcards[currentCard]?.answer;
+                if (!answerKey) return 'No answer';
+                const optionMap: Record<string, string> = {
+                  A: flashcards[currentCard]?.option_a,
+                  B: flashcards[currentCard]?.option_b,
+                  C: flashcards[currentCard]?.option_c,
+                  D: flashcards[currentCard]?.option_d,
+                };
+                return optionMap[answerKey] || answerKey;
+              })()}
+            </p>
+
+            {flashcards[currentCard]?.explanation && (
+              <p className="mt-4 text-gray-600 text-sm">
+                {flashcards[currentCard].explanation}
+              </p>
+            )}
+          </>
+        )}
+        <button
+          onClick={handleFlip}
+          className="mt-6 text-neural-purple hover:text-tech-lavender transition duration-200"
+        >
+          <ArrowUturnDownIcon className="w-6 h-6" />
+        </button>
+      </div>
+    </div>
+  </div>
+)}
               {/* Navigation */}
               <div className="flex justify-between items-center">
                 <button
@@ -340,7 +365,7 @@ const FlashcardsPage = () => {
                   <button
                     onClick={() => {
                       setSelectedAnswer(null);
-                      setShowAnswer(false);
+              
                       nextCard();
                     }}
                     disabled={currentCard === flashcards.length - 1}
