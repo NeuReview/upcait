@@ -436,18 +436,59 @@ const MockExamsPage = () => {
   const [showExplanation, setShowExplanation] = useState(false);
   const [timeRemaining, setTimeRemaining] = useState(examSections[0].timeLimit * 60);
   const [showLeaveConfirmation, setShowLeaveConfirmation] = useState(false);
-  const { questions, loading, error, fetchQuestions, clearError, setQuestions } = useMockExam();
+  const { questions, loading, error, fetchQuestions, clearError, setQuestions, clearUsedQuestionIds } = useMockExam();
   const [correctAnswers, setCorrectAnswers] = useState<{ [category: string]: Set<number> }>({});
   const [startTime, setStartTime] = useState<number | null>(null);
   const [score, setScore] = useState<ExamScore | null>(null);
-  const [allQuestions, setAllQuestions] = useState<Question[]>([]); // Stores all sections' questions
+  const [allQuestions, setAllQuestions] = useState<ExtendedQuestion[]>([]);
   const [userAnswers, setUserAnswers] = useState<{ [questionId: number]: string }>({});
   const [localError, setLocalError] = useState<string | null>(null);
   const navigate = useNavigate();
+  const [sectionQuestions, setSectionQuestions] = useState<Record<number, Question[]>>({});
+
+  useEffect(() => {
+    const saved = localStorage.getItem('mockExamState');
+    if (saved) {
+      const state = JSON.parse(saved);
+
+      if (state.examFinished && state.score) {
+        setScore(state.score); // ✅ Go straight to summary
+        return;
+      }
+
+      const {
+        currentSection,
+        currentQuestion,
+        userAnswers,
+        allQuestions,
+        sectionQuestions,
+      } = state;
+
+      setCurrentSection(currentSection);
+      setCurrentQuestion(currentQuestion);
+      setUserAnswers(userAnswers);
+      setAllQuestions(allQuestions);
+      setSectionQuestions(sectionQuestions);
+      setQuestions(sectionQuestions[currentSection] || []);
+      setExamStarted(true);
+      setStartTime(Date.now());
+    }
+
+      }, []);
   
 
-
-
+      useEffect(() => {
+        if (examStarted && !score) {
+          localStorage.setItem('mockExamState', JSON.stringify({
+            currentSection,
+            currentQuestion,
+            userAnswers,
+            allQuestions,
+            sectionQuestions,
+          }));
+        }
+      }, [examStarted, currentSection, currentQuestion, userAnswers, allQuestions, sectionQuestions, score]);
+      
 
   useEffect(() => {
     let timer: number | undefined;
@@ -469,6 +510,11 @@ const MockExamsPage = () => {
     };
   }, [examStarted, isTimeBased, timeRemaining]);
 
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }, [currentSection, currentQuestion]);
+  
+
   const calculateScore = () => {
     const endTime = Date.now();
     const timeSpent = startTime ? Math.floor((endTime - startTime) / 1000) : 0;
@@ -477,7 +523,7 @@ const MockExamsPage = () => {
       'Reading Comprehension': { total: 0, correct: 0, percentage: 0 },
       'Language Proficiency': { total: 0, correct: 0, percentage: 0 },
       'Science': { total: 0, correct: 0, percentage: 0 },
-      'Mathematics': { total: 0, correct: 0, percentage: 0 }
+      'Mathematics': { total: 0, correct: 0, percentage: 0 },
     };
   
     let totalCorrect = 0;
@@ -499,7 +545,7 @@ const MockExamsPage = () => {
         correctAnswer: q.answer,
         userAnswer: userAnswers[q.question_id] || null,
         explanation: q.explanation || 'No explanation provided.',
-        category: q.category, // ✅ add this
+        category: q.category,
       };
     });
   
@@ -510,16 +556,25 @@ const MockExamsPage = () => {
   
     const totalQuestions = combinedQuestions.length;
   
-    setScore({
+    const computedScore = {
       total: totalQuestions,
       correct: totalCorrect,
       incorrect: totalQuestions - totalCorrect,
       percentage: totalQuestions > 0 ? Math.round((totalCorrect / totalQuestions) * 100) : 0,
       timeSpent,
       categoryScores,
-      reviewData, // ✅
-    });
+      reviewData,
+    };
+  
+    setScore(computedScore);
+  
+    // ✅ Persist final exam state to localStorage so summary stays after refresh
+    localStorage.setItem('mockExamState', JSON.stringify({
+      examFinished: true,
+      score: computedScore,
+    }));
   };
+  
   
   const startExam = async () => {
     try {
@@ -533,7 +588,8 @@ const MockExamsPage = () => {
       setAllQuestions([]);
       setUserAnswers({});
       setLocalError(null);
-      setQuestions([]); // ✅ Clear previously fetched questions
+      setQuestions([]);
+      setSectionQuestions({}); // ✅ clear previous cache
   
       if (isTimeBased) {
         setTimeRemaining(examSections[0].timeLimit * 60);
@@ -541,14 +597,27 @@ const MockExamsPage = () => {
   
       const firstSection = examSections[0];
   
-      // ✅ Fetch questions for the first section
-      if (firstSection.category === 'Language Proficiency') {
-        await fetchQuestions('Language Proficiency', false);
-      } else {
-        await fetchQuestions(firstSection.category, false);
-      }
+      // ✅ Fetch and get returned questions directly
+      const fetched = await fetchQuestions(firstSection.category, false);
   
-      // ✅ After questions are fetched, trigger the exam
+      if (!fetched || fetched.length === 0) {
+        console.warn('No questions found for this section. Continuing exam.');
+      
+        setQuestions([]);
+        setSectionQuestions({ 0: [] });
+        setAllQuestions([]);
+        setStartTime(Date.now());
+        setExamStarted(true);
+        return;
+      }
+      
+  
+      // ✅ Set questions for rendering and sidebar immediately
+      setQuestions(fetched);
+      setSectionQuestions({ 0: fetched.map((q) => ({ ...q, sectionIndex: 0 })) });
+      setAllQuestions(fetched.map((q) => ({ ...q, sectionIndex: 0 })));
+  
+      // ✅ Start the timer
       setStartTime(Date.now());
       setExamStarted(true);
     } catch (err) {
@@ -558,6 +627,9 @@ const MockExamsPage = () => {
   };
   
   const resetExam = () => {
+    localStorage.removeItem('mockExamState'); // Clear saved progress
+    clearUsedQuestionIds(); // ✅ Clear question ID memory to avoid repeats
+  
     setExamStarted(false);
     setCurrentSection(0);
     setCurrentQuestion(0);
@@ -568,7 +640,8 @@ const MockExamsPage = () => {
     setUserAnswers({});
     setShowLeaveConfirmation(false);
     setLocalError(null);
-    setQuestions([]); // ✅ clear fetched questions to prevent auto-start
+    setQuestions([]);
+    setSectionQuestions({});
   
     if (isTimeBased) {
       setTimeRemaining(examSections[0].timeLimit * 60);
@@ -582,28 +655,17 @@ const handleRetry = async () => {
   await startExam();  // ✅ Start a new exam without navigating
 };
 
-  
-  
-  
+const handleAnswerSelect = (answer: string) => {
+  const question = questions[currentQuestion];
 
+  setUserAnswers((prev) => ({
+    ...prev,
+    [question.question_id]: answer,
+  }));
 
-  const handleAnswerSelect = (answer: string) => {
-    const question = questions[currentQuestion];
-  
-    // ✅ Log for debugging only (do not modify the ID)
-    console.log("Selected Question Index:", currentQuestion);
-    console.log("Selected Question ID:", question.question_id);
-    console.log("Answer Selected:", answer);
-    console.log("All Question IDs:", questions.map(q => q.question_id));
-  
-    setShowExplanation(false);
-  
-    setUserAnswers((prev) => ({
-      ...prev,
-      [question.question_id]: answer,
-    }));
-  };
-  
+  setSelectedAnswer(answer);
+  setShowExplanation(true); // Always show explanation after any selection
+};
 
   const formatTime = (minutes: number) => {
     const hours = Math.floor(minutes / 60);
@@ -647,30 +709,76 @@ const handleRetry = async () => {
       setSelectedAnswer(userAnswer);
       setShowExplanation(!!userAnswer);
     } else if (currentSection < examSections.length - 1) {
-      setAllQuestions((prev) => [...prev, ...questions]);
-      const nextSection = examSections[currentSection + 1];
+      const nextSectionIndex = currentSection + 1;
+      const nextSection = examSections[nextSectionIndex];
   
-      if (nextSection.category === 'Language Proficiency') {
-        await fetchQuestions('Language Proficiency', false);
-      } else {
-        await fetchQuestions(nextSection.category, false);
+      // ✅ Cache current section's questions
+      const updatedCurrent = questions.map((q) => ({ ...q, sectionIndex: currentSection }));
+      setSectionQuestions((prev) => ({
+        ...prev,
+        [currentSection]: updatedCurrent,
+      }));
+  
+      // ✅ Deduplicate before updating allQuestions
+      setAllQuestions((prev) => {
+        const map = new Map<number, ExtendedQuestion>();
+        [...prev, ...updatedCurrent].forEach((q) => map.set(q.question_id, q));
+        return Array.from(map.values());
+      });
+  
+      // ✅ Reuse cached next section if exists
+      const cachedNext = sectionQuestions[nextSectionIndex];
+      if (cachedNext) {
+        setQuestions(cachedNext);
+        setCurrentSection(nextSectionIndex);
+        setCurrentQuestion(0);
+        setSelectedAnswer(null);
+        setShowExplanation(false);
+        if (isTimeBased) setTimeRemaining(nextSection.timeLimit * 60);
+        return;
       }
   
-      setCurrentSection(currentSection + 1);
+      // ✅ Fetch next section questions from API
+      const fetched = await fetchQuestions(nextSection.category, false);
+  
+      const extended = fetched?.map((q) => ({ ...q, sectionIndex: nextSectionIndex })) || [];
+  
+      setQuestions(extended);
+      setSectionQuestions((prev) => ({
+        ...prev,
+        [nextSectionIndex]: extended,
+      }));
+  
+      // ✅ Deduplicate and update allQuestions with new section
+      setAllQuestions((prev) => {
+        const map = new Map<number, ExtendedQuestion>();
+        [...prev, ...extended].forEach((q) => map.set(q.question_id, q));
+        return Array.from(map.values());
+      });
+  
+      setCurrentSection(nextSectionIndex);
       setCurrentQuestion(0);
       setSelectedAnswer(null);
       setShowExplanation(false);
-  
-      if (isTimeBased) {
-        setTimeRemaining(nextSection.timeLimit * 60);
-      }
+      if (isTimeBased) setTimeRemaining(nextSection.timeLimit * 60);
     } else {
-      setAllQuestions((prev) => [...prev, ...questions]);
+      // ✅ Final section - cache and dedupe before scoring
+      const finalSectionQuestions = questions.map((q) => ({ ...q, sectionIndex: currentSection }));
+      setSectionQuestions((prev) => ({
+        ...prev,
+        [currentSection]: finalSectionQuestions,
+      }));
+  
+      setAllQuestions((prev) => {
+        const map = new Map<number, ExtendedQuestion>();
+        [...prev, ...finalSectionQuestions].forEach((q) => map.set(q.question_id, q));
+        return Array.from(map.values());
+      });
+  
       calculateScore();
     }
   };
   
-
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -702,13 +810,9 @@ const handleRetry = async () => {
 
     // ✅ Place this here 👇 before the main JSX render
   type ExtendedQuestion = Question & { sectionIndex: number };
+  
 
-  const combinedAllQuestions: ExtendedQuestion[] = [
-    ...allQuestions.map((q, i) => ({ ...q, sectionIndex: i })),
-    ...questions.map((q) => ({ ...q, sectionIndex: currentSection })),
-  ];
-
-  const groupedSidebarQuestions = combinedAllQuestions.reduce<Record<string, ExtendedQuestion[]>>((acc, q) => {
+  const groupedSidebarQuestions = allQuestions.reduce<Record<string, ExtendedQuestion[]>>((acc, q) => {
     if (!acc[q.category]) acc[q.category] = [];
     acc[q.category].push(q);
     return acc;
@@ -735,7 +839,7 @@ const handleRetry = async () => {
                 <ExclamationTriangleIcon className="w-5 h-5 text-alert-red flex-shrink-0 mt-0.5" />
                 <div>
                   <h3 className="text-alert-red font-medium">Error</h3>
-                  <p className="text-sm text-alert-red/90">{error}</p>
+                  <p className="text-sm text-alert-red/90">{localError || error}</p>
                 </div>
               </div>
             )}
@@ -818,7 +922,7 @@ const handleRetry = async () => {
                 <div
                   className="bg-neural-purple h-2 rounded-full transition-all duration-300"
                   style={{
-                    width: `${(currentQuestion / questions.length) * 100}%`
+                    width: `${((currentQuestion + 1) / questions.length) * 100}%`
                   }}
                 />
               </div>
@@ -844,7 +948,7 @@ const handleRetry = async () => {
                       <button
                         key={option.key}
                         onClick={() => handleAnswerSelect(option.key)}
-                        disabled={showExplanation}
+                        disabled={false}
                         className={`w-full p-4 rounded-lg border-2 text-left transition-all duration-200 ${
                           isSelected
                             ? 'border-neural-purple bg-neural-purple/10'
@@ -859,7 +963,7 @@ const handleRetry = async () => {
                         </div>
                       </button>
                     );
-                  })}
+                  })}``
                 </div>
               </div>
             )}
@@ -915,31 +1019,57 @@ const handleRetry = async () => {
 
             return (
               <button
-                key={q.question_id}
+                key={`${q.sectionIndex}-${q.question_id}`} // ✅ FIXED
                 onClick={() => {
                   if (q.sectionIndex !== currentSection) {
-                    setAllQuestions((prev) => [...prev, ...questions]);
+                    // Save current section’s questions
+                    setSectionQuestions((prev) => ({
+                      ...prev,
+                      [currentSection]: questions.map((q) => ({ ...q, sectionIndex: currentSection })),
+                    }));
+                
+                    const cached = sectionQuestions[q.sectionIndex];
+                    if (cached) {
+                      setQuestions(cached);
+                
+                      // ✅ Rebuild allQuestions from full sectionQuestions state
+                      const all = Object.entries({
+                        ...sectionQuestions,
+                        [q.sectionIndex]: cached,
+                      }).flatMap(([index, list]) =>
+                        list.map((item) => ({ ...item, sectionIndex: Number(index) }))
+                      );
+                      
+                      const map = new Map<number, ExtendedQuestion>();
+                      all.forEach((q) => map.set(q.question_id, q));
+                      setAllQuestions(Array.from(map.values()));
+                      
+                    }
+                
                     setCurrentSection(q.sectionIndex);
-                    setTimeout(() => {
-                      setCurrentQuestion(0); // default to 1st question in new section
-                    }, 0);
+                
+                    const indexInSection = cached?.findIndex(
+                      (qq) => qq.question_id === q.question_id
+                    );
+                    setCurrentQuestion(indexInSection !== -1 ? indexInSection : 0);
                   } else {
-                    const indexInCurrent = questions.findIndex((qq) => qq.question_id === q.question_id);
+                    const indexInCurrent = questions.findIndex(
+                      (qq) => qq.question_id === q.question_id
+                    );
                     if (indexInCurrent !== -1) {
                       setCurrentQuestion(indexInCurrent);
                     }
                   }
-                  
+                
+                  const userAnswer = userAnswers[q.question_id] || null;
                   setSelectedAnswer(userAnswer);
-                  setShowExplanation(isAnswered);
+                  setShowExplanation(!!userAnswer);
                 }}
-                className={`w-8 h-8 rounded-full text-sm font-medium flex items-center justify-center ${
-                  !isAnswered
-                    ? 'bg-gray-100 text-gray-600'
-                    : isCorrect
-                    ? 'bg-green-100 text-green-700'
-                    : 'bg-red-100 text-red-700'
-                }`}
+                
+                
+                className={`w-8 h-8 rounded-full text-sm font-medium flex items-center justify-center 
+                  ${!isAnswered ? 'bg-gray-100 text-gray-600' : 'bg-neural-purple/20 text-neural-purple'} 
+                `}
               >
                 {idx + 1}
               </button>

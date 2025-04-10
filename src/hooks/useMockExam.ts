@@ -1,26 +1,20 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import { supabase } from '../lib/supabase';
 import type { Question } from '../types/quiz';
 import { v4 as uuidv4 } from 'uuid'; // Make sure you have `uuid` installed
 
-interface UseMockExamReturn {
-  questions: Question[];
-  loading: boolean;
-  error: string | null;
-  fetchQuestions: (category: string, append?: boolean) => Promise<void>;
-  updateUserStats: (correctAnswers: number, totalAnswers: number) => Promise<void>;
-  clearError: () => void; // ✅ Added
-}
 
 interface UseMockExamReturn {
   questions: Question[];
   loading: boolean;
   error: string | null;
-  fetchQuestions: (category: string, append?: boolean) => Promise<void>;
+  fetchQuestions: (category: string, append?: boolean) => Promise<Question[]>;
   updateUserStats: (correctAnswers: number, totalAnswers: number) => Promise<void>;
   clearError: () => void;
-  setQuestions: React.Dispatch<React.SetStateAction<Question[]>>; // ✅ Add this
+  setQuestions: React.Dispatch<React.SetStateAction<Question[]>>;
+  clearUsedQuestionIds: () => void; // ✅ Add this line
 }
+
 
 
 export function useMockExam(): UseMockExamReturn {
@@ -28,8 +22,17 @@ export function useMockExam(): UseMockExamReturn {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // ✅ Track previously used UUIDs
+  const previouslyUsedQuestionIds = useRef<Set<number>>(new Set()); // Now use number
+
+  
+  const clearUsedQuestionIds = () => {
+    previouslyUsedQuestionIds.current.clear();
+  };
+  
   const normalizeQuestion = (q: any, category: string) => ({
-    question_id: q.question_id,
+    question_id: uuidv4(), // used in React list keys
+    original_id: q.id ?? q.question_id, // use the DB id here
     question: q.question,
     option_a: q.option_a || q.option_A,
     option_b: q.option_b || q.option_B,
@@ -39,6 +42,7 @@ export function useMockExam(): UseMockExamReturn {
     explanation: q.explanation || 'No explanation provided.',
     category,
   });
+  
 
   const fetchQuestions = useCallback(
     async (category: string, append: boolean = false) => {
@@ -113,22 +117,39 @@ export function useMockExam(): UseMockExamReturn {
         } else {
           throw new Error(`Unknown category: ${category}`);
         }
-  
+        
         if (!data || data.length === 0) {
-          throw new Error(`No questions found for ${category}.`);
+          console.warn(`[fetchQuestions] No questions found for category: ${category}`);
+          return []; // Do not throw, just return empty
         }
+        
   
         // Shuffle questions
+        // Shuffle questions
         const shuffled = data.sort(() => Math.random() - 0.5);
+
+        // Filter out previously used questions based on generated UUIDs
+        const freshQuestions = shuffled.filter(q => !previouslyUsedQuestionIds.current.has(q.original_id));
+        const finalQuestions = freshQuestions.length >= 5 
+          ? freshQuestions.slice(0, 5) 
+          : [...freshQuestions, ...shuffled.filter(q => !freshQuestions.includes(q)).slice(0, 5 - freshQuestions.length)];
+
+        finalQuestions.forEach(q => previouslyUsedQuestionIds.current.add(q.original_id));
+
+
   
         setQuestions((prev) => (append ? [...prev, ...shuffled] : shuffled));
+        return shuffled; // ✅ Return the questions
+
       } catch (err) {
         const errorMessage = err instanceof Error ? err.message : 'Unknown error';
         setError(errorMessage);
         setQuestions([]);
+        return []; // ✅ always return an array
       } finally {
         setLoading(false);
       }
+
     },
     []
   );
@@ -176,5 +197,5 @@ export function useMockExam(): UseMockExamReturn {
 
   const clearError = () => setError(null); // ✅ Added
 
-  return { questions, loading, error, fetchQuestions, updateUserStats, clearError, setQuestions};
+  return { questions, loading, error, fetchQuestions, updateUserStats, clearError, setQuestions, clearUsedQuestionIds};
 }
