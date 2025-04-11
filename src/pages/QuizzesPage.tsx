@@ -206,6 +206,8 @@ const QuizzesPage = () => {
   const [score, setScore] = useState<QuizScore | null>(null);
   const [startTime, setStartTime] = useState<number | null>(null);
   const [correctAnswers, setCorrectAnswers] = useState<Set<number>>(new Set());
+  const [userAnswers, setUserAnswers] = useState<{ [questionId: number]: string }>({});
+
 
   useEffect(() => {
     let timer: number | undefined;
@@ -282,13 +284,23 @@ const QuizzesPage = () => {
   };
 
   const handleAnswerSelect = (answer: string) => {
+    const currentQ = questions[currentQuestion];
+  
+    // ✅ Store user's selected answer for review
+    setUserAnswers((prev) => ({
+      ...prev,
+      [currentQ.question_id]: answer,
+    }));
+  
+    // ✅ Track if correct
+    if (answer === currentQ.answer) {
+      setCorrectAnswers((prev) => new Set(prev).add(currentQuestion));
+    }
+  
     setSelectedAnswer(answer);
     setShowExplanation(true);
-    
-    if (answer === questions[currentQuestion].answer) {
-      setCorrectAnswers(prev => new Set(prev).add(currentQuestion));
-    }
   };
+  
 
   const handleNextQuestion = () => {
     if (currentQuestion < questions.length - 1) {

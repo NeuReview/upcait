@@ -395,7 +395,7 @@ const examSections = [
     category: 'Language Proficiency',
     icon: LanguageIcon,
     questions: 80,
-    timeLimit: 50,
+    timeLimit: .1,
     subsections: [
       { name: 'English', questions: 40 },
       { name: 'Filipino', questions: 40 }
@@ -445,6 +445,10 @@ const MockExamsPage = () => {
   const [localError, setLocalError] = useState<string | null>(null);
   const navigate = useNavigate();
   const [sectionQuestions, setSectionQuestions] = useState<Record<number, Question[]>>({});
+  const [completedSections, setCompletedSections] = useState<Set<number>>(new Set());
+  const [showLockedModal, setShowLockedModal] = useState(false);
+
+
 
   useEffect(() => {
     const saved = localStorage.getItem('mockExamState');
@@ -750,6 +754,8 @@ const handleAnswerSelect = (answer: string) => {
         ...prev,
         [currentSection]: updatedCurrent,
       }));
+      setCompletedSections((prev) => new Set(prev).add(currentSection)); // 🔒 Lock current section
+
   
       // ✅ Deduplicate before updating allQuestions
       setAllQuestions((prev) => {
@@ -1054,30 +1060,39 @@ const handleAnswerSelect = (answer: string) => {
                 key={`${q.sectionIndex}-${q.question_id}`} // ✅ FIXED
                 onClick={() => {
                   if (q.sectionIndex !== currentSection) {
-                    // Save current section’s questions
+                    if (completedSections.has(q.sectionIndex)) {
+                      setShowLockedModal(true);
+                      return;
+
+                    }
+                
+                    // ✅ Save current section’s questions before moving
                     setSectionQuestions((prev) => ({
                       ...prev,
-                      [currentSection]: questions.map((q) => ({ ...q, sectionIndex: currentSection })),
+                      [currentSection]: questions.map((q) => ({
+                        ...q,
+                        sectionIndex: currentSection,
+                      })),
                     }));
                 
                     const cached = sectionQuestions[q.sectionIndex];
                     if (cached) {
                       setQuestions(cached);
                 
-                      // ✅ Rebuild allQuestions from full sectionQuestions state
+                      // ✅ Rebuild allQuestions using updated sectionQuestions cache
                       const all = Object.entries({
                         ...sectionQuestions,
                         [q.sectionIndex]: cached,
                       }).flatMap(([index, list]) =>
                         list.map((item) => ({ ...item, sectionIndex: Number(index) }))
                       );
-                      
+                
                       const map = new Map<number, ExtendedQuestion>();
                       all.forEach((q) => map.set(q.question_id, q));
                       setAllQuestions(Array.from(map.values()));
-                      
                     }
                 
+                    // ✅ Switch to new section and question
                     setCurrentSection(q.sectionIndex);
                 
                     const indexInSection = cached?.findIndex(
@@ -1085,6 +1100,7 @@ const handleAnswerSelect = (answer: string) => {
                     );
                     setCurrentQuestion(indexInSection !== -1 ? indexInSection : 0);
                   } else {
+                    // ✅ If already in the current section, just jump to the question
                     const indexInCurrent = questions.findIndex(
                       (qq) => qq.question_id === q.question_id
                     );
@@ -1097,6 +1113,7 @@ const handleAnswerSelect = (answer: string) => {
                   setSelectedAnswer(userAnswer);
                   setShowExplanation(!!userAnswer);
                 }}
+                
                 
                 
                 className={`w-8 h-8 rounded-full text-sm font-medium flex items-center justify-center 
@@ -1142,7 +1159,30 @@ const handleAnswerSelect = (answer: string) => {
             </div>
           </div>
         )}
-      </div>
+        </div>
+        {showLockedModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4 text-center">
+              <div className="flex justify-center mb-4">
+                <ExclamationTriangleIcon className="w-10 h-10 text-alert-red" />
+              </div>
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                Section Locked
+              </h3>
+              <p className="text-gray-600 mb-6">
+                You cannot go back to a previous section. It is locked.
+              </p>
+              <div className="flex justify-center">
+                <button
+                  onClick={() => setShowLockedModal(false)}
+                  className="px-6 py-2 bg-neural-purple text-white rounded-lg hover:bg-tech-lavender transition"
+                >
+                  OK
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
     </div>
   );
 };
