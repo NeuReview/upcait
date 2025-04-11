@@ -15,16 +15,33 @@ export function useQuestions(): UseQuestionsReturn {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const getTableName = (category: string): string => {
+    switch (category) {
+      case 'Mathematics':
+        return 'question_bank_math';
+      case 'Science':
+        return 'question_bank_science';
+      case 'Language Proficiency':
+        return 'question_bank_english_lang_prof'; // Update if you add Filipino
+      default:
+        throw new Error(`No table mapped for category: ${category}`);
+    }
+  };
+
   const fetchQuestions = useCallback(async (category: string, difficulty: string) => {
     try {
       setLoading(true);
       setError(null);
 
+      const tableName = getTableName(category);
+
+      console.log('[Fetching Questions]', { category, difficulty });
+      console.log('[Fetching from table]', tableName);
+
       const { data, error: supabaseError } = await supabase
-        .from('question_bank')
+        .from(tableName)
         .select('*')
-        .eq('category', category)
-        .eq('difficulty_level', difficulty)
+        .eq('difficulty', difficulty)
         .limit(20);
 
       if (supabaseError) throw supabaseError;
@@ -33,10 +50,25 @@ export function useQuestions(): UseQuestionsReturn {
         throw new Error(`No questions found for ${category} at ${difficulty} level. Please try a different combination.`);
       }
 
-      // Shuffle questions
-      const shuffledQuestions = [...data].sort(() => Math.random() - 0.5);
-      setQuestions(shuffledQuestions);
+      // Sanitize and map uppercase column names to lowercase
+      const sanitized = data.map((q: any): Question => ({
+        question_id: q.question_id,
+        category: category,
+        question: q.question?.trim() || '[Question missing]',
+        option_a: q.option_a?.trim() || q.option_A?.trim() || '[Option A missing]',
+        option_b: q.option_b?.trim() || q.option_B?.trim() || '[Option B missing]',
+        option_c: q.option_c?.trim() || q.option_C?.trim() || '[Option C missing]',
+        option_d: q.option_d?.trim() || q.option_D?.trim() || '[Option D missing]',
 
+        answer: q.answer?.trim() || 'A',
+        explanation: q.explanation?.trim() || 'No explanation provided.',
+        difficulty_level: q.difficulty || difficulty,
+      }));
+
+      // Shuffle questions
+      const shuffled = [...sanitized].sort(() => Math.random() - 0.5);
+
+      setQuestions(shuffled);
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'An unknown error occurred';
       setError(errorMessage);
@@ -60,7 +92,6 @@ export function useQuestions(): UseQuestionsReturn {
       if (fetchError && fetchError.code !== 'PGRST116') throw fetchError;
 
       if (existingStats) {
-        // Update existing stats
         const { error: updateError } = await supabase
           .from('user_statistics')
           .update({
@@ -71,7 +102,6 @@ export function useQuestions(): UseQuestionsReturn {
 
         if (updateError) throw updateError;
       } else {
-        // Create new stats
         const { error: insertError } = await supabase
           .from('user_statistics')
           .insert([{

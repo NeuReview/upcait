@@ -462,13 +462,22 @@ const MockExamsPage = () => {
         userAnswers,
         allQuestions,
         sectionQuestions,
+        timeRemaining,
       } = state;
+      
 
       setCurrentSection(currentSection);
       setCurrentQuestion(currentQuestion);
       setUserAnswers(userAnswers);
       setAllQuestions(allQuestions);
       setSectionQuestions(sectionQuestions);
+      if (typeof timeRemaining === 'number') {
+        setTimeRemaining(timeRemaining); // ✅ Restore time
+      } else {
+        setTimeRemaining(examSections[currentSection].timeLimit * 60); // fallback
+      }
+      
+
       setQuestions(sectionQuestions[currentSection] || []);
       setExamStarted(true);
       setStartTime(Date.now());
@@ -485,6 +494,7 @@ const MockExamsPage = () => {
             userAnswers,
             allQuestions,
             sectionQuestions,
+            timeRemaining,
           }));
         }
       }, [examStarted, currentSection, currentQuestion, userAnswers, allQuestions, sectionQuestions, score]);
@@ -495,14 +505,36 @@ const MockExamsPage = () => {
     
     if (examStarted && isTimeBased && timeRemaining > 0) {
       timer = window.setInterval(() => {
-        setTimeRemaining(prev => {
-          if (prev <= 1) {
+        setTimeRemaining((prev) => {
+          const newTime = prev - 1;
+      
+          if (newTime <= 0) {
             clearInterval(timer);
+            localStorage.setItem('mockExamState', JSON.stringify({
+              currentSection,
+              currentQuestion,
+              userAnswers,
+              allQuestions,
+              sectionQuestions,
+              timeRemaining: 0, // Final write
+            }));
             return 0;
           }
-          return prev - 1;
+      
+          // ✅ Continuously update localStorage with the latest timeRemaining
+          localStorage.setItem('mockExamState', JSON.stringify({
+            currentSection,
+            currentQuestion,
+            userAnswers,
+            allQuestions,
+            sectionQuestions,
+            timeRemaining: newTime,
+          }));
+      
+          return newTime;
         });
       }, 1000);
+      
     }
 
     return () => {

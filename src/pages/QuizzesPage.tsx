@@ -508,28 +508,42 @@ const QuizzesPage = () => {
                 )}
               </div>
             )}
-
-            <div className="flex justify-between">
-              <button
-                onClick={() => {
-                  setSelectedAnswer(null);
-                  setShowExplanation(false);
-                  setCurrentQuestion(Math.max(0, currentQuestion - 1));
-                }}
-                disabled={currentQuestion === 0}
-                className="px-4 py-2 rounded-lg border border-gray-200 text-gray-600 hover:border-neural-purple disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                Previous
-              </button>
-              {showExplanation && (
+              <div className="flex justify-between items-center">
                 <button
-                  onClick={handleNextQuestion}
-                  className="px-4 py-2 rounded-lg bg-neural-purple text-white hover:bg-tech-lavender"
+                  onClick={() => {
+                    setQuizStarted(false);
+                    setScore(null);
+                    setSelectedTopic('');
+                    setSelectedDifficulty('');
+                    setSelectedAnswer(null);
+                    setShowExplanation(false);
+                    setCurrentQuestion(0);
+                  }}
+                  className="px-4 py-2 rounded-lg text-alert-red border border-alert-red hover:bg-alert-red/10"
                 >
-                  {currentQuestion < questions.length - 1 ? 'Next Question' : 'Finish Quiz'}
+                  Leave Quiz
                 </button>
-              )}
-            </div>
+
+                <div className="flex space-x-4">
+                  <button
+                    onClick={() => {
+                      setSelectedAnswer(null);
+                      setShowExplanation(false);
+                      setCurrentQuestion(Math.max(0, currentQuestion - 1));
+                    }}
+                    disabled={currentQuestion === 0}
+                    className="px-4 py-2 rounded-lg border border-gray-200 text-gray-600 hover:border-neural-purple disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    Previous
+                  </button>
+                  <button
+                    onClick={handleNextQuestion}
+                    className="px-4 py-2 rounded-lg bg-neural-purple text-white hover:bg-tech-lavender"
+                  >
+                    {currentQuestion < questions.length - 1 ? 'Next Question' : 'Finish Quiz'}
+                  </button>
+                </div>
+              </div>
           </div>
         )}
       </div>
