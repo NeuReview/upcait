@@ -64,6 +64,20 @@ interface QuizScore {
   };
 }
 
+// For summarizing each question in the final sidebar
+interface ReviewItem {
+  question_id: number;
+  question: string;
+  option_a: string;
+  option_b: string;
+  option_c: string;
+  option_d: string;
+  correctAnswer: string;
+  userAnswer: string | null;
+  explanation: string;
+  category: string;
+}
+
 const getScoreCategory = (percentage: number) => {
   if (percentage >= 90) return { label: 'Outstanding!', color: 'text-growth-green', message: 'Exceptional performance! You\'re well-prepared for the UPCAT.' };
   if (percentage >= 80) return { label: 'Excellent!', color: 'text-neural-purple', message: 'Great work! Keep up this level of performance.' };
@@ -193,6 +207,108 @@ const QuizSummary = ({ score, onRetry }: { score: QuizScore; onRetry: () => void
   );
 };
 
+/* 
+  NEW: This is our summary-only review sidebar, 
+  showing correctness by category (like MockExamsPage).
+*/
+const QuizSummarySidebar = ({ reviewData }: { reviewData: ReviewItem[] }) => {
+  const [selectedQuestion, setSelectedQuestion] = useState<ReviewItem | null>(null);
+  const [showModal, setShowModal] = useState(false);
+
+  // Group items by category
+  const grouped = reviewData.reduce((acc, q) => {
+    if (!acc[q.category]) acc[q.category] = [];
+    acc[q.category].push(q);
+    return acc;
+  }, {} as { [key: string]: ReviewItem[] });
+
+  // Color each question button
+  const getColor = (item: ReviewItem) => {
+    return item.userAnswer === item.correctAnswer
+      ? 'bg-green-100 text-green-700'
+      : 'bg-red-100 text-red-700';
+  };
+
+  return (
+    <>
+      {/* Floating Sidebar - Summaries */}
+      <div className="hidden md:block fixed top-24 right-4 w-64 bg-white border rounded-lg shadow p-4 h-[80vh] overflow-y-auto z-40">
+        <h3 className="font-semibold mb-4 text-gray-800">Question Review</h3>
+        {Object.entries(grouped).map(([category, items]) => (
+          <div key={category} className="mb-4">
+            <h4 className="text-sm font-medium text-gray-700 mb-2">{category}</h4>
+            <div className="flex flex-wrap gap-2">
+              {items.map((q, idx) => (
+                <button
+                  key={q.question_id}
+                  onClick={() => {
+                    setSelectedQuestion(q);
+                    setShowModal(true);
+                  }}
+                  className={`w-8 h-8 rounded-full text-sm font-medium flex items-center justify-center ${getColor(q)}`}
+                >
+                  {idx + 1}
+                </button>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+      
+      {/* Modal for detailed question info */}
+      {showModal && selectedQuestion && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-xl w-full relative">
+            <button
+              className="absolute top-3 right-3 text-gray-500 hover:text-gray-700"
+              onClick={() => setShowModal(false)}
+            >
+              ✕
+            </button>
+            <h2 className="text-lg font-semibold mb-4">Question</h2>
+            <p className="text-gray-800 mb-4">{selectedQuestion.question}</p>
+
+            <ul className="space-y-2 mb-4">
+              {(['A', 'B', 'C', 'D'] as const).map((letter) => {
+                const optionKey = `option_${letter.toLowerCase()}` as keyof ReviewItem;
+                const text = selectedQuestion[optionKey] as string;
+                const isUser = selectedQuestion.userAnswer === letter;
+                const isCorrect = selectedQuestion.correctAnswer === letter;
+
+                return (
+                  <li
+                    key={letter}
+                    className={`p-3 rounded-lg border ${
+                      isCorrect
+                        ? 'bg-green-100 border-green-300'
+                        : isUser
+                        ? 'bg-red-100 border-red-300'
+                        : 'border-gray-200'
+                    }`}
+                  >
+                    <span className="font-semibold">{letter}.</span> {text}
+                    {isCorrect && (
+                      <span className="ml-2 text-green-700 text-sm font-semibold">✓ Correct</span>
+                    )}
+                    {isUser && !isCorrect && (
+                      <span className="ml-2 text-red-700 text-sm font-semibold">
+                        ✗ Your Answer
+                      </span>
+                    )}
+                  </li>
+                );
+              })}
+            </ul>
+
+            <p className="text-sm text-gray-500 mb-1">Explanation</p>
+            <p className="text-gray-700">{selectedQuestion.explanation}</p>
+          </div>
+        </div>
+      )}
+    </>
+  );
+};
+
 const QuizzesPage = () => {
   const [selectedTopic, setSelectedTopic] = useState('');
   const [selectedDifficulty, setSelectedDifficulty] = useState('');
@@ -207,11 +323,17 @@ const QuizzesPage = () => {
   const [startTime, setStartTime] = useState<number | null>(null);
   const [correctAnswers, setCorrectAnswers] = useState<Set<number>>(new Set());
   const [userAnswers, setUserAnswers] = useState<{ [questionId: number]: string }>({});
+  const [allQuestions, setAllQuestions] = useState<Question[]>([]);
 
+  // Keep a live copy of questions in allQuestions for the in-progress sidebar
+  useEffect(() => {
+    if (questions.length > 0) {
+      setAllQuestions(questions);
+    }
+  }, [questions]);
 
   useEffect(() => {
     let timer: number | undefined;
-    
     if (quizStarted && isTimeBased && timeRemaining > 0) {
       timer = window.setInterval(() => {
         setTimeRemaining(prev => {
@@ -224,7 +346,6 @@ const QuizzesPage = () => {
         });
       }, 1000);
     }
-
     return () => {
       if (timer) clearInterval(timer);
     };
@@ -286,13 +407,13 @@ const QuizzesPage = () => {
   const handleAnswerSelect = (answer: string) => {
     const currentQ = questions[currentQuestion];
   
-    // ✅ Store user's selected answer for review
+    // Store user's selected answer for review
     setUserAnswers((prev) => ({
       ...prev,
       [currentQ.question_id]: answer,
     }));
   
-    // ✅ Track if correct
+    // Track correctness
     if (answer === currentQ.answer) {
       setCorrectAnswers((prev) => new Set(prev).add(currentQuestion));
     }
@@ -301,7 +422,6 @@ const QuizzesPage = () => {
     setShowExplanation(true);
   };
   
-
   const handleNextQuestion = () => {
     if (currentQuestion < questions.length - 1) {
       setSelectedAnswer(null);
@@ -329,9 +449,24 @@ const QuizzesPage = () => {
     );
   }
 
+  // Once we have a score, show summary + new summary sidebar
   if (score) {
+    // Build ReviewItem data for summary
+    const reviewData: ReviewItem[] = allQuestions.map((q, idx) => ({
+      question_id: q.question_id,
+      question: q.question,
+      option_a: q.option_a,
+      option_b: q.option_b,
+      option_c: q.option_c,
+      option_d: q.option_d,
+      correctAnswer: q.answer,
+      userAnswer: userAnswers[q.question_id] || null,
+      explanation: q.explanation || 'No explanation provided.',
+      category: q.category
+    }));
+
     return (
-      <div className="min-h-screen bg-gray-50 py-6">
+      <div className="min-h-screen bg-gray-50 py-6 relative">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <QuizSummary 
             score={score} 
@@ -341,13 +476,18 @@ const QuizzesPage = () => {
             }} 
           />
         </div>
+
+        {/* Add the summary-only sidebar, just like mock exams */}
+        <QuizSummarySidebar reviewData={reviewData} />
       </div>
     );
   }
 
+  // While quiz is ongoing, show the original “Question Review” sidebar
   return (
     <div className="min-h-screen bg-gray-50 py-6">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        {/* If quiz not started, show the intro screen */}
         {!quizStarted ? (
           <div className="space-y-8">
             <div className="text-center">
@@ -370,6 +510,7 @@ const QuizzesPage = () => {
               </div>
             )}
 
+            {/* Topic selection */}
             <div>
               <h2 className="text-xl font-semibold text-gray-900 mb-4">Select Topic</h2>
               <div className="grid md:grid-cols-2 gap-4">
@@ -401,6 +542,7 @@ const QuizzesPage = () => {
               </div>
             </div>
 
+            {/* Difficulty selection */}
             <div>
               <h2 className="text-xl font-semibold text-gray-900 mb-4">Select Difficulty</h2>
               <div className="grid md:grid-cols-3 gap-4">
@@ -420,6 +562,7 @@ const QuizzesPage = () => {
               </div>
             </div>
 
+            {/* Timer toggle */}
             <div className="flex items-center justify-center space-x-4">
               <label className="flex items-center space-x-2">
                 <input
@@ -432,6 +575,7 @@ const QuizzesPage = () => {
               </label>
             </div>
 
+            {/* Start Quiz button */}
             <div className="text-center">
               <button
                 onClick={startQuiz}
@@ -447,7 +591,9 @@ const QuizzesPage = () => {
             </div>
           </div>
         ) : (
+          // Quiz is ongoing
           <div className="max-w-3xl mx-auto space-y-6">
+            {/* Header & progress bar */}
             <div className="bg-white rounded-lg shadow-md p-4">
               <div className="flex justify-between items-center">
                 <div>
@@ -473,6 +619,7 @@ const QuizzesPage = () => {
               </div>
             </div>
 
+            {/* Question + answer options */}
             {questions[currentQuestion] && (
               <div className="bg-white rounded-lg shadow-lg p-6">
                 <h2 className="text-xl font-semibold text-gray-900 mb-4">
@@ -510,6 +657,7 @@ const QuizzesPage = () => {
                   ))}
                 </div>
 
+                {/* Explanation shown after user picks an answer */}
                 {showExplanation && (
                   <div className="mt-6 p-4 bg-gray-50 rounded-lg">
                     <h3 className="font-semibold text-gray-900 mb-2">Explanation:</h3>
@@ -520,42 +668,78 @@ const QuizzesPage = () => {
                 )}
               </div>
             )}
-              <div className="flex justify-between items-center">
+
+            {/* Ongoing “Question Review” sidebar for navigation */}
+            <div className="hidden md:block fixed top-24 right-4 w-64 bg-white border rounded-lg shadow p-4 h-[80vh] overflow-y-auto z-40">
+              <h3 className="font-semibold mb-4 text-gray-800">Question Review</h3>
+              <div className="flex flex-wrap gap-2">
+                {allQuestions.map((q, idx) => {
+                  const isCurrent = idx === currentQuestion;
+                  const isAnswered = userAnswers[q.question_id] !== undefined;
+
+                  return (
+                    <button
+                      key={q.question_id}
+                      onClick={() => {
+                        setCurrentQuestion(idx);
+                        setSelectedAnswer(userAnswers[q.question_id] || null);
+                        setShowExplanation(!!userAnswers[q.question_id]);
+                      }}
+                      className={`w-8 h-8 rounded-full text-sm font-medium flex items-center justify-center
+                        ${
+                          isCurrent 
+                            ? 'bg-neural-purple text-white' 
+                            : isAnswered 
+                            ? 'bg-neural-purple/20 text-neural-purple' 
+                            : 'bg-gray-100 text-gray-600'
+                        }
+                      `}
+                    >
+                      {idx + 1}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Footer actions */}
+            <div className="flex justify-between items-center">
+              <button
+                onClick={() => {
+                  // Leave quiz resets all states
+                  setQuizStarted(false);
+                  setScore(null);
+                  setSelectedTopic('');
+                  setSelectedDifficulty('');
+                  setSelectedAnswer(null);
+                  setShowExplanation(false);
+                  setCurrentQuestion(0);
+                }}
+                className="px-4 py-2 rounded-lg text-alert-red border border-alert-red hover:bg-alert-red/10"
+              >
+                Leave Quiz
+              </button>
+
+              <div className="flex space-x-4">
                 <button
                   onClick={() => {
-                    setQuizStarted(false);
-                    setScore(null);
-                    setSelectedTopic('');
-                    setSelectedDifficulty('');
                     setSelectedAnswer(null);
                     setShowExplanation(false);
-                    setCurrentQuestion(0);
+                    setCurrentQuestion(Math.max(0, currentQuestion - 1));
                   }}
-                  className="px-4 py-2 rounded-lg text-alert-red border border-alert-red hover:bg-alert-red/10"
+                  disabled={currentQuestion === 0}
+                  className="px-4 py-2 rounded-lg border border-gray-200 text-gray-600 hover:border-neural-purple disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  Leave Quiz
+                  Previous
                 </button>
-
-                <div className="flex space-x-4">
-                  <button
-                    onClick={() => {
-                      setSelectedAnswer(null);
-                      setShowExplanation(false);
-                      setCurrentQuestion(Math.max(0, currentQuestion - 1));
-                    }}
-                    disabled={currentQuestion === 0}
-                    className="px-4 py-2 rounded-lg border border-gray-200 text-gray-600 hover:border-neural-purple disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    Previous
-                  </button>
-                  <button
-                    onClick={handleNextQuestion}
-                    className="px-4 py-2 rounded-lg bg-neural-purple text-white hover:bg-tech-lavender"
-                  >
-                    {currentQuestion < questions.length - 1 ? 'Next Question' : 'Finish Quiz'}
-                  </button>
-                </div>
+                <button
+                  onClick={handleNextQuestion}
+                  className="px-4 py-2 rounded-lg bg-neural-purple text-white hover:bg-tech-lavender"
+                >
+                  {currentQuestion < questions.length - 1 ? 'Next Question' : 'Finish Quiz'}
+                </button>
               </div>
+            </div>
           </div>
         )}
       </div>
