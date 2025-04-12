@@ -318,7 +318,7 @@ const QuizzesPage = () => {
   const [selectedAnswer, setSelectedAnswer] = useState<string | null>(null);
   const [showExplanation, setShowExplanation] = useState(false);
   const [timeRemaining, setTimeRemaining] = useState(30 * 60);
-  const { questions, loading, error, fetchQuestions } = useQuestions();
+  const { questions, loading, error, fetchQuestions, updateUserStats, recordScienceProgress, recordMathProgress } = useQuestions();
   const [score, setScore] = useState<QuizScore | null>(null);
   const [startTime, setStartTime] = useState<number | null>(null);
   const [correctAnswers, setCorrectAnswers] = useState<Set<number>>(new Set());
@@ -420,6 +420,51 @@ const QuizzesPage = () => {
   
     setSelectedAnswer(answer);
     setShowExplanation(true);
+    
+    const isCorrect = answer === questions[currentQuestion].answer;
+    if (isCorrect) {
+      setCorrectAnswers(prev => new Set(prev).add(currentQuestion));
+    }
+    
+    const currentQuestionData = questions[currentQuestion];
+    
+    if (currentQuestionData.category === 'Science') {
+      console.log("Recording science question:", {
+        category: currentQuestionData.category,
+        global_id: currentQuestionData.global_id,
+        question: currentQuestionData.question,
+        answer: answer,
+        correctAnswer: currentQuestionData.answer,
+        isCorrect: isCorrect
+      });
+      
+      if (!currentQuestionData.global_id) {
+        console.error("ERROR: Current question has no global_id:", currentQuestionData);
+        return;
+      }
+      
+      console.log(`Calling recordScienceProgress with global_id=${currentQuestionData.global_id}, isCorrect=${isCorrect}`);
+      recordScienceProgress(currentQuestionData.global_id, isCorrect);
+    } else if (currentQuestionData.category === 'Mathematics') {
+      console.log("Recording math question:", {
+        category: currentQuestionData.category,
+        global_id: currentQuestionData.global_id,
+        question: currentQuestionData.question,
+        answer: answer,
+        correctAnswer: currentQuestionData.answer,
+        isCorrect: isCorrect
+      });
+      
+      if (!currentQuestionData.global_id) {
+        console.error("ERROR: Current question has no global_id:", currentQuestionData);
+        return;
+      }
+      
+      console.log(`Calling recordMathProgress with global_id=${currentQuestionData.global_id}, isCorrect=${isCorrect}`);
+      recordMathProgress(currentQuestionData.global_id, isCorrect);
+    } else {
+      console.log("Not a Science or Math category question, category:", currentQuestionData.category);
+    }
   };
   
   const handleNextQuestion = () => {

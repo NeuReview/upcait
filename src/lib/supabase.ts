@@ -14,7 +14,7 @@ declare global {
 }
 
 // ✅ Create or reuse existing Supabase instance
-export const supabase: SupabaseClient<Database> =
+export const supabase =
   globalThis.supabaseInstance ??
   createClient<Database>(supabaseUrl, supabaseAnonKey, {
     auth: {
@@ -28,6 +28,25 @@ export const supabase: SupabaseClient<Database> =
 if (!globalThis.supabaseInstance) {
   globalThis.supabaseInstance = supabase;
 }
+
+// Add a utility function to check connection status
+export const checkSupabaseConnection = async (): Promise<{ connected: boolean; error?: string }> => {
+  try {
+    // Try a simple query to check connection
+    const { error } = await supabase.from('user_statistics').select('count', { count: 'exact', head: true });
+    
+    if (error) {
+      console.error('Supabase connection check failed:', error);
+      return { connected: false, error: error.message };
+    }
+    
+    return { connected: true };
+  } catch (err) {
+    const errorMessage = err instanceof Error ? err.message : 'Unknown error';
+    console.error('Error checking Supabase connection:', errorMessage);
+    return { connected: false, error: errorMessage };
+  }
+};
 
 // ✅ Google Sign-in function with error handling
 export const signInWithGoogle = async (): Promise<void> => {
