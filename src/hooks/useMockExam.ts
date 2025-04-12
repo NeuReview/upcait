@@ -1,7 +1,6 @@
 import { useState, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
 import type { Question } from '../types/quiz';
-import { v4 as uuidv4 } from 'uuid'; // Make sure you have `uuid` installed
 
 interface UseMockExamReturn {
   questions: Question[];
@@ -11,17 +10,6 @@ interface UseMockExamReturn {
   updateUserStats: (correctAnswers: number, totalAnswers: number) => Promise<void>;
   clearError: () => void; // ✅ Added
 }
-
-interface UseMockExamReturn {
-  questions: Question[];
-  loading: boolean;
-  error: string | null;
-  fetchQuestions: (category: string, append?: boolean) => Promise<void>;
-  updateUserStats: (correctAnswers: number, totalAnswers: number) => Promise<void>;
-  clearError: () => void;
-  setQuestions: React.Dispatch<React.SetStateAction<Question[]>>; // ✅ Add this
-}
-
 
 export function useMockExam(): UseMockExamReturn {
   const [questions, setQuestions] = useState<Question[]>([]);
@@ -45,82 +33,67 @@ export function useMockExam(): UseMockExamReturn {
       try {
         setLoading(true);
         setError(null);
-  
+
         let data: any[] = [];
-  
+
         if (category === 'Language Proficiency') {
           const { data: englishData, error: englishError } = await supabase
             .from('question_bank_english_lang_prof')
             .select('*')
-            .limit(5);
-  
+            .limit(2);
+
           if (englishError) throw englishError;
-  
+
           const { data: filipinoData, error: filipinoError } = await supabase
             .from('question_bank_filipino_lang_prof')
             .select('*')
-            .limit(5);
-  
+            .limit(2);
+
           if (filipinoError) throw filipinoError;
-  
+
           data = [
-            ...englishData.map((q) => ({
-              ...normalizeQuestion(q, 'Language Proficiency'),
-              question_id: uuidv4() // assign unique ID
-            })),
-            ...filipinoData.map((q) => ({
-              ...normalizeQuestion(q, 'Language Proficiency'),
-              question_id: uuidv4() // assign unique ID
-            })),
+            ...englishData.map((q) => normalizeQuestion(q, 'Language Proficiency')),
+            ...filipinoData.map((q) => normalizeQuestion(q, 'Language Proficiency')),
           ];
         } else if (category === 'Mathematics') {
           const { data: mathData, error: mathError } = await supabase
             .from('question_bank_math')
             .select('*')
-            .limit(5);
-  
+            .limit(2);
+
           if (mathError) throw mathError;
-  
-          data = mathData.map((q) => ({
-            ...normalizeQuestion(q, 'Mathematics'),
-            question_id: uuidv4()
-          }));
+
+          data = mathData.map((q) => normalizeQuestion(q, 'Mathematics'));
         } else if (category === 'Science') {
           const { data: scienceData, error: scienceError } = await supabase
             .from('question_bank_science')
             .select('*')
-            .limit(5);
-  
+            .limit(2);
+
           if (scienceError) throw scienceError;
-  
-          data = scienceData.map((q) => ({
-            ...normalizeQuestion(q, 'Science'),
-            question_id: uuidv4()
-          }));
+
+          data = scienceData.map((q) => normalizeQuestion(q, 'Science'));
         } else if (category === 'Reading Comprehension') {
           const { data: readingData, error: readingError } = await supabase
             .from('question_bank')
             .select('*')
             .eq('category', 'Reading Comprehension')
-            .limit(5);
-  
+            .limit(2);
+
           if (readingError) throw readingError;
-  
-          data = readingData.map((q) => ({
-            ...normalizeQuestion(q, 'Reading Comprehension'),
-            question_id: uuidv4()
-          }));
+
+          data = readingData.map((q) => normalizeQuestion(q, 'Reading Comprehension'));
         } else {
           throw new Error(`Unknown category: ${category}`);
         }
-  
+
         if (!data || data.length === 0) {
           throw new Error(`No questions found for ${category}.`);
         }
-  
-        // Shuffle questions
+
+        // Shuffle
         const shuffled = data.sort(() => Math.random() - 0.5);
-  
+
         setQuestions((prev) => (append ? [...prev, ...shuffled] : shuffled));
       } catch (err) {
         const errorMessage = err instanceof Error ? err.message : 'Unknown error';
@@ -176,5 +149,5 @@ export function useMockExam(): UseMockExamReturn {
 
   const clearError = () => setError(null); // ✅ Added
 
-  return { questions, loading, error, fetchQuestions, updateUserStats, clearError, setQuestions};
+  return { questions, loading, error, fetchQuestions, updateUserStats, clearError };
 }
