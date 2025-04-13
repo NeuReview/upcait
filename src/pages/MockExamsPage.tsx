@@ -21,9 +21,7 @@ import { useNavigate } from 'react-router-dom';
 
 
 
-interface ReviewItem {
-  question_id: number;
-  question: string;
+interface ReviewItem extends Omit<Question, 'options' | 'answer'> {
   option_a: string;
   option_b: string;
   option_c: string;
@@ -31,7 +29,6 @@ interface ReviewItem {
   correctAnswer: string;
   userAnswer: string | null;
   explanation: string;
-  category: string; // ✅ Add this to store category
 }
 
 interface ExamScore {
@@ -49,6 +46,19 @@ interface ExamScore {
   };
   reviewData: ReviewItem[]; // ✅ Add this
 }
+
+const mapQuestionToReviewItem = (question: Question, userAnswer: string | null): ReviewItem => {
+  return {
+    ...question,
+    option_a: question.option_a || question.options[0] || '',
+    option_b: question.option_b || question.options[1] || '',
+    option_c: question.option_c || question.options[2] || '',
+    option_d: question.option_d || question.options[3] || '',
+    correctAnswer: question.answer,
+    userAnswer: userAnswer,
+    explanation: question.explanation || ''
+  };
+};
 
 const QuestionReviewPanel = ({ reviewData }: { reviewData: ReviewItem[] }) => {
   const [selectedQuestion, setSelectedQuestion] = useState<ReviewItem | null>(null);
@@ -552,63 +562,48 @@ const MockExamsPage = () => {
   
 
   const calculateScore = () => {
-    const endTime = Date.now();
-    const timeSpent = startTime ? Math.floor((endTime - startTime) / 1000) : 0;
-  
-    const categoryScores: { [key: string]: { total: number; correct: number; percentage: number } } = {
-      'Reading Comprehension': { total: 0, correct: 0, percentage: 0 },
-      'Language Proficiency': { total: 0, correct: 0, percentage: 0 },
-      'Science': { total: 0, correct: 0, percentage: 0 },
-      'Mathematics': { total: 0, correct: 0, percentage: 0 },
-    };
-  
-    let totalCorrect = 0;
-    const combinedQuestions = [...allQuestions, ...questions];
-  
-    const reviewData = combinedQuestions.map((q) => {
-      const isCorrect = userAnswers[q.question_id] === q.answer;
-      if (isCorrect) totalCorrect++;
-      categoryScores[q.category].total++;
-      if (isCorrect) categoryScores[q.category].correct++;
-  
-      return {
-        question_id: q.question_id,
-        question: q.question,
-        option_a: q.option_a,
-        option_b: q.option_b,
-        option_c: q.option_c,
-        option_d: q.option_d,
-        correctAnswer: q.answer,
-        userAnswer: userAnswers[q.question_id] || null,
-        explanation: q.explanation || 'No explanation provided.',
-        category: q.category,
-      };
+    const examQuestions: Question[] = [...allQuestions];
+    const totalQuestions = examQuestions.length;
+    let correctAnswers = 0;
+    const categoryScores: { [key: string]: { total: number; correct: number; percentage: number } } = {};
+    const reviewItems: ReviewItem[] = [];
+
+    examQuestions.forEach((question: Question) => {
+      const userAnswer = userAnswers[question.question_id];
+      const isCorrect = userAnswer === question.answer;
+      
+      // Update category scores
+      if (!categoryScores[question.category]) {
+        categoryScores[question.category] = { total: 0, correct: 0, percentage: 0 };
+      }
+      categoryScores[question.category].total++;
+      if (isCorrect) {
+        categoryScores[question.category].correct++;
+        correctAnswers++;
+      }
+
+      // Create review item
+      const reviewItem = mapQuestionToReviewItem(question, userAnswer);
+      reviewItems.push(reviewItem);
     });
-  
+
+    // Calculate category percentages
     Object.keys(categoryScores).forEach((category) => {
-      const stats = categoryScores[category];
-      stats.percentage = stats.total > 0 ? Math.round((stats.correct / stats.total) * 100) : 0;
+      const { total, correct } = categoryScores[category];
+      categoryScores[category].percentage = (correct / total) * 100;
     });
-  
-    const totalQuestions = combinedQuestions.length;
-  
-    const computedScore = {
+
+    const timeSpent = Math.floor((startTime ? Date.now() - startTime : 0) / 1000);
+    
+    setScore({
       total: totalQuestions,
-      correct: totalCorrect,
-      incorrect: totalQuestions - totalCorrect,
-      percentage: totalQuestions > 0 ? Math.round((totalCorrect / totalQuestions) * 100) : 0,
+      correct: correctAnswers,
+      incorrect: totalQuestions - correctAnswers,
+      percentage: (correctAnswers / totalQuestions) * 100,
       timeSpent,
       categoryScores,
-      reviewData,
-    };
-  
-    setScore(computedScore);
-  
-    // ✅ Persist final exam state to localStorage so summary stays after refresh
-    localStorage.setItem('mockExamState', JSON.stringify({
-      examFinished: true,
-      score: computedScore,
-    }));
+      reviewData: reviewItems
+    });
   };
   
   
@@ -1001,7 +996,7 @@ const handleAnswerSelect = (answer: string) => {
                         </div>
                       </button>
                     );
-                  })}``
+                  })}
                 </div>
               </div>
             )}
@@ -1066,7 +1061,7 @@ const handleAnswerSelect = (answer: string) => {
 
                     }
                 
-                    // ✅ Save current section’s questions before moving
+                    // ✅ Save current section's questions before moving
                     setSectionQuestions((prev) => ({
                       ...prev,
                       [currentSection]: questions.map((q) => ({

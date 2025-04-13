@@ -64,10 +64,7 @@ interface QuizScore {
   };
 }
 
-// For summarizing each question in the final sidebar
-interface ReviewItem {
-  question_id: number;
-  question: string;
+interface ReviewItem extends Omit<Question, 'options' | 'answer'> {
   option_a: string;
   option_b: string;
   option_c: string;
@@ -75,8 +72,20 @@ interface ReviewItem {
   correctAnswer: string;
   userAnswer: string | null;
   explanation: string;
-  category: string;
 }
+
+const mapQuestionToReviewItem = (question: Question, userAnswer: string | null): ReviewItem => {
+  return {
+    ...question,
+    option_a: question.option_a || question.options[0] || '',
+    option_b: question.option_b || question.options[1] || '',
+    option_c: question.option_c || question.options[2] || '',
+    option_d: question.option_d || question.options[3] || '',
+    correctAnswer: question.answer,
+    userAnswer: userAnswer,
+    explanation: question.explanation || ''
+  };
+};
 
 const getScoreCategory = (percentage: number) => {
   if (percentage >= 90) return { label: 'Outstanding!', color: 'text-growth-green', message: 'Exceptional performance! You\'re well-prepared for the UPCAT.' };
@@ -497,18 +506,7 @@ const QuizzesPage = () => {
   // Once we have a score, show summary + new summary sidebar
   if (score) {
     // Build ReviewItem data for summary
-    const reviewData: ReviewItem[] = allQuestions.map((q, idx) => ({
-      question_id: q.question_id,
-      question: q.question,
-      option_a: q.option_a,
-      option_b: q.option_b,
-      option_c: q.option_c,
-      option_d: q.option_d,
-      correctAnswer: q.answer,
-      userAnswer: userAnswers[q.question_id] || null,
-      explanation: q.explanation || 'No explanation provided.',
-      category: q.category
-    }));
+    const reviewData: ReviewItem[] = allQuestions.map((q, idx) => mapQuestionToReviewItem(q, userAnswers[q.question_id] || null));
 
     return (
       <div className="min-h-screen bg-gray-50 py-6 relative">
@@ -528,7 +526,7 @@ const QuizzesPage = () => {
     );
   }
 
-  // While quiz is ongoing, show the original “Question Review” sidebar
+  // While quiz is ongoing, show the original "Question Review" sidebar
   return (
     <div className="min-h-screen bg-gray-50 py-6">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -714,7 +712,7 @@ const QuizzesPage = () => {
               </div>
             )}
 
-            {/* Ongoing “Question Review” sidebar for navigation */}
+            {/* Ongoing "Question Review" sidebar for navigation */}
             <div className="hidden md:block fixed top-24 right-4 w-64 bg-white border rounded-lg shadow p-4 h-[80vh] overflow-y-auto z-40">
               <h3 className="font-semibold mb-4 text-gray-800">Question Review</h3>
               <div className="flex flex-wrap gap-2">
