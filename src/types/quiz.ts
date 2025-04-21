@@ -10,6 +10,7 @@ export interface Question {
   option_b?: string;
   option_c?: string;
   option_d?: string;
+  tag?: string;
 }
 
 

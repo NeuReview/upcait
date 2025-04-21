@@ -244,12 +244,12 @@ const QuizSummarySidebar = ({ reviewData }: { reviewData: ReviewItem[] }) => {
       <div className="hidden md:block fixed top-24 right-4 w-64 bg-white border rounded-lg shadow p-4 h-[80vh] overflow-y-auto z-40">
         <h3 className="font-semibold mb-4 text-gray-800">Question Review</h3>
         {Object.entries(grouped).map(([category, items]) => (
-          <div key={category} className="mb-4">
+          <div key={`category-${category}`} className="mb-4">
             <h4 className="text-sm font-medium text-gray-700 mb-2">{category}</h4>
             <div className="flex flex-wrap gap-2">
               {items.map((q, idx) => (
                 <button
-                  key={q.question_id}
+                  key={`question-${q.question_id}-${idx}`}
                   onClick={() => {
                     setSelectedQuestion(q);
                     setShowModal(true);
@@ -318,6 +318,9 @@ const QuizSummarySidebar = ({ reviewData }: { reviewData: ReviewItem[] }) => {
   );
 };
 
+// Type for extending Question to ensure tag is recognized
+type QuestionWithTag = Question & { tag?: string };
+
 const QuizzesPage = () => {
   const [selectedTopic, setSelectedTopic] = useState('');
   const [selectedDifficulty, setSelectedDifficulty] = useState('');
@@ -327,7 +330,16 @@ const QuizzesPage = () => {
   const [selectedAnswer, setSelectedAnswer] = useState<string | null>(null);
   const [showExplanation, setShowExplanation] = useState(false);
   const [timeRemaining, setTimeRemaining] = useState(30 * 60);
-  const { questions, loading, error, fetchQuestions, updateUserStats, recordScienceProgress, recordMathProgress } = useQuestions();
+  const { 
+    questions, 
+    loading, 
+    error, 
+    fetchQuestions, 
+    updateUserStats, 
+    recordScienceProgress, 
+    recordMathProgress,
+    recordLanguageProficiencyProgress 
+  } = useQuestions();
   const [score, setScore] = useState<QuizScore | null>(null);
   const [startTime, setStartTime] = useState<number | null>(null);
   const [correctAnswers, setCorrectAnswers] = useState<Set<number>>(new Set());
@@ -414,65 +426,67 @@ const QuizzesPage = () => {
   };
 
   const handleAnswerSelect = (answer: string) => {
-    const currentQ = questions[currentQuestion];
-  
-    // Store user's selected answer for review
-    setUserAnswers((prev) => ({
-      ...prev,
-      [currentQ.question_id]: answer,
-    }));
-  
-    // Track correctness
-    if (answer === currentQ.answer) {
-      setCorrectAnswers((prev) => new Set(prev).add(currentQuestion));
-    }
-  
-    setSelectedAnswer(answer);
+    if (!questions[currentQuestion]) return;
+    
+    // Mark this question as answered
+    setUserAnswers({
+      ...userAnswers,
+      [questions[currentQuestion].question_id]: answer
+    });
+    
+    // Track if the answer is correct
+    const isCorrect = answer === questions[currentQuestion].answer;
+    
+    // Show the explanation
     setShowExplanation(true);
     
-    const isCorrect = answer === questions[currentQuestion].answer;
+    // Update the score - using correctAnswers Set which is what the original code was using
     if (isCorrect) {
       setCorrectAnswers(prev => new Set(prev).add(currentQuestion));
     }
     
-    const currentQuestionData = questions[currentQuestion];
+    // Get the current question data
+    const currentQuestionData = questions[currentQuestion] as QuestionWithTag;
     
-    if (currentQuestionData.category === 'Science') {
-      console.log("Recording science question:", {
-        category: currentQuestionData.category,
-        global_id: currentQuestionData.global_id,
-        question: currentQuestionData.question,
-        answer: answer,
-        correctAnswer: currentQuestionData.answer,
-        isCorrect: isCorrect
-      });
-      
-      if (!currentQuestionData.global_id) {
-        console.error("ERROR: Current question has no global_id:", currentQuestionData);
-        return;
-      }
-      
+    // Track progress in the database based on category
+    if (currentQuestionData.category === 'Science' && currentQuestionData.global_id) {
       console.log(`Calling recordScienceProgress with global_id=${currentQuestionData.global_id}, isCorrect=${isCorrect}`);
       recordScienceProgress(currentQuestionData.global_id, isCorrect);
-    } else if (currentQuestionData.category === 'Mathematics') {
-      console.log("Recording math question:", {
-        category: currentQuestionData.category,
-        global_id: currentQuestionData.global_id,
-        question: currentQuestionData.question,
-        answer: answer,
-        correctAnswer: currentQuestionData.answer,
-        isCorrect: isCorrect
-      });
-      
-      if (!currentQuestionData.global_id) {
-        console.error("ERROR: Current question has no global_id:", currentQuestionData);
-        return;
-      }
-      
+    } 
+    else if (currentQuestionData.category === 'Mathematics' && currentQuestionData.global_id) {
       console.log(`Calling recordMathProgress with global_id=${currentQuestionData.global_id}, isCorrect=${isCorrect}`);
       recordMathProgress(currentQuestionData.global_id, isCorrect);
-    } else {
-      console.log("Not a Science or Math category question, category:", currentQuestionData.category);
+    }
+    else if (currentQuestionData.category === 'Language Proficiency' && currentQuestionData.global_id) {
+      // Use the tag from the current question or default to empty string
+      const tagValue = currentQuestionData.tag || '';
+      
+      // More detailed logging of UUID
+      console.log('Language Proficiency Question UUID Details:', {
+        question_id: currentQuestionData.question_id,
+        global_id: currentQuestionData.global_id,
+        global_id_type: typeof currentQuestionData.global_id,
+        length: currentQuestionData.global_id.length,
+        // Log each segment to spot any encoding issues
+        segments: currentQuestionData.global_id.split('-')
+      });
+      
+      console.log(`Calling recordLanguageProficiencyProgress with global_id=${currentQuestionData.global_id}, isCorrect=${isCorrect}, tag=${tagValue}`);
+      
+      // Ensure we're passing the exact UUID string without modifications
+      const uuid = String(currentQuestionData.global_id);
+      recordLanguageProficiencyProgress(
+        uuid, 
+        isCorrect,
+        tagValue
+      );
+    }
+    
+    // If this is the last question, calculate final score after a delay
+    if (currentQuestion === questions.length - 1) {
+      setTimeout(() => {
+        calculateScore();
+      }, 1500);
     }
   };
   
@@ -722,7 +736,7 @@ const QuizzesPage = () => {
 
                   return (
                     <button
-                      key={q.question_id}
+                      key={`ongoing-review-${q.question_id}-${idx}`}
                       onClick={() => {
                         setCurrentQuestion(idx);
                         setSelectedAnswer(userAnswers[q.question_id] || null);
