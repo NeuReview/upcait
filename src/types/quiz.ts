@@ -1,5 +1,5 @@
 export interface Question {
-  question_id: number;
+  question_id: string;
   global_id?: string;
   category: string;
   question: string;
@@ -10,7 +10,7 @@ export interface Question {
   option_b?: string;
   option_c?: string;
   option_d?: string;
-  tag?: string;
+  tag: string;
 }
 
 

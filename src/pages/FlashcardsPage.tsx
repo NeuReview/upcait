@@ -51,7 +51,6 @@ const FlashcardsPage = () => {
     }, 700); // match your flip animation duration
   };
   
-
   useEffect(() => {
     let timer: number | undefined;
     
@@ -121,7 +120,7 @@ const FlashcardsPage = () => {
   const shuffleCards = async () => {
     if (!selectedTopic) return;
     setCurrentCard(0);
-    setSelectedAnswer(null)
+    setSelectedAnswer(null);
     await fetchFlashcards(selectedTopic);
   };
 
@@ -286,65 +285,64 @@ const FlashcardsPage = () => {
 
               {/* Question Card */}
               {flashcards[currentCard] && (
-  <div className="relative w-full max-w-3xl mx-auto perspective h-[300px]">
-    <div
-      className={`transition-transform duration-700 transform-style preserve-3d w-full h-full ${
-        showBack ? 'rotate-x-180' : ''
-      }`}
-    >
-      {/* Front side */}
-      <div className="absolute w-full h-full backface-hidden bg-white rounded-xl shadow-lg p-8 text-center flex flex-col justify-center items-center">
-        <h2 className="text-xl font-bold text-gray-800 mb-6">
-          {flashcards[currentCard]?.question}
-        </h2>
-        <button
-          onClick={handleFlip}
-          className="text-neural-purple hover:text-tech-lavender transition duration-200">
-          <ArrowUturnUpIcon className="w-6 h-6" />
-        </button>
-      </div>
+              <div className="relative w-full max-w-3xl mx-auto perspective h-[300px]">
+                <div
+                  className={`transition-transform duration-700 transform-style preserve-3d w-full h-full ${
+                    showBack ? 'rotate-x-180' : ''
+                  }`}
+                >
+                  {/* Front side */}
+                  <div className="absolute w-full h-full backface-hidden bg-white rounded-xl shadow-lg p-8 text-center flex flex-col justify-center items-center">
+                    <h2 className="text-xl font-bold text-gray-800 mb-6">
+                      {flashcards[currentCard]?.question}
+                    </h2>
+                    <button
+                      onClick={handleFlip}
+                      className="text-neural-purple hover:text-tech-lavender transition duration-200">
+                      <ArrowUturnUpIcon className="w-6 h-6" />
+                    </button>
+                  </div>
 
+                  {/* Back side */}
+                  <div className="absolute w-full h-full backface-hidden rotate-x-180 bg-white rounded-xl shadow-lg p-8 text-center flex flex-col justify-center items-center">
+                    <h2 className="text-xl font-bold text-gray-800 mb-6">
+                      {flashcards[currentCard]?.question}
+                    </h2>
 
-      {/* Back side */}
-      <div className="absolute w-full h-full backface-hidden rotate-x-180 bg-white rounded-xl shadow-lg p-8 text-center flex flex-col justify-center items-center">
-        <h2 className="text-xl font-bold text-gray-800 mb-6">
-          {flashcards[currentCard]?.question}
-        </h2>
+                    {showBack && (
+                      <>
+                        <p className="text-sm text-gray-500">Answer:</p>
+                        <p className="text-2xl font-bold text-growth-green text-center">
+                          {(() => {
+                            const answerKey = flashcards[currentCard]?.answer;
+                            if (!answerKey) return 'No answer';
+                            const optionMap: Record<string, string> = {
+                              A: flashcards[currentCard]?.option_a ?? '',
+                              B: flashcards[currentCard]?.option_b ?? '',
+                              C: flashcards[currentCard]?.option_c ?? '',
+                              D: flashcards[currentCard]?.option_d ?? '',
+                            };
+                            return optionMap[answerKey] || answerKey;
+                          })()}
+                        </p>
 
-        {showBack && (
-          <>
-            <p className="text-sm text-gray-500">Answer:</p>
-            <p className="text-2xl font-bold text-growth-green text-center">
-              {(() => {
-                const answerKey = flashcards[currentCard]?.answer;
-                if (!answerKey) return 'No answer';
-                const optionMap: Record<string, string> = {
-                  A: flashcards[currentCard]?.option_a,
-                  B: flashcards[currentCard]?.option_b,
-                  C: flashcards[currentCard]?.option_c,
-                  D: flashcards[currentCard]?.option_d,
-                };
-                return optionMap[answerKey] || answerKey;
-              })()}
-            </p>
-
-            {flashcards[currentCard]?.explanation && (
-              <p className="mt-4 text-gray-600 text-sm">
-                {flashcards[currentCard].explanation}
-              </p>
-            )}
-          </>
-        )}
-        <button
-          onClick={handleFlip}
-          className="mt-6 text-neural-purple hover:text-tech-lavender transition duration-200"
-        >
-          <ArrowUturnDownIcon className="w-6 h-6" />
-        </button>
-      </div>
-    </div>
-  </div>
-)}
+                        {flashcards[currentCard]?.explanation && (
+                          <p className="mt-4 text-gray-600 text-sm">
+                            {flashcards[currentCard].explanation}
+                          </p>
+                        )}
+                      </>
+                    )}
+                    <button
+                      onClick={handleFlip}
+                      className="mt-6 text-neural-purple hover:text-tech-lavender transition duration-200"
+                    >
+                      <ArrowUturnDownIcon className="w-6 h-6" />
+                    </button>
+                  </div>
+                </div>
+              </div>
+              )}
               {/* Navigation */}
               <div className="flex justify-between items-center">
                 <button
@@ -365,7 +363,6 @@ const FlashcardsPage = () => {
                   <button
                     onClick={() => {
                       setSelectedAnswer(null);
-              
                       nextCard();
                     }}
                     disabled={currentCard === flashcards.length - 1}
@@ -406,7 +403,7 @@ const FlashcardsPage = () => {
                 <span className="font-bold text-lg">
                   {correctAnswers + incorrectAnswers > 0 
                     ? Math.round((correctAnswers / (correctAnswers + incorrectAnswers)) * 100) 
-                    : 0}%
+                    : 0}% 
                 </span>
               </div>
             </div>

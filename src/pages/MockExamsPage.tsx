@@ -13,13 +13,13 @@ import {
   ChartBarIcon,
   ArrowPathIcon,
   SparklesIcon,
+  ChevronUpIcon,
+  ChevronDownIcon,
   EyeIcon
 } from '@heroicons/react/24/outline';
 import { useMockExam } from '../hooks/useMockExam';
 import type { Question } from '../types/quiz';
 import { useNavigate } from 'react-router-dom';
-
-
 
 interface ReviewItem extends Omit<Question, 'options' | 'answer'> {
   option_a: string;
@@ -44,7 +44,7 @@ interface ExamScore {
       percentage: number;
     };
   };
-  reviewData: ReviewItem[]; // ✅ Add this
+  reviewData: ReviewItem[];
 }
 
 const mapQuestionToReviewItem = (question: Question, userAnswer: string | null): ReviewItem => {
@@ -81,29 +81,76 @@ const QuestionReviewPanel = ({ reviewData }: { reviewData: ReviewItem[] }) => {
       {/* Floating Sidebar */}
       <div className="hidden md:block fixed top-24 right-4 w-64 bg-white border rounded-lg shadow p-4 h-[80vh] overflow-y-auto">
         <h3 className="font-semibold mb-4 text-gray-800">Question Review</h3>
-        {Object.entries(grouped).map(([category, items]) => (
-          <div key={category} className="mb-4">
-            <h4 className="text-sm font-medium text-gray-700 mb-2">{category}</h4>
-            <div className="flex flex-wrap gap-2">
-              {items.map((q, index) => (
-                <button
-                key={q.question_id}
-                onClick={() => {
-                  setSelectedQuestion(q);
-                  setShowModal(true);
-                }}
-                className={`w-8 h-8 rounded-full text-sm font-medium flex items-center justify-center ${getColor(q)}`}
-              >
-                {index + 1}
-              </button>
-              
-              ))}
-            </div>
-          </div>
-        ))}
+        {Object.entries(grouped).map(([category, items]) => {
+          if (category === "Language Proficiency" || category === "Reading Comprehension") {
+            // For these categories, the first 50 items are English and the next 50 are Filipino.
+            const englishItems = items.slice(0, 50);
+            const filipinoItems = items.slice(50, 100);
+            return (
+              <div key={category} className="mb-4">
+                <h4 className="text-sm font-medium text-gray-700 mb-2">{category}</h4>
+                <div className="mb-2">
+                  <h5 className="text-xs font-semibold text-gray-600">English</h5>
+                  <div className="flex flex-wrap gap-2">
+                    {englishItems.map((q, index) => (
+                      <button
+                        key={q.question_id}
+                        onClick={() => {
+                          setSelectedQuestion(q);
+                          setShowModal(true);
+                        }}
+                        className={`w-8 h-8 rounded-full text-sm font-medium flex items-center justify-center ${getColor(q)}`}
+                      >
+                        {index + 1}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <hr className="my-2" />
+                <div>
+                  <h5 className="text-xs font-semibold text-gray-600">Filipino</h5>
+                  <div className="flex flex-wrap gap-2">
+                    {filipinoItems.map((q, index) => (
+                      <button
+                        key={q.question_id}
+                        onClick={() => {
+                          setSelectedQuestion(q);
+                          setShowModal(true);
+                        }}
+                        className={`w-8 h-8 rounded-full text-sm font-medium flex items-center justify-center ${getColor(q)}`}
+                      >
+                        {index + 1}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            );
+          } else {
+            return (
+              <div key={category} className="mb-4">
+                <h4 className="text-sm font-medium text-gray-700 mb-2">{category}</h4>
+                <div className="flex flex-wrap gap-2">
+                  {items.map((q, index) => (
+                    <button
+                      key={q.question_id}
+                      onClick={() => {
+                        setSelectedQuestion(q);
+                        setShowModal(true);
+                      }}
+                      className={`w-8 h-8 rounded-full text-sm font-medium flex items-center justify-center ${getColor(q)}`}
+                    >
+                      {index + 1}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            );
+          }
+        })}
       </div>
 
-      {/* Modal */}
+      {/* Modal for question review */}
       {showModal && selectedQuestion && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-6 max-w-xl w-full relative">
@@ -115,14 +162,12 @@ const QuestionReviewPanel = ({ reviewData }: { reviewData: ReviewItem[] }) => {
             </button>
             <h2 className="text-lg font-semibold mb-4">Question</h2>
             <p className="text-gray-800 mb-4">{selectedQuestion.question}</p>
-
             <ul className="space-y-2 mb-4">
               {(['A', 'B', 'C', 'D'] as const).map((letter) => {
                 const optionKey = `option_${letter.toLowerCase()}` as keyof ReviewItem;
                 const text = selectedQuestion[optionKey] as string;
                 const isUser = selectedQuestion.userAnswer === letter;
                 const isCorrect = selectedQuestion.correctAnswer === letter;
-
                 return (
                   <li
                     key={letter}
@@ -145,7 +190,6 @@ const QuestionReviewPanel = ({ reviewData }: { reviewData: ReviewItem[] }) => {
                 );
               })}
             </ul>
-
             <p className="text-sm text-gray-500 mb-1">Explanation</p>
             <p className="text-gray-700">{selectedQuestion.explanation}</p>
           </div>
@@ -174,10 +218,18 @@ const ExamSummary = ({
   const minutes = Math.floor(score.timeSpent / 60);
   const seconds = score.timeSpent % 60;
 
-  const [selectedQuestion, setSelectedQuestion] = useState<ReviewItem | null>(
-    null
-  );
+  const [selectedQuestion, setSelectedQuestion] = useState<ReviewItem | null>(null);
   const [showModal, setShowModal] = useState(false);
+
+  const [collapsedCategories, setCollapsedCategories] = useState<Set<string>>(new Set());
+  const toggleCategory = (category: string) => {
+    setCollapsedCategories((prev) => {
+      const next = new Set(prev);
+      if (next.has(category)) next.delete(category);
+      else next.add(category);
+      return next;
+    });
+  };
 
   const grouped = score.reviewData.reduce((acc, q) => {
     if (!acc[q.category]) acc[q.category] = [];
@@ -195,14 +247,66 @@ const ExamSummary = ({
     <div className="relative">
       {/* Floating Sidebar */}
       <div className="hidden md:block fixed top-24 right-4 w-64 bg-white border rounded-lg shadow p-4 h-[80vh] overflow-y-auto">
-        <h3 className="font-semibold mb-4 text-gray-800">Question Review</h3>
-        {Object.entries(grouped).map(([category, items]) => (
-          <div key={category} className="mb-4">
-            <h4 className="text-sm font-medium text-gray-700 mb-2">
-              {category}
-            </h4>
+  <h3 className="font-semibold mb-4 text-gray-800">Question Review</h3>
+  {Object.entries(grouped).map(([category, items]) => {
+    const isCollapsed = collapsedCategories.has(category);
+    return (
+      <div key={category} className="mb-4">
+        <h4
+          onClick={() => toggleCategory(category)}
+          className="flex justify-between items-center text-sm font-medium text-gray-700 mb-2 cursor-pointer select-none"
+        >
+          {category}
+          {isCollapsed ? (
+            <ChevronUpIcon className="w-4 h-4 text-gray-400" />
+          ) : (
+            <ChevronDownIcon className="w-4 h-4 text-gray-400" />
+          )}
+        </h4>
+        <div
+          className="overflow-hidden transition-all duration-300 ease-in-out"
+          style={{ maxHeight: isCollapsed ? 0 : '1000px' }}
+        >
+          {(category === "Language Proficiency" || category === "Reading Comprehension") ? (
+            <>
+              <div className="mb-2">
+                <h5 className="text-xs font-semibold text-gray-600">English</h5>
+                <div className="grid grid-cols-5 gap-2">
+                  {items.slice(0, 50).map((q, index) => (
+                    <button
+                      key={q.question_id}
+                      onClick={() => {
+                        setSelectedQuestion(q);
+                        setShowModal(true);
+                      }}
+                      className={`rounded-lg px-2 py-1 text-sm font-medium flex items-center justify-center ${getColor(q)}`}
+                    >
+                      {index + 1}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <hr className="my-2" />
+              <div>
+                <h5 className="text-xs font-semibold text-gray-600">Filipino</h5>
+                <div className="grid grid-cols-5 gap-2">
+                  {items.slice(50, 100).map((q, index) => (
+                    <button
+                      key={q.question_id}
+                      onClick={() => {
+                        setSelectedQuestion(q);
+                        setShowModal(true);
+                      }}
+                      className={`rounded-lg px-2 py-1 text-sm font-medium flex items-center justify-center ${getColor(q)}`}
+                    >
+                      {index + 1}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </>
+          ) : (
             <div className="grid grid-cols-5 gap-2">
-
               {items.map((q, index) => (
                 <button
                   key={q.question_id}
@@ -210,17 +314,18 @@ const ExamSummary = ({
                     setSelectedQuestion(q);
                     setShowModal(true);
                   }}
-                  className={`rounded-lg px-2 py-1 text-sm font-medium flex items-center justify-center ${getColor(
-                    q
-                  )}`}
+                  className={`rounded-lg px-2 py-1 text-sm font-medium flex items-center justify-center ${getColor(q)}`}
                 >
                   {index + 1}
                 </button>
               ))}
             </div>
-          </div>
-        ))}
+          )}
+        </div>
       </div>
+    );
+  })}
+</div>
 
       {/* Exam Summary Content */}
       <div className="bg-white rounded-lg shadow-lg p-8 max-w-3xl mx-auto">
@@ -336,7 +441,7 @@ const ExamSummary = ({
         </div>
       </div>
 
-      {/* Modal */}
+      {/* Modal for question review */}
       {showModal && selectedQuestion && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-6 max-w-xl w-full relative">
@@ -347,21 +452,18 @@ const ExamSummary = ({
               ✕
             </button>
             <h2 className="text-lg font-semibold mb-4">
-            Question{' '}
-            {score.reviewData
-              .filter((q) => q.category === selectedQuestion?.category)
-              .findIndex((q) => q.question_id === selectedQuestion?.question_id) + 1}
-          </h2>
-
+              Question{' '}
+              {score.reviewData
+                .filter((q) => q.category === selectedQuestion?.category)
+                .findIndex((q) => q.question_id === selectedQuestion?.question_id) + 1}
+            </h2>
             <p className="text-gray-800 mb-4">{selectedQuestion.question}</p>
-
             <ul className="space-y-2 mb-4">
               {(['A', 'B', 'C', 'D'] as const).map((letter) => {
                 const optionKey = `option_${letter.toLowerCase()}` as keyof ReviewItem;
                 const text = selectedQuestion[optionKey] as string;
                 const isUser = selectedQuestion.userAnswer === letter;
                 const isCorrect = selectedQuestion.correctAnswer === letter;
-
                 return (
                   <li
                     key={letter}
@@ -388,7 +490,6 @@ const ExamSummary = ({
                 );
               })}
             </ul>
-
             <p className="text-sm text-gray-500 mb-1">Explanation</p>
             <p className="text-gray-700">{selectedQuestion.explanation}</p>
           </div>
@@ -398,17 +499,18 @@ const ExamSummary = ({
   );
 };
 
+// Update examSections so that Reading Comprehension also has two subsections
 const examSections = [
   {
     id: 'language',
     name: 'Language Proficiency',
     category: 'Language Proficiency',
     icon: LanguageIcon,
-    questions: 80,
-    timeLimit: .1,
+    questions: 100,
+    timeLimit: 1.30,
     subsections: [
-      { name: 'English', questions: 40 },
-      { name: 'Filipino', questions: 40 }
+      { name: 'English', questions: 50 },
+      { name: 'Filipino', questions: 50 }
     ]
   },
   {
@@ -417,7 +519,7 @@ const examSections = [
     category: 'Science',
     icon: BeakerIcon,
     questions: 60,
-    timeLimit: 50
+    timeLimit: 1.30
   },
   {
     id: 'math',
@@ -425,15 +527,19 @@ const examSections = [
     category: 'Mathematics',
     icon: AcademicCapIcon,
     questions: 60,
-    timeLimit: 75
+    timeLimit: 1.30
   },
   {
     id: 'reading',
     name: 'Reading Comprehension',
     category: 'Reading Comprehension',
     icon: BookOpenIcon,
-    questions: 60,
-    timeLimit: 50
+    questions: 100,
+    timeLimit: 1.30,
+    subsections: [
+      { name: 'English', questions: 50 },
+      { name: 'Filipino', questions: 50 }
+    ]
   }
 ];
 
@@ -446,19 +552,38 @@ const MockExamsPage = () => {
   const [showExplanation, setShowExplanation] = useState(false);
   const [timeRemaining, setTimeRemaining] = useState(examSections[0].timeLimit * 60);
   const [showLeaveConfirmation, setShowLeaveConfirmation] = useState(false);
-  const { questions, loading, error, fetchQuestions, clearError, setQuestions, clearUsedQuestionIds } = useMockExam();
-  const [correctAnswers, setCorrectAnswers] = useState<{ [category: string]: Set<number> }>({});
+  const { questions, loading, error, fetchQuestions, clearError, setQuestions, clearUsedQuestionIds, recordScienceMockExam, recordMathMockExam, recordLangProfMockExam, recordReadingCompMockExam } = useMockExam();
   const [startTime, setStartTime] = useState<number | null>(null);
   const [score, setScore] = useState<ExamScore | null>(null);
   const [allQuestions, setAllQuestions] = useState<ExtendedQuestion[]>([]);
-  const [userAnswers, setUserAnswers] = useState<{ [questionId: number]: string }>({});
+  const [userAnswers, setUserAnswers] = useState<Record<string, string>>({});
   const [localError, setLocalError] = useState<string | null>(null);
-  const navigate = useNavigate();
   const [sectionQuestions, setSectionQuestions] = useState<Record<number, Question[]>>({});
   const [completedSections, setCompletedSections] = useState<Set<number>>(new Set());
   const [showLockedModal, setShowLockedModal] = useState(false);
+  const [timerWarning, setTimerWarning] = useState<string | null>(null);
+  const [forcedTransition, setForcedTransition] = useState(false);
+  const [redirectWarningModal, setRedirectWarningModal] = useState(false);
+  const [collapsedCategories, setCollapsedCategories] = useState<Set<string>>(new Set());
 
+  
+  const toggleCategory = (category: string) => {
+    setCollapsedCategories(prev => {
+      const next = new Set(prev);
+      if (next.has(category)) next.delete(category);
+      else next.add(category);
+      return next;
+    });
+  };
 
+  useEffect(() => {
+    if (currentSection > 0) {
+      const prevCategory = examSections[currentSection - 1].category;
+      setCollapsedCategories(prev => new Set(prev).add(prevCategory));
+    }
+  }, [currentSection]);
+
+  type ExtendedQuestion = Question & { sectionIndex: number };
 
   useEffect(() => {
     const saved = localStorage.getItem('mockExamState');
@@ -466,7 +591,7 @@ const MockExamsPage = () => {
       const state = JSON.parse(saved);
 
       if (state.examFinished && state.score) {
-        setScore(state.score); // ✅ Go straight to summary
+        setScore(state.score); // Go straight to summary
         return;
       }
 
@@ -478,7 +603,6 @@ const MockExamsPage = () => {
         sectionQuestions,
         timeRemaining,
       } = state;
-      
 
       setCurrentSection(currentSection);
       setCurrentQuestion(currentQuestion);
@@ -486,80 +610,160 @@ const MockExamsPage = () => {
       setAllQuestions(allQuestions);
       setSectionQuestions(sectionQuestions);
       if (typeof timeRemaining === 'number') {
-        setTimeRemaining(timeRemaining); // ✅ Restore time
+        setTimeRemaining(timeRemaining);
       } else {
-        setTimeRemaining(examSections[currentSection].timeLimit * 60); // fallback
+        setTimeRemaining(examSections[currentSection].timeLimit * 60);
       }
-      
 
       setQuestions(sectionQuestions[currentSection] || []);
       setExamStarted(true);
       setStartTime(Date.now());
     }
+  }, []);
 
-      }, []);
+  // Save state to localStorage continuously if exam is in progress
+  useEffect(() => {
+    if (examStarted) {
+      const baseState = {
+        currentSection,
+        currentQuestion,
+        userAnswers,
+        allQuestions,
+        sectionQuestions,
+        timeRemaining,
+      };
+  
+      const fullState = score
+        ? { ...baseState, score, examFinished: true }
+        : baseState;
+  
+      localStorage.setItem('mockExamState', JSON.stringify(fullState));
+    }
+  }, [examStarted, currentSection, currentQuestion, userAnswers, allQuestions, sectionQuestions, score, timeRemaining]);
   
 
-      useEffect(() => {
-        if (examStarted && !score) {
-          localStorage.setItem('mockExamState', JSON.stringify({
-            currentSection,
-            currentQuestion,
-            userAnswers,
-            allQuestions,
-            sectionQuestions,
-            timeRemaining,
-          }));
-        }
-      }, [examStarted, currentSection, currentQuestion, userAnswers, allQuestions, sectionQuestions, score]);
-      
+  // Timer effect (updates every second)
+  // Timer effect (updates every second)
+useEffect(() => {
+  let timer: number | undefined;
 
-  useEffect(() => {
-    let timer: number | undefined;
-    
-    if (examStarted && isTimeBased && timeRemaining > 0) {
-      timer = window.setInterval(() => {
-        setTimeRemaining((prev) => {
-          const newTime = prev - 1;
-      
-          if (newTime <= 0) {
-            clearInterval(timer);
-            localStorage.setItem('mockExamState', JSON.stringify({
+  if (examStarted && isTimeBased && timeRemaining > 0) {
+    timer = window.setInterval(() => {
+      setTimeRemaining((prev) => {
+        const newTime = prev - 1;
+
+        // 5‑minute warning
+        if (newTime === 300 && !timerWarning) {
+          setTimerWarning("Warning: Only 5 minutes remaining in this section!");
+        }
+
+        // 1‑minute warning + trigger redirect‑warning modal
+        if (
+          newTime === 60 &&
+          timerWarning !== "Warning: Only 1 minute remaining in this section!"
+        ) {
+          setTimerWarning("Warning: Only 1 minute remaining in this section!");
+          setRedirectWarningModal(true);
+        }
+
+        // When time runs out, clear the interval & persist zero
+        if (newTime <= 0) {
+          clearInterval(timer);
+          localStorage.setItem(
+            "mockExamState",
+            JSON.stringify({
               currentSection,
               currentQuestion,
               userAnswers,
               allQuestions,
               sectionQuestions,
-              timeRemaining: 0, // Final write
-            }));
-            return 0;
-          }
-      
-          // ✅ Continuously update localStorage with the latest timeRemaining
-          localStorage.setItem('mockExamState', JSON.stringify({
+              timeRemaining: 0,
+            })
+          );
+          return 0;
+        }
+
+        // Persist every tick
+        localStorage.setItem(
+          "mockExamState",
+          JSON.stringify({
             currentSection,
             currentQuestion,
             userAnswers,
             allQuestions,
             sectionQuestions,
             timeRemaining: newTime,
-          }));
-      
-          return newTime;
-        });
-      }, 1000);
-      
-    }
+          })
+        );
+        return newTime;
+      });
+    }, 1000);
+  }
 
-    return () => {
-      if (timer) clearInterval(timer);
-    };
-  }, [examStarted, isTimeBased, timeRemaining]);
+  return () => {
+    if (timer) clearInterval(timer);
+  };
+}, [ examStarted, isTimeBased, timeRemaining, timerWarning, currentSection, currentQuestion, userAnswers, allQuestions, sectionQuestions,]);
+
+  // Effect to force transition when time expires
+  useEffect(() => {
+    if (examStarted && timeRemaining === 0 && !forcedTransition) {
+      setForcedTransition(true);
+    
+      // Save current section questions to the cache
+      const updatedCurrent = questions.map((q) => ({ ...q, sectionIndex: currentSection }));
+      setSectionQuestions((prev) => ({
+        ...prev,
+        [currentSection]: updatedCurrent,
+      }));
+      setCompletedSections((prev) => new Set(prev).add(currentSection));
+    
+      setAllQuestions((prev) => {
+        const map = new Map<string, ExtendedQuestion>();
+        [...prev, ...updatedCurrent].forEach((q) => map.set(q.question_id, q));
+        return Array.from(map.values());
+      });
+    
+      if (currentSection < examSections.length - 1) {
+        const nextSectionIndex = currentSection + 1;
+        const nextSection = examSections[nextSectionIndex];
+        const cached = sectionQuestions[nextSectionIndex];
+    
+        if (cached) {
+          setQuestions(cached);
+        } else {
+          fetchQuestions(nextSection.category, false).then((fetched) => {
+            const extended = fetched?.map((q) => ({ ...q, sectionIndex: nextSectionIndex })) || [];
+            setQuestions(extended);
+            setSectionQuestions((prev) => ({
+              ...prev,
+              [nextSectionIndex]: extended,
+            }));
+            setAllQuestions((prev) => {
+              const map = new Map<string, ExtendedQuestion>();
+              [...prev, ...extended].forEach((q) => map.set(q.question_id, q));
+              return Array.from(map.values());
+            });
+          });
+        }
+    
+        setCurrentSection(nextSectionIndex);
+        setCurrentQuestion(0);
+        setSelectedAnswer(null);
+        setShowExplanation(false);
+        setTimerWarning(null);
+        setForcedTransition(false);
+        if (isTimeBased) setTimeRemaining(nextSection.timeLimit * 60);
+      } else {
+        calculateScore();
+      }
+    }
+    
+  }, [timeRemaining, examStarted, forcedTransition, currentSection]);
 
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }, [currentSection, currentQuestion]);
-  
 
   const calculateScore = () => {
     const examQuestions: Question[] = [...allQuestions];
@@ -571,8 +775,7 @@ const MockExamsPage = () => {
     examQuestions.forEach((question: Question) => {
       const userAnswer = userAnswers[question.question_id];
       const isCorrect = userAnswer === question.answer;
-      
-      // Update category scores
+
       if (!categoryScores[question.category]) {
         categoryScores[question.category] = { total: 0, correct: 0, percentage: 0 };
       }
@@ -582,19 +785,17 @@ const MockExamsPage = () => {
         correctAnswers++;
       }
 
-      // Create review item
       const reviewItem = mapQuestionToReviewItem(question, userAnswer);
       reviewItems.push(reviewItem);
     });
 
-    // Calculate category percentages
     Object.keys(categoryScores).forEach((category) => {
       const { total, correct } = categoryScores[category];
       categoryScores[category].percentage = (correct / total) * 100;
     });
 
     const timeSpent = Math.floor((startTime ? Date.now() - startTime : 0) / 1000);
-    
+
     setScore({
       total: totalQuestions,
       correct: correctAnswers,
@@ -604,63 +805,71 @@ const MockExamsPage = () => {
       categoryScores,
       reviewData: reviewItems
     });
+
+    localStorage.setItem('mockExamState', JSON.stringify({
+      currentSection,
+      currentQuestion,
+      userAnswers,
+      allQuestions,
+      sectionQuestions,
+      timeRemaining: 0,
+      score: {
+        total: totalQuestions,
+        correct: correctAnswers,
+        incorrect: totalQuestions - correctAnswers,
+        percentage: (correctAnswers / totalQuestions) * 100,
+        timeSpent,
+        categoryScores,
+        reviewData: reviewItems
+      },
+      examFinished: true
+    }));
+    
   };
-  
-  
+
   const startExam = async () => {
-    try {
-      // Reset internal state
-      setExamStarted(false);
-      setCurrentSection(0);
-      setCurrentQuestion(0);
-      setSelectedAnswer(null);
-      setShowExplanation(false);
-      setScore(null);
-      setAllQuestions([]);
-      setUserAnswers({});
-      setLocalError(null);
+    // Reset all state variables
+    setExamStarted(false);
+    setCurrentSection(0);
+    setCurrentQuestion(0);
+    setSelectedAnswer(null);
+    setShowExplanation(false);
+    setScore(null);
+    setAllQuestions([]);
+    setUserAnswers({});
+    setLocalError(null);
+    setQuestions([]);
+    setSectionQuestions({});
+    setForcedTransition(false);
+    setTimerWarning(null);
+
+    if (isTimeBased) {
+      setTimeRemaining(examSections[0].timeLimit * 60);
+    }
+
+    const firstSection = examSections[0];
+    const fetched = await fetchQuestions(firstSection.category, false);
+
+    if (!fetched || fetched.length === 0) {
+      console.warn('No questions found for this section. Continuing exam.');
       setQuestions([]);
-      setSectionQuestions({}); // ✅ clear previous cache
-  
-      if (isTimeBased) {
-        setTimeRemaining(examSections[0].timeLimit * 60);
-      }
-  
-      const firstSection = examSections[0];
-  
-      // ✅ Fetch and get returned questions directly
-      const fetched = await fetchQuestions(firstSection.category, false);
-  
-      if (!fetched || fetched.length === 0) {
-        console.warn('No questions found for this section. Continuing exam.');
-      
-        setQuestions([]);
-        setSectionQuestions({ 0: [] });
-        setAllQuestions([]);
-        setStartTime(Date.now());
-        setExamStarted(true);
-        return;
-      }
-      
-  
-      // ✅ Set questions for rendering and sidebar immediately
-      setQuestions(fetched);
-      setSectionQuestions({ 0: fetched.map((q) => ({ ...q, sectionIndex: 0 })) });
-      setAllQuestions(fetched.map((q) => ({ ...q, sectionIndex: 0 })));
-  
-      // ✅ Start the timer
+      setSectionQuestions({ 0: [] });
+      setAllQuestions([]);
       setStartTime(Date.now());
       setExamStarted(true);
-    } catch (err) {
-      console.error('Failed to start exam:', err);
-      setLocalError('Failed to load exam questions.');
+      return;
     }
+
+    setQuestions(fetched);
+    setSectionQuestions({ 0: fetched.map((q) => ({ ...q, sectionIndex: 0 })) });
+    setAllQuestions(fetched.map((q) => ({ ...q, sectionIndex: 0 })));
+    setStartTime(Date.now());
+    setExamStarted(true);
   };
-  
+
   const resetExam = () => {
-    localStorage.removeItem('mockExamState'); // Clear saved progress
-    clearUsedQuestionIds(); // ✅ Clear question ID memory to avoid repeats
-  
+    localStorage.removeItem('mockExamState');
+    clearUsedQuestionIds();
     setExamStarted(false);
     setCurrentSection(0);
     setCurrentQuestion(0);
@@ -673,30 +882,65 @@ const MockExamsPage = () => {
     setLocalError(null);
     setQuestions([]);
     setSectionQuestions({});
-  
+    setForcedTransition(false);
+    setTimerWarning(null);
+
     if (isTimeBased) {
       setTimeRemaining(examSections[0].timeLimit * 60);
     }
   };
+
+  const handleRetry = async () => {
+    resetExam();
+    await startExam();
+  };
+
+  const handleAnswerSelect = async (answer: string) => {
+    // 1) Pull out the current question
+    const question = questions[currentQuestion] as Question & {
+      global_id: string;
+      tag: string;
+    };
   
-
+    // 2) Save locally so UI updates immediately
+    setUserAnswers(prev => ({
+      ...prev,
+      [question.question_id]: answer
+    }));
+    setSelectedAnswer(answer);
+    setShowExplanation(true);
   
-const handleRetry = async () => {
-  resetExam();        // ✅ Reset internal state
-  await startExam();  // ✅ Start a new exam without navigating
-};
-
-const handleAnswerSelect = (answer: string) => {
-  const question = questions[currentQuestion];
-
-  setUserAnswers((prev) => ({
-    ...prev,
-    [question.question_id]: answer,
-  }));
-
-  setSelectedAnswer(answer);
-  setShowExplanation(true); // Always show explanation after any selection
-};
+    // 3) Prepare the values we need for the upsert
+    const isCorrect = answer === question.answer;
+    const questionUuid = question.global_id;  // <-- use the real UUID from your table
+    const tagValue    = question.tag;         // <-- the tag you fetched
+  
+    // 4) Fire off your per-category upsert (all of which use onConflict:user_id,question_uuid)
+    try {
+      switch (question.category) {
+        case 'Science':
+          await recordScienceMockExam(questionUuid, isCorrect, tagValue);
+          break;
+  
+        case 'Mathematics':
+          await recordMathMockExam(questionUuid, isCorrect, tagValue);
+          break;
+  
+        case 'Language Proficiency':
+          await recordLangProfMockExam(questionUuid, isCorrect, tagValue);
+          break;
+  
+        case 'Reading Comprehension':
+          await recordReadingCompMockExam(questionUuid, isCorrect, tagValue);
+          break;
+  
+        default:
+          console.warn('Unknown category in handleAnswerSelect:', question.category);
+      }
+    } catch (e) {
+      console.error('Error recording mock-exam progress:', e);
+    }
+  };
 
   const formatTime = (minutes: number) => {
     const hours = Math.floor(minutes / 60);
@@ -715,51 +959,43 @@ const handleAnswerSelect = (answer: string) => {
   };
 
   const confirmLeaveExam = async () => {
-    resetExam();       
+    resetExam();
   };
-  
-  
 
   const handlePrevQuestion = () => {
     if (currentQuestion > 0) {
       const prevQuestion = questions[currentQuestion - 1];
       const userAnswer = userAnswers[prevQuestion.question_id] || null;
-  
       setCurrentQuestion(currentQuestion - 1);
       setSelectedAnswer(userAnswer);
       setShowExplanation(!!userAnswer);
     }
   };
-  
+
   const handleNextQuestion = async () => {
     if (currentQuestion < questions.length - 1) {
       const nextQuestion = questions[currentQuestion + 1];
       const userAnswer = userAnswers[nextQuestion.question_id] || null;
-  
       setCurrentQuestion(currentQuestion + 1);
       setSelectedAnswer(userAnswer);
       setShowExplanation(!!userAnswer);
     } else if (currentSection < examSections.length - 1) {
       const nextSectionIndex = currentSection + 1;
       const nextSection = examSections[nextSectionIndex];
-  
-      // ✅ Cache current section's questions
+
       const updatedCurrent = questions.map((q) => ({ ...q, sectionIndex: currentSection }));
       setSectionQuestions((prev) => ({
         ...prev,
         [currentSection]: updatedCurrent,
       }));
-      setCompletedSections((prev) => new Set(prev).add(currentSection)); // 🔒 Lock current section
+      setCompletedSections((prev) => new Set(prev).add(currentSection));
 
-  
-      // ✅ Deduplicate before updating allQuestions
       setAllQuestions((prev) => {
-        const map = new Map<number, ExtendedQuestion>();
+        const map = new Map<string, ExtendedQuestion>();
         [...prev, ...updatedCurrent].forEach((q) => map.set(q.question_id, q));
         return Array.from(map.values());
       });
-  
-      // ✅ Reuse cached next section if exists
+
       const cachedNext = sectionQuestions[nextSectionIndex];
       if (cachedNext) {
         setQuestions(cachedNext);
@@ -767,51 +1003,49 @@ const handleAnswerSelect = (answer: string) => {
         setCurrentQuestion(0);
         setSelectedAnswer(null);
         setShowExplanation(false);
+        setForcedTransition(false);
         if (isTimeBased) setTimeRemaining(nextSection.timeLimit * 60);
         return;
       }
-  
-      // ✅ Fetch next section questions from API
+
       const fetched = await fetchQuestions(nextSection.category, false);
-  
       const extended = fetched?.map((q) => ({ ...q, sectionIndex: nextSectionIndex })) || [];
-  
+
       setQuestions(extended);
       setSectionQuestions((prev) => ({
         ...prev,
         [nextSectionIndex]: extended,
       }));
-  
-      // ✅ Deduplicate and update allQuestions with new section
+
       setAllQuestions((prev) => {
-        const map = new Map<number, ExtendedQuestion>();
+        const map = new Map<string, ExtendedQuestion>();
         [...prev, ...extended].forEach((q) => map.set(q.question_id, q));
         return Array.from(map.values());
       });
-  
+
       setCurrentSection(nextSectionIndex);
       setCurrentQuestion(0);
       setSelectedAnswer(null);
       setShowExplanation(false);
+      setForcedTransition(false);
       if (isTimeBased) setTimeRemaining(nextSection.timeLimit * 60);
     } else {
-      // ✅ Final section - cache and dedupe before scoring
       const finalSectionQuestions = questions.map((q) => ({ ...q, sectionIndex: currentSection }));
       setSectionQuestions((prev) => ({
         ...prev,
         [currentSection]: finalSectionQuestions,
       }));
-  
+
       setAllQuestions((prev) => {
-        const map = new Map<number, ExtendedQuestion>();
+        const map = new Map<string, ExtendedQuestion>();
         [...prev, ...finalSectionQuestions].forEach((q) => map.set(q.question_id, q));
         return Array.from(map.values());
       });
-  
+
       calculateScore();
     }
   };
-  
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -827,23 +1061,16 @@ const handleAnswerSelect = (answer: string) => {
     return (
       <div className="min-h-screen bg-gray-50 py-6">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <ExamSummary 
-          score={score} 
-          onRetry={() => {
-            resetExam();        // ✅ Reset state
-            // ❌ Do NOT call startExam()
-            // ✅ This will now return user to intro screen
-        }} 
-        />
-
+          <ExamSummary 
+            score={score} 
+            onRetry={() => {
+              resetExam();
+            }} 
+          />
         </div>
       </div>
     );
   }
-
-    // ✅ Place this here 👇 before the main JSX render
-  type ExtendedQuestion = Question & { sectionIndex: number };
-  
 
   const groupedSidebarQuestions = allQuestions.reduce<Record<string, ExtendedQuestion[]>>((acc, q) => {
     if (!acc[q.category]) acc[q.category] = [];
@@ -866,7 +1093,6 @@ const handleAnswerSelect = (answer: string) => {
                 Estimated Time: {formatTime(examSections.reduce((acc, section) => acc + section.timeLimit, 0))}
               </p>
             </div>
-
             {error && (
               <div className="p-4 bg-alert-red/10 border border-alert-red/20 rounded-lg flex items-start space-x-3">
                 <ExclamationTriangleIcon className="w-5 h-5 text-alert-red flex-shrink-0 mt-0.5" />
@@ -876,7 +1102,6 @@ const handleAnswerSelect = (answer: string) => {
                 </div>
               </div>
             )}
-
             <div className="grid md:grid-cols-2 gap-4">
               {examSections.map((section) => (
                 <div
@@ -906,7 +1131,6 @@ const handleAnswerSelect = (answer: string) => {
                 </div>
               ))}
             </div>
-
             <div className="flex items-center justify-center space-x-4">
               <label className="flex items-center space-x-2">
                 <input
@@ -918,7 +1142,6 @@ const handleAnswerSelect = (answer: string) => {
                 <span className="text-gray-700">Enable Section Timers</span>
               </label>
             </div>
-
             <div className="text-center">
               <button
                 onClick={startExam}
@@ -933,201 +1156,348 @@ const handleAnswerSelect = (answer: string) => {
           </div>
         ) : (
           <div className="relative">
-          <div className="max-w-3xl mx-auto space-y-6 mr-72">
-            <div className="bg-white rounded-lg shadow-md p-4">
-              <div className="flex justify-between items-center">
-                <div>
-                  <h2 className="font-semibold text-gray-900">
-                    {examSections[currentSection].name}
-                  </h2>
-                  <p className="text-sm text-gray-500">
-                    Question {currentQuestion + 1} of {questions.length}
-                  </p>
-                </div>
-                {isTimeBased && (
-                  <div className="flex items-center space-x-2 text-gray-600">
-                    <ClockIcon className="w-5 h-5" />
-                    <span>{formatTimeRemaining(timeRemaining)}</span>
+            <div className="max-w-3xl mx-auto space-y-6 mr-72">
+              <div className="bg-white rounded-lg shadow-md p-4">
+                <div className="flex justify-between items-center">
+                  <div>
+                    <h2 className="font-semibold text-gray-900">
+                      {examSections[currentSection].name}
+                    </h2>
+                    <p className="text-sm text-gray-500">
+                      Question {currentQuestion + 1} of {questions.length}
+                    </p>
                   </div>
-                )}
+                  {isTimeBased && (
+                    <div className="flex items-center space-x-2 text-gray-600">
+                      <ClockIcon className="w-5 h-5" />
+                      <span>{formatTimeRemaining(timeRemaining)}</span>
+                    </div>
+                  )}
+                </div>
+                <div className="mt-4 w-full bg-gray-200 rounded-full h-2">
+                  <div
+                    className="bg-neural-purple h-2 rounded-full transition-all duration-300"
+                    style={{
+                      width: `${((currentQuestion + 1) / questions.length) * 100}%`
+                    }}
+                  />
+                </div>
               </div>
-              <div className="mt-4 w-full bg-gray-200 rounded-full h-2">
-                <div
-                  className="bg-neural-purple h-2 rounded-full transition-all duration-300"
-                  style={{
-                    width: `${((currentQuestion + 1) / questions.length) * 100}%`
-                  }}
-                />
+              {questions[currentQuestion] && (
+                <div className="bg-white rounded-lg shadow-lg p-6">
+                  <h2 className="text-xl font-semibold text-gray-900 mb-4">
+                    {questions[currentQuestion].question}
+                  </h2>
+                  <div className="space-y-3">
+                    {[
+                      { key: 'A', value: questions[currentQuestion].option_a },
+                      { key: 'B', value: questions[currentQuestion].option_b },
+                      { key: 'C', value: questions[currentQuestion].option_c },
+                      { key: 'D', value: questions[currentQuestion].option_d },
+                    ].map((option) => {
+                      const currentQuestionId = questions[currentQuestion].question_id;
+                      const isSelected = userAnswers[currentQuestionId] === option.key;
+                      return (
+                        <button
+                          key={option.key}
+                          onClick={() => handleAnswerSelect(option.key)}
+                          disabled={false}
+                          className={`w-full p-4 rounded-lg border-2 text-left transition-all duration-200 ${
+                            isSelected
+                              ? 'border-neural-purple bg-neural-purple/10'
+                              : 'border-gray-200 hover:border-neural-purple'
+                          }`}
+                        >
+                          <div className="flex items-center justify-between">
+                            <span>{option.value}</span>
+                            {isSelected && (
+                              <span className="w-3 h-3 rounded-full bg-neural-purple inline-block ml-2" />
+                            )}
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+              <div className="flex justify-between items-center mt-6">
+                <button
+                  onClick={handleLeaveExam}
+                  className="flex items-center px-4 py-2 text-gray-600 hover:text-neural-purple transition-colors duration-200"
+                >
+                  <ArrowLeftIcon className="w-5 h-5 mr-2" />
+                  Leave Exam
+                </button>
+                <div className="flex gap-2">
+                  <button
+                    onClick={handlePrevQuestion}
+                    disabled={currentQuestion === 0}
+                    className={`px-4 py-2 rounded-lg ${
+                      currentQuestion === 0
+                        ? 'bg-gray-200 text-gray-500 cursor-not-allowed'
+                        : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-100'
+                    }`}
+                  >
+                    Previous
+                  </button>
+                  <button
+                    onClick={handleNextQuestion}
+                    className="px-4 py-2 rounded-lg bg-neural-purple text-white hover:bg-tech-lavender transition-colors duration-200"
+                  >
+                    {currentQuestion < questions.length - 1
+                      ? 'Next Question'
+                      : currentSection < examSections.length - 1
+                      ? 'Next Section'
+                      : 'Finish Exam'}
+                  </button>
+                </div>
               </div>
             </div>
-        
-            {questions[currentQuestion] && (
-              <div className="bg-white rounded-lg shadow-lg p-6">
-                <h2 className="text-xl font-semibold text-gray-900 mb-4">
-                  {questions[currentQuestion].question}
-                </h2>
-        
-                <div className="space-y-3">
-                  {[
-                    { key: 'A', value: questions[currentQuestion].option_a },
-                    { key: 'B', value: questions[currentQuestion].option_b },
-                    { key: 'C', value: questions[currentQuestion].option_c },
-                    { key: 'D', value: questions[currentQuestion].option_d },
-                  ].map((option) => {
-                    const currentQuestionId = questions[currentQuestion].question_id;
-                    const isSelected = userAnswers[currentQuestionId] === option.key;
+            {/* Right-side Floating Sidebar */}
+            <div className="hidden md:block fixed top-24 right-4 w-64 bg-white border rounded-lg shadow p-4 h-[80vh] overflow-y-auto z-40">
+              <h3 className="font-semibold mb-4 text-gray-800">Question Review</h3>
 
-                    return (
-                      <button
-                        key={option.key}
-                        onClick={() => handleAnswerSelect(option.key)}
-                        disabled={false}
-                        className={`w-full p-4 rounded-lg border-2 text-left transition-all duration-200 ${
-                          isSelected
-                            ? 'border-neural-purple bg-neural-purple/10'
-                            : 'border-gray-200 hover:border-neural-purple'
-                        }`}
+              {Object.entries(groupedSidebarQuestions).map(
+                ([category, items]: [string, ExtendedQuestion[]]) => {
+                  const isCollapsed = collapsedCategories.has(category);
+
+                  return (
+                    <div key={category} className="mb-4">
+                      {/* Header with chevron */}
+                      <h4
+                        onClick={() => toggleCategory(category)}
+                        className="flex justify-between items-center text-sm font-medium text-gray-700 mb-2 cursor-pointer select-none"
                       >
-                        <div className="flex items-center justify-between">
-                          <span>{option.value}</span>
-                          {isSelected && (
-                            <span className="w-3 h-3 rounded-full bg-neural-purple inline-block ml-2" />
-                          )}
-                        </div>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-        
-        <div className="flex justify-between items-center mt-6">
-          <button
-            onClick={handleLeaveExam}
-            className="flex items-center px-4 py-2 text-gray-600 hover:text-neural-purple transition-colors duration-200"
-          >
-            <ArrowLeftIcon className="w-5 h-5 mr-2" />
-            Leave Exam
-          </button>
+                        {category}
+                        {isCollapsed ? (
+                          <ChevronUpIcon className="w-4 h-4 text-gray-400" />
+                        ) : (
+                          <ChevronDownIcon className="w-4 h-4 text-gray-400" />
+                        )}
+                      </h4>
 
-          <div className="flex gap-2">
-            <button
-              onClick={handlePrevQuestion}
-              disabled={currentQuestion === 0}
-              className={`px-4 py-2 rounded-lg ${
-                currentQuestion === 0
-                  ? 'bg-gray-200 text-gray-500 cursor-not-allowed'
-                  : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-100'
-              }`}
-            >
-              Previous
-            </button>
+                      {/* Sliding container */}
+                      <div
+                        className="overflow-hidden transition-all duration-300 ease-in-out"
+                        style={{ maxHeight: isCollapsed ? 0 : '1000px' }}
+                      >
+                        {(category === "Language Proficiency" || category === "Reading Comprehension") ? (
+                          <>
+                            {/* English subsection */}
+                            <div className="mb-2">
+                              <h5 className="text-xs font-semibold text-gray-600">English</h5>
+                              <div className="flex flex-wrap gap-2">
+                                {items.slice(0, 50).map((q, idx) => {
+                                  const ua = userAnswers[q.question_id] ?? null;
+                                  return (
+                                    <button
+                                      key={`${q.sectionIndex}-${q.question_id}`}
+                                      onClick={() => {
+                                        // …existing navigation logic…
+                                        if (q.sectionIndex !== currentSection) {
+                                          if (completedSections.has(q.sectionIndex)) {
+                                            setShowLockedModal(true);
+                                            return;
+                                          }
+                                          setSectionQuestions(prev => ({
+                                            ...prev,
+                                            [currentSection]: questions.map(qq => ({
+                                              ...qq,
+                                              sectionIndex: currentSection,
+                                            })),
+                                          }));
+                                          const cached = sectionQuestions[q.sectionIndex];
+                                          if (cached) {
+                                            setQuestions(cached);
+                                            const all = Object.entries({
+                                              ...sectionQuestions,
+                                              [q.sectionIndex]: cached,
+                                            })
+                                              .flatMap(([i, list]) =>
+                                                list.map(item => ({ ...item, sectionIndex: Number(i) }))
+                                              );
+                                            setAllQuestions(
+                                              Array.from(
+                                                new Map(all.map(item => [item.question_id, item])).values()
+                                              )
+                                            );
+                                          }
+                                          setCurrentSection(q.sectionIndex);
+                                          const idxInSec =
+                                            sectionQuestions[q.sectionIndex]?.findIndex(
+                                              qq => qq.question_id === q.question_id
+                                            ) ?? 0;
+                                          setCurrentQuestion(idxInSec);
+                                        } else {
+                                          const idxInCurr = questions.findIndex(
+                                            qq => qq.question_id === q.question_id
+                                          );
+                                          if (idxInCurr !== -1) setCurrentQuestion(idxInCurr);
+                                        }
+                                        setSelectedAnswer(ua);
+                                        setShowExplanation(!!ua);
+                                      }}
+                                      className={`w-8 h-8 rounded-full text-sm font-medium flex items-center justify-center ${
+                                        !ua
+                                          ? 'bg-gray-100 text-gray-600'
+                                          : 'bg-neural-purple/20 text-neural-purple'
+                                      }`}
+                                    >
+                                      {idx + 1}
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                            </div>
 
-            <button
-              onClick={handleNextQuestion}
-              className="px-4 py-2 rounded-lg bg-neural-purple text-white hover:bg-tech-lavender transition-colors duration-200"
-            >
-              {currentQuestion < questions.length - 1
-                ? 'Next Question'
-                : currentSection < examSections.length - 1
-                ? 'Next Section'
-                : 'Finish Exam'}
-            </button>
+                            <hr className="my-2" />
+
+                            {/* Filipino subsection */}
+                            <div>
+                              <h5 className="text-xs font-semibold text-gray-600">Filipino</h5>
+                              <div className="flex flex-wrap gap-2">
+                                {items.slice(50, 100).map((q, idx) => {
+                                  const ua = userAnswers[q.question_id] ?? null;
+                                  return (
+                                    <button
+                                      key={`${q.sectionIndex}-${q.question_id}-filipino`}
+                                      onClick={() => {
+                                        // …same logic as above…
+                                        if (q.sectionIndex !== currentSection) {
+                                          if (completedSections.has(q.sectionIndex)) {
+                                            setShowLockedModal(true);
+                                            return;
+                                          }
+                                          setSectionQuestions(prev => ({
+                                            ...prev,
+                                            [currentSection]: questions.map(qq => ({
+                                              ...qq,
+                                              sectionIndex: currentSection,
+                                            })),
+                                          }));
+                                          const cached = sectionQuestions[q.sectionIndex];
+                                          if (cached) {
+                                            setQuestions(cached);
+                                            const all = Object.entries({
+                                              ...sectionQuestions,
+                                              [q.sectionIndex]: cached,
+                                            })
+                                              .flatMap(([i, list]) =>
+                                                list.map(item => ({
+                                                  ...item,
+                                                  sectionIndex: Number(i),
+                                                }))
+                                              );
+                                            setAllQuestions(
+                                              Array.from(
+                                                new Map(all.map(item => [item.question_id, item])).values()
+                                              )
+                                            );
+                                          }
+                                          setCurrentSection(q.sectionIndex);
+                                          const idxInSec =
+                                            sectionQuestions[q.sectionIndex]?.findIndex(
+                                              qq => qq.question_id === q.question_id
+                                            ) ?? 0;
+                                          setCurrentQuestion(idxInSec);
+                                        } else {
+                                          const idxInCurr = questions.findIndex(
+                                            qq => qq.question_id === q.question_id
+                                          );
+                                          if (idxInCurr !== -1) setCurrentQuestion(idxInCurr);
+                                        }
+                                        setSelectedAnswer(ua);
+                                        setShowExplanation(!!ua);
+                                      }}
+                                      className={`w-8 h-8 rounded-full text-sm font-medium flex items-center justify-center ${
+                                        !ua
+                                          ? 'bg-gray-100 text-gray-600'
+                                          : 'bg-neural-purple/20 text-neural-purple'
+                                      }`}
+                                    >
+                                      {idx + 1}
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          </>
+                        ) : (
+                          /* Other categories */
+                          <div className="flex flex-wrap gap-2">
+                            {items.map((q, idx) => {
+                              const ua = userAnswers[q.question_id] ?? null;
+                              return (
+                                <button
+                                  key={`${q.sectionIndex}-${q.question_id}`}
+                                  onClick={() => {
+                                    // …existing navigation logic…
+                                    if (q.sectionIndex !== currentSection) {
+                                      if (completedSections.has(q.sectionIndex)) {
+                                        setShowLockedModal(true);
+                                        return;
+                                      }
+                                      setSectionQuestions(prev => ({
+                                        ...prev,
+                                        [currentSection]: questions.map(qq => ({
+                                          ...qq,
+                                          sectionIndex: currentSection,
+                                        })),
+                                      }));
+                                      const cached = sectionQuestions[q.sectionIndex];
+                                      if (cached) {
+                                        setQuestions(cached);
+                                        const all = Object.entries({
+                                          ...sectionQuestions,
+                                          [q.sectionIndex]: cached,
+                                        })
+                                          .flatMap(([i, list]) =>
+                                            list.map(item => ({
+                                              ...item,
+                                              sectionIndex: Number(i),
+                                            }))
+                                          );
+                                        setAllQuestions(
+                                          Array.from(
+                                            new Map(all.map(item => [item.question_id, item])).values()
+                                          )
+                                        );
+                                      }
+                                      setCurrentSection(q.sectionIndex);
+                                      const idxInSec =
+                                        sectionQuestions[q.sectionIndex]?.findIndex(
+                                          qq => qq.question_id === q.question_id
+                                        ) ?? 0;
+                                      setCurrentQuestion(idxInSec);
+                                    } else {
+                                      const idxInCurr = questions.findIndex(
+                                        qq => qq.question_id === q.question_id
+                                      );
+                                      if (idxInCurr !== -1) setCurrentQuestion(idxInCurr);
+                                    }
+                                    setSelectedAnswer(ua);
+                                    setShowExplanation(!!ua);
+                                  }}
+                                  className={`w-8 h-8 rounded-full text-sm font-medium flex items-center justify-center ${
+                                    !ua
+                                      ? 'bg-gray-100 text-gray-600'
+                                      : 'bg-neural-purple/20 text-neural-purple'
+                                  }`}
+                                >
+                                  {idx + 1}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                }
+              )}
+            </div>
           </div>
-        </div>
-      </div>
-        
-          {/* ✅ Right-side Floating Question Review Sidebar */}
-          <div className="hidden md:block fixed top-24 right-4 w-64 bg-white border rounded-lg shadow p-4 h-[80vh] overflow-y-auto z-40">
-  <h3 className="font-semibold mb-4 text-gray-800">Question Review</h3>
-  {Object.entries(groupedSidebarQuestions).map(
-    ([category, items]: [string, ExtendedQuestion[]]) => (
-      <div key={category} className="mb-4">
-        <h4 className="text-sm font-medium text-gray-700 mb-2">{category}</h4>
-        <div className="flex flex-wrap gap-2">
-          {items.map((q, idx) => {
-            const userAnswer = userAnswers[q.question_id] || null;
-            const isCorrect = userAnswer === q.answer;
-            const isAnswered = userAnswer !== null;
-
-            return (
-              <button
-                key={`${q.sectionIndex}-${q.question_id}`} // ✅ FIXED
-                onClick={() => {
-                  if (q.sectionIndex !== currentSection) {
-                    if (completedSections.has(q.sectionIndex)) {
-                      setShowLockedModal(true);
-                      return;
-
-                    }
-                
-                    // ✅ Save current section's questions before moving
-                    setSectionQuestions((prev) => ({
-                      ...prev,
-                      [currentSection]: questions.map((q) => ({
-                        ...q,
-                        sectionIndex: currentSection,
-                      })),
-                    }));
-                
-                    const cached = sectionQuestions[q.sectionIndex];
-                    if (cached) {
-                      setQuestions(cached);
-                
-                      // ✅ Rebuild allQuestions using updated sectionQuestions cache
-                      const all = Object.entries({
-                        ...sectionQuestions,
-                        [q.sectionIndex]: cached,
-                      }).flatMap(([index, list]) =>
-                        list.map((item) => ({ ...item, sectionIndex: Number(index) }))
-                      );
-                
-                      const map = new Map<number, ExtendedQuestion>();
-                      all.forEach((q) => map.set(q.question_id, q));
-                      setAllQuestions(Array.from(map.values()));
-                    }
-                
-                    // ✅ Switch to new section and question
-                    setCurrentSection(q.sectionIndex);
-                
-                    const indexInSection = cached?.findIndex(
-                      (qq) => qq.question_id === q.question_id
-                    );
-                    setCurrentQuestion(indexInSection !== -1 ? indexInSection : 0);
-                  } else {
-                    // ✅ If already in the current section, just jump to the question
-                    const indexInCurrent = questions.findIndex(
-                      (qq) => qq.question_id === q.question_id
-                    );
-                    if (indexInCurrent !== -1) {
-                      setCurrentQuestion(indexInCurrent);
-                    }
-                  }
-                
-                  const userAnswer = userAnswers[q.question_id] || null;
-                  setSelectedAnswer(userAnswer);
-                  setShowExplanation(!!userAnswer);
-                }}
-                
-                
-                
-                className={`w-8 h-8 rounded-full text-sm font-medium flex items-center justify-center 
-                  ${!isAnswered ? 'bg-gray-100 text-gray-600' : 'bg-neural-purple/20 text-neural-purple'} 
-                `}
-              >
-                {idx + 1}
-              </button>
-            );
-          })}
-        </div>
-      </div>
-    )
-  )}
-</div>
-
-        </div>
         )}
-
         {showLeaveConfirmation && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
             <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
@@ -1154,30 +1524,44 @@ const handleAnswerSelect = (answer: string) => {
             </div>
           </div>
         )}
-        </div>
-        {showLockedModal && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4 text-center">
-              <div className="flex justify-center mb-4">
-                <ExclamationTriangleIcon className="w-10 h-10 text-alert-red" />
-              </div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                Section Locked
-              </h3>
-              <p className="text-gray-600 mb-6">
-                You cannot go back to a previous section. It is locked.
-              </p>
-              <div className="flex justify-center">
-                <button
-                  onClick={() => setShowLockedModal(false)}
-                  className="px-6 py-2 bg-neural-purple text-white rounded-lg hover:bg-tech-lavender transition"
-                >
-                  OK
-                </button>
-              </div>
+      </div>
+      {showLockedModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4 text-center">
+            <div className="flex justify-center mb-4">
+              <ExclamationTriangleIcon className="w-10 h-10 text-alert-red" />
+            </div>
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">
+              Section Locked
+            </h3>
+            <p className="text-gray-600 mb-6">
+              You cannot go back to a previous section. It is locked.
+            </p>
+            <div className="flex justify-center">
+              <button
+                onClick={() => setShowLockedModal(false)}
+                className="px-6 py-2 bg-neural-purple text-white rounded-lg hover:bg-tech-lavender transition"
+              >
+                OK
+              </button>
             </div>
           </div>
-        )}
+        </div>
+      )}
+      {/* Timer Warning Modal */}
+      {timerWarning && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-sm w-full mx-4 text-center">
+            <p className="text-lg font-semibold mb-4">{timerWarning}</p>
+            <button
+              onClick={() => setTimerWarning(null)}
+              className="px-4 py-2 bg-neural-purple text-white rounded-lg hover:bg-tech-lavender transition"
+            >
+              OK
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

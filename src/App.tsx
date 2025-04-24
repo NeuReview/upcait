@@ -7,7 +7,6 @@ import Chatbot from './components/Chatbot';
 import HomePage from './pages/HomePage';
 import DashboardPage from './pages/DashboardPage';
 import QuizzesPage from './pages/QuizzesPage';
-import QuizzesPageNew from './pages/QuizzesPageNew';
 import MockExamsPage from './pages/MockExamsPage';
 import FlashcardsPage from './pages/FlashcardsPage';
 import ResourcesPage from './pages/ResourcesPage';
@@ -85,7 +84,6 @@ function App() {
               {/* ✅ Protected Routes - Ensure OTP Verification Before Access */}
               <Route path="/dashboard" element={user ? (otpPending ? <Navigate to="/otp" replace /> : <DashboardPage />) : <Navigate to="/preorder" replace />} />
               <Route path="/quizzes" element={user ? (otpPending ? <Navigate to="/otp" replace /> : <QuizzesPage />) : <Navigate to="/preorder" replace />} />
-              <Route path="/quizzes-new" element={user ? (otpPending ? <Navigate to="/otp" replace /> : <QuizzesPageNew />) : <Navigate to="/preorder" replace />} />
               <Route path="/mock-exams" element={user ? (otpPending ? <Navigate to="/otp" replace /> : <MockExamsPage />) : <Navigate to="/preorder" replace />} />
               <Route path="/flashcards" element={user ? (otpPending ? <Navigate to="/otp" replace /> : <FlashcardsPage />) : <Navigate to="/preorder" replace />} />
               <Route path="/resources" element={user ? (otpPending ? <Navigate to="/otp" replace /> : <ResourcesPage />) : <Navigate to="/preorder" replace />} />

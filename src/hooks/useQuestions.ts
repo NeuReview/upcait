@@ -333,15 +333,96 @@ try {
   console.error('Failed to initialize langProfProgressStore:', e);
 }
 
+// 1) Define an interface for your local‐store entries
+interface ReadingCompProgressRecord {
+  userId:     string;  // UUID of the user
+  questionId: string;  // UUID of the question
+  isCorrect:  boolean;
+  tags:       string;  // e.g. 'English' or 'Filipino'
+  timestamp:  string;  // ISO string when it was recorded
+}
+
+// 2) Create the store using the same pattern as the others
+export const readingCompProgressStore = {
+  records: [] as ReadingCompProgressRecord[],
+
+  add(userId: string, questionId: string, isCorrect: boolean, tags: string) {
+    this.records.push({
+      userId,
+      questionId,
+      isCorrect,
+      tags,
+      timestamp: new Date().toISOString()
+    });
+    this.saveToLocalStorage();
+    console.log(
+      `Added RC progress record: User ${userId}, Question ${questionId}, Correct: ${isCorrect}, Tags: ${tags}`
+    );
+    return true;
+  },
+
+  getRecords(userId: string) {
+    return this.records.filter(record => record.userId === userId);
+  },
+
+  getStats(userId: string) {
+    const recs = this.getRecords(userId);
+    const total   = recs.length;
+    const correct = recs.filter(r => r.isCorrect).length;
+    return {
+      totalQuestions:   total,
+      correctAnswers:   correct,
+      incorrectAnswers: total - correct,
+      accuracy:         total > 0 ? Math.round((correct / total) * 100) : 0
+    };
+  },
+
+  saveToLocalStorage() {
+    try {
+      localStorage.setItem(
+        'readingCompProgressStore',
+        JSON.stringify(this.records)
+      );
+    } catch (err) {
+      console.error('Error saving RC progress to localStorage:', err);
+    }
+  },
+
+  loadFromLocalStorage() {
+    try {
+      const stored = localStorage.getItem('readingCompProgressStore');
+      if (stored) {
+        this.records = JSON.parse(stored);
+        console.log(
+          `Loaded ${this.records.length} RC progress records from localStorage`
+        );
+      }
+    } catch (err) {
+      console.error('Error loading RC progress from localStorage:', err);
+    }
+  }
+};
+
+// 3) Initialize on module load
+try {
+  readingCompProgressStore.loadFromLocalStorage();
+} catch (e) {
+  console.error('Failed to initialize readingCompProgressStore:', e);
+}
+
+
+
 interface UseQuestionsReturn {
   questions: Question[];
   loading: boolean;
   error: string | null;
   fetchQuestions: (category: string, difficulty: string) => Promise<void>;
   updateUserStats: (correctAnswers: number, totalAnswers: number) => Promise<void>;
-  recordScienceProgress: (questionUuid: string, isCorrect: boolean) => Promise<void>;
-  recordMathProgress: (questionUuid: string, isCorrect: boolean) => Promise<void>;
-  recordLanguageProficiencyProgress: (questionUuid: string, isCorrect: boolean, tags: string) => Promise<void>;
+  recordScienceProgress: (questionUuid: string, isCorrect: boolean, tag: string) => Promise<void>;
+  recordMathProgress: (questionUuid: string, isCorrect: boolean, tag: string) => Promise<void>;
+  recordLanguageProficiencyProgress: (questionUuid: string, isCorrect: boolean, tag: string) => Promise<void>;
+  recordReadingCompProgress: (questionUuid: string, isCorrect: boolean, tag: string) => Promise<void>;
+  getReadingCompProgressStats: (userId: string) => { totalQuestions: number; correctAnswers: number; incorrectAnswers: number; accuracy: number };
   getScienceProgressStats: (userId: string) => { totalQuestions: number; correctAnswers: number; incorrectAnswers: number; accuracy: number };
   getMathProgressStats: (userId: string) => { totalQuestions: number; correctAnswers: number; incorrectAnswers: number; accuracy: number };
   getLanguageProficiencyProgressStats: (userId: string) => { totalQuestions: number; correctAnswers: number; incorrectAnswers: number; accuracy: number };
@@ -393,7 +474,7 @@ export function useQuestions(): UseQuestionsReturn {
 
         // Transform and combine the results
         const englishQuestions = (englishResult.data || []).map((q: ReadingCompQuestionData) => ({
-          question_id: q.question_id,
+          question_id: String(q.question_id),
           global_id: q.global_id,
           category: 'Reading Comprehension',
           question: q.question,
@@ -408,7 +489,7 @@ export function useQuestions(): UseQuestionsReturn {
         }));
 
         const filipinoQuestions = (filipinoResult.data || []).map((q: ReadingCompQuestionData) => ({
-          question_id: q.question_id,
+          question_id: String(q.question_id),
           global_id: q.global_id,
           category: 'Reading Comprehension',
           question: q.question,
@@ -456,7 +537,7 @@ export function useQuestions(): UseQuestionsReturn {
 
         // Transform and combine the results
         const englishQuestions = (englishResult.data || []).map((q: LanguageQuestionData) => ({
-          question_id: q.question_id,
+          question_id: String(q.question_id),
           global_id: q.global_id,
           category: 'Language Proficiency',
           question: q.question,
@@ -471,7 +552,7 @@ export function useQuestions(): UseQuestionsReturn {
         }));
 
         const filipinoQuestions = (filipinoResult.data || []).map((q: LanguageQuestionData) => ({
-          question_id: q.question_id,
+          question_id: String(q.question_id),
           global_id: q.global_id,
           category: 'Language Proficiency',
           question: q.question,
@@ -539,37 +620,40 @@ export function useQuestions(): UseQuestionsReturn {
           if (category === 'Mathematics') {
             const mathQ = q as MathQuestionData;
             return {
-              question_id: mathQ.question_id,
-              global_id: mathQ.global_id,
-              category: category,
+              question_id:     String(mathQ.question_id),
+              global_id:       mathQ.global_id,
+              category,
               difficulty_level: mathQ.difficulty,
-              question: mathQ.question || '',
-              options: [mathQ.option_A, mathQ.option_B, mathQ.option_C, mathQ.option_D].filter(Boolean),
-              option_a: mathQ.option_A || '',
-              option_b: mathQ.option_B || '',
-              option_c: mathQ.option_C || '',
-              option_d: mathQ.option_D || '',
-              answer: mathQ.answer || '',
-              explanation: mathQ.explanation || ''
+              question:        mathQ.question || '',
+              options:         [mathQ.option_A, mathQ.option_B, mathQ.option_C, mathQ.option_D].filter(Boolean),
+              option_a:        mathQ.option_A || '',
+              option_b:        mathQ.option_B || '',
+              option_c:        mathQ.option_C || '',
+              option_d:        mathQ.option_D || '',
+              answer:          mathQ.answer || '',
+              explanation:     mathQ.explanation || '',
+              tag:             mathQ.tag     // ← pull in the tag from your table
             };
           } else {
             const otherQ = q as OtherQuestionData;
             return {
-              question_id: otherQ.question_id,
-              global_id: otherQ.global_id,
-              category: category,
+              question_id:     String(otherQ.question_id),
+              global_id:       otherQ.global_id,
+              category,
               difficulty_level: otherQ.difficulty,
-              question: otherQ.question || '',
-              options: [otherQ.option_a, otherQ.option_b, otherQ.option_c, otherQ.option_d].filter(Boolean),
-              option_a: otherQ.option_a || '',
-              option_b: otherQ.option_b || '',
-              option_c: otherQ.option_c || '',
-              option_d: otherQ.option_d || '',
-              answer: otherQ.answer || '',
-              explanation: otherQ.explanation || ''
+              question:        otherQ.question || '',
+              options:         [otherQ.option_a, otherQ.option_b, otherQ.option_c, otherQ.option_d].filter(Boolean),
+              option_a:        otherQ.option_a || '',
+              option_b:        otherQ.option_b || '',
+              option_c:        otherQ.option_c || '',
+              option_d:        otherQ.option_d || '',
+              answer:          otherQ.answer || '',
+              explanation:     otherQ.explanation || '',
+              tag:             otherQ.tag     // ← and here too!
             };
           }
         });
+        
 
         console.log('Transformed questions:', transformedQuestions);
 
@@ -635,212 +719,233 @@ export function useQuestions(): UseQuestionsReturn {
     }
   };
 
-  const recordScienceProgress = async (questionUuid: string, isCorrect: boolean) => {
-    try {
-      const user = await supabase.auth.getUser();
-      if (!user.data.user) {
-        console.log("No logged in user found - cannot record science progress");
-        return;
-      }
-
-      const userId = user.data.user.id;
-      
-      // Validate that we have a valid UUID
-      if (!questionUuid) {
-        console.error('No global_id provided for the question');
-        return;
-      }
-
-      console.log(`Recording science progress for user ${userId}, question global_id ${questionUuid}, correct: ${isCorrect}`);
-      
-      // Add the record to our local store first
-      scienceProgressStore.add(userId, questionUuid, isCorrect);
-      
-      // Then attempt to save to the database
-      try {
-        console.log('Attempting to insert to science_progress_report table with global_id');
-        
-        const { data, error } = await supabase
-          .from('science_progress_report_quizzes')
-          .insert({
-            user_id: userId,
-            question_uuid: questionUuid, // This should now be the global_id from the question
-            correct_question: isCorrect ? 1 : 0
-          })
-          .select();
-        
-        if (error) {
-          console.error('Error inserting to science_progress_report:', {
-            code: error.code,
-            message: error.message,
-            details: error.details,
-            hint: error.hint
-          });
-          
-          if (error.code === '42501' || error.message.includes('permission denied') || error.message.includes('403')) {
-            console.warn('Permission issue detected. This is likely an RLS policy that needs to be updated in Supabase.');
-            console.log('Saved to localStorage as fallback due to permission issue');
-          }
-        } else {
-          console.log('Successfully recorded to database with global_id!', data);
-        }
-      } catch (dbErr) {
-        console.error('Exception in database operation:', dbErr);
-      }
-    } catch (err) {
-      console.error('Failed to record science progress:', err);
-    }
+  /**
+ * Records one science answer, overwriting any existing row 
+ * for (user_id, question_uuid), and saves the question’s tag.
+ */
+  const recordScienceProgress = async (
+    questionUuid: string,
+    isCorrect: boolean,
+    tag: string          // this is your local variable
+  ): Promise<void> => {
+    const {
+      data: { user },
+      error: authError
+    } = await supabase.auth.getUser();
+    if (authError || !user) return;
+    const userId = user.id;
+  
+    scienceProgressStore.add(userId, questionUuid, isCorrect);
+  
+    // ← Change `tag` to `tags` to match your column name
+    const { data, error } = await supabase
+      .from('science_progress_report_quizzes')
+      .upsert(
+        {
+          user_id:        userId,
+          question_uuid:  questionUuid,
+          correct_question: isCorrect ? 1 : 0,
+          tags:           tag        // ← here
+        },
+        { onConflict: 'user_id,question_uuid' }
+      )
+      .select();
+  
+    if (error) console.error('Science upsert failed:', error);
+    else       console.log('Science upsert succeeded:', data);
   };
   
-  const recordMathProgress = async (questionUuid: string, isCorrect: boolean) => {
+  const recordMathProgress = async (
+    questionUuid: string,
+    isCorrect: boolean,
+    tag: string
+  ): Promise<void> => {
     try {
-      const user = await supabase.auth.getUser();
-      if (!user.data.user) {
-        console.log("No logged in user found - cannot record math progress");
+      // 1) Auth
+      const {
+        data: { user },
+        error: authError
+      } = await supabase.auth.getUser();
+      if (authError || !user) {
+        console.error('Auth error recording math progress:', authError);
         return;
       }
-
-      const userId = user.data.user.id;
-      
-      // Validate UUID format
-      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+      const userId = user.id;
+  
+      // 2) Sanity-check the UUIDs
+      const uuidRegex =
+        /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
       if (!uuidRegex.test(questionUuid)) {
         console.error('Invalid question UUID format:', questionUuid);
         return;
       }
-
       if (!uuidRegex.test(userId)) {
         console.error('Invalid user UUID format:', userId);
         return;
       }
-
-      console.log(`Recording math progress for user ${userId}, question global_id ${questionUuid}, correct: ${isCorrect}`);
-      
-      // Add the record to our local store first
+  
+      console.log(
+        `Recording math progress for ${userId} / ${questionUuid}, correct=${isCorrect}, tag=${tag}`
+      );
+  
+      // 3) Local store
       mathProgressStore.add(userId, questionUuid, isCorrect);
-      
-      // Then attempt to save to the database
-      try {
-        console.log('Attempting to insert to math_progress_report table with global_id');
-        
-        const { data, error } = await supabase
-          .from('math_progress_report_quizzes')
-          .insert({
-            user_id: userId,
-            question_uuid: questionUuid,
-            correct_question: isCorrect ? 1 : 0
-          })
-          .select();
-        
-        if (error) {
-          console.error('Error inserting to math_progress_report:', {
-            code: error.code,
-            message: error.message,
-            details: error.details,
-            hint: error.hint
-          });
-          
-          if (error.code === '42501' || error.message.includes('permission denied') || error.message.includes('403')) {
-            console.warn('Permission issue detected. This is likely an RLS policy that needs to be updated in Supabase.');
-            console.log('Saved to localStorage as fallback due to permission issue');
-          }
-        } else {
-          console.log('Successfully recorded to database with global_id!', data);
-        }
-      } catch (dbErr) {
-        console.error('Exception in database operation:', dbErr);
+  
+      // 4) Upsert to Supabase
+      const { data, error } = await supabase
+        .from('math_progress_report_quizzes')
+        .upsert(
+          {
+            user_id:         userId,
+            question_uuid:   questionUuid,
+            correct_question: isCorrect ? 1 : 0,
+            tags:            tag
+          },
+          { onConflict: 'user_id,question_uuid' }
+        )
+        .select();
+  
+      if (error) {
+        console.error('Math upsert failed:', error);
+      } else {
+        console.log('Math upsert succeeded:', data);
       }
     } catch (err) {
-      console.error('Failed to record math progress:', err);
+      console.error('Unexpected error in recordMathProgress:', err);
     }
   };
   
-  const recordLanguageProficiencyProgress = async (questionUuid: string, isCorrect: boolean, tags: string) => {
+  const recordLanguageProficiencyProgress = async (
+    questionUuid: string,
+    isCorrect: boolean,
+    tag: string
+  ): Promise<void> => {
     try {
-      // Add more detailed debugging
-      console.log('recordLanguageProficiencyProgress received parameters:', {
-        questionUuid: JSON.stringify(questionUuid),
-        isCorrect,
-        tags
-      });
-      
-      const user = await supabase.auth.getUser();
-      if (!user.data.user) {
-        console.log("No logged in user found - cannot record language proficiency progress");
+      // 1) Auth
+      const {
+        data: { user },
+        error: authError
+      } = await supabase.auth.getUser();
+      if (authError || !user) {
+        console.error('Auth error recording language proficiency progress:', authError);
         return;
       }
-
-      const userId = user.data.user.id;
-      
-      // Validate UUID format but log the exact match result
-      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-      const isValidUuid = uuidRegex.test(questionUuid);
-      
-      console.log('UUID validation:', { 
-        uuid: questionUuid,
-        isValid: isValidUuid,
-        matches: questionUuid.match(uuidRegex)
-      });
-      
-      if (!isValidUuid) {
+      const userId = user.id;
+  
+      // 2) UUID sanity checks
+      const uuidRegex =
+        /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+      if (!uuidRegex.test(questionUuid)) {
         console.error('Invalid question UUID format:', questionUuid);
-        
-        // Try to continue anyway since the UUID appears valid in the UI
-        console.log('Attempting to continue despite UUID validation failure');
+        return;
       }
-
-      console.log(`Recording language proficiency progress for user ${userId}, question ${questionUuid}, correct: ${isCorrect}, tags: ${tags}`);
-      
-      // Add the record to our local store first
-      langProfProgressStore.add(userId, questionUuid, isCorrect, tags);
-      
-      // Then attempt to save to the database
-      try {
-        console.log('Attempting to insert to lang_prof_progress_report_quizzes table with data:', {
-          user_id: userId,
-          question_uuid: questionUuid,
-          correct_question: isCorrect ? 1 : 0,
-          tags: tags
-        });
-        
-        const { data, error } = await supabase
-          .from('lang_prof_progress_report_quizzes')
-          .insert({
-            user_id: userId,
-            question_uuid: questionUuid,
+      if (!uuidRegex.test(userId)) {
+        console.error('Invalid user UUID format:', userId);
+        return;
+      }
+  
+      console.log(
+        `Recording Lang-Prof: user=${userId}, question=${questionUuid}, correct=${isCorrect}, tag=${tag}`
+      );
+  
+      // 3) Save in local store
+      langProfProgressStore.add(userId, questionUuid, isCorrect, tag);
+  
+      // 4) Upsert into Supabase
+      const { data, error } = await supabase
+        .from('lang_prof_progress_report_quizzes')
+        .upsert(
+          {
+            user_id:          userId,
+            question_uuid:    questionUuid,
             correct_question: isCorrect ? 1 : 0,
-            tags: tags
-          })
-          .select();
-        
-        if (error) {
-          console.error('Error inserting to lang_prof_progress_report_quizzes:', {
-            code: error.code,
-            message: error.message,
-            details: error.details,
-            hint: error.hint
-          });
-          
-          if (error.code === '42501' || error.message.includes('permission denied') || error.message.includes('403')) {
-            console.warn('Permission issue detected. This is likely an RLS policy that needs to be updated in Supabase.');
-            console.log('Saved to localStorage as fallback due to permission issue');
-          }
-        } else {
-          console.log('Successfully recorded language proficiency progress to database!', data);
-        }
-      } catch (dbErr) {
-        console.error('Exception in database operation:', dbErr);
+            tags:             tag
+          },
+          { onConflict: 'user_id,question_uuid' }
+        )
+        .select();
+  
+      if (error) {
+        console.error('Lang-Prof upsert failed:', error);
+      } else {
+        console.log('Lang-Prof upsert succeeded:', data);
       }
     } catch (err) {
-      console.error('Failed to record language proficiency progress:', err);
+      console.error('Unexpected error in recordLanguageProficiencyProgress:', err);
     }
   };
   
+  const recordReadingCompProgress = async (
+    questionUuid: string,
+    isCorrect: boolean,
+    tag: string
+  ): Promise<void> => {
+    try {
+      // 1) Auth
+      const {
+        data: { user },
+        error: authError
+      } = await supabase.auth.getUser();
+      if (authError || !user) {
+        console.error('Auth error recording RC progress:', authError);
+        return;
+      }
+      const userId = user.id;
+  
+      // 2) Sanity-check the UUIDs
+      const uuidRegex =
+        /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+      if (!uuidRegex.test(questionUuid)) {
+        console.error('Invalid question UUID format:', questionUuid);
+        return;
+      }
+      if (!uuidRegex.test(userId)) {
+        console.error('Invalid user UUID format:', userId);
+        return;
+      }
+  
+      console.log(
+        `Recording RC: user=${userId}, question=${questionUuid}, correct=${isCorrect}, tag=${tag}`
+      );
+  
+      // 3) Local fallback
+      readingCompProgressStore.add(userId, questionUuid, isCorrect, tag);
+  
+      // 4) Upsert into Supabase
+      const { data, error } = await supabase
+        .from('reading_comp_progress_report_quizzes')
+        .upsert(
+          {
+            user_id:         userId,
+            question_uuid:   questionUuid,
+            correct_question: isCorrect ? 1 : 0,
+            tags:            tag
+          },
+          { onConflict: 'user_id,question_uuid' }
+        )
+        .select();
+  
+      if (error) {
+        console.error('RC upsert failed:', error);
+      } else {
+        console.log('RC upsert succeeded:', data);
+      }
+    } catch (err) {
+      console.error('Unexpected error in recordReadingCompProgress:', err);
+    }
+  };
+  
+  
+
   // Function to get science progress stats
   const getScienceProgressStats = (userId: string) => {
     // Just use the scienceProgressStore for now
     return scienceProgressStore.getStats(userId);
   };
+
+  const getReadingCompProgressStats = (userId: string) =>
+    readingCompProgressStore.getStats(userId);
+
 
   // Function to get math progress stats
   const getMathProgressStats = (userId: string) => {
@@ -863,6 +968,9 @@ export function useQuestions(): UseQuestionsReturn {
     recordLanguageProficiencyProgress,
     getScienceProgressStats,
     getMathProgressStats,
-    getLanguageProficiencyProgressStats
+    getLanguageProficiencyProgressStats,
+    recordReadingCompProgress,
+    getReadingCompProgressStats
+
   };
 }

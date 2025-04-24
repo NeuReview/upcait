@@ -16,6 +16,10 @@ import {
 import { useQuestions } from '../hooks/useQuestions';
 import type { Question } from '../types/quiz';
 
+type OptionKey = 'option_a' | 'option_b' | 'option_c' | 'option_d';
+const OPTION_KEYS: OptionKey[] = ['option_a', 'option_b', 'option_c', 'option_d'];
+const LETTERS = ['A','B','C','D'] as const;
+
 const topics = [
   {
     id: 'Reading Comprehension',
@@ -329,21 +333,14 @@ const QuizzesPage = () => {
   const [currentQuestion, setCurrentQuestion] = useState(0);
   const [selectedAnswer, setSelectedAnswer] = useState<string | null>(null);
   const [showExplanation, setShowExplanation] = useState(false);
-  const [timeRemaining, setTimeRemaining] = useState(30 * 60);
-  const { 
-    questions, 
-    loading, 
-    error, 
-    fetchQuestions, 
-    updateUserStats, 
-    recordScienceProgress, 
-    recordMathProgress,
-    recordLanguageProficiencyProgress 
-  } = useQuestions();
+  const [timeRemaining, setTimeRemaining] = useState(.5 * 60);
+  const [showOneMinuteModal, setShowOneMinuteModal] = useState(false);
+  const {questions, loading, error, fetchQuestions, updateUserStats, recordScienceProgress, recordMathProgress, recordLanguageProficiencyProgress, recordReadingCompProgress} = useQuestions();
+  
   const [score, setScore] = useState<QuizScore | null>(null);
   const [startTime, setStartTime] = useState<number | null>(null);
   const [correctAnswers, setCorrectAnswers] = useState<Set<number>>(new Set());
-  const [userAnswers, setUserAnswers] = useState<{ [questionId: number]: string }>({});
+  const [userAnswers, setUserAnswers] = useState<Record<string, string>>({});
   const [allQuestions, setAllQuestions] = useState<Question[]>([]);
 
   // Keep a live copy of questions in allQuestions for the in-progress sidebar
@@ -354,13 +351,29 @@ const QuizzesPage = () => {
   }, [questions]);
 
   useEffect(() => {
+    if (quizStarted && isTimeBased && timeRemaining === 60) {
+      setShowOneMinuteModal(true);
+    }
+  }, [quizStarted, isTimeBased, timeRemaining]);
+
+  useEffect(() => {
+    if (!quizStarted || score !== null) return;
+    const answeredCount = Object.keys(userAnswers).length;
+    if (answeredCount === questions.length) {
+      const timer = window.setTimeout(calculateScore, 1500);
+      return () => clearTimeout(timer);
+    }
+  }, [userAnswers, quizStarted, questions.length, score]);
+
+  useEffect(() => {
     let timer: number | undefined;
     if (quizStarted && isTimeBased && timeRemaining > 0) {
       timer = window.setInterval(() => {
         setTimeRemaining(prev => {
           if (prev <= 1) {
             clearInterval(timer);
-            setQuizStarted(false);
+            setShowOneMinuteModal(false);
+            calculateScore();            // ← auto-finish quiz
             return 0;
           }
           return prev - 1;
@@ -409,37 +422,44 @@ const QuizzesPage = () => {
     if (selectedTopic && selectedDifficulty) {
       try {
         await fetchQuestions(selectedTopic, selectedDifficulty);
+  
+        // **reset all of our “in‐quiz” state**
         setQuizStarted(true);
         setCurrentQuestion(0);
         setSelectedAnswer(null);
         setShowExplanation(false);
         setScore(null);
         setCorrectAnswers(new Set());
+        setUserAnswers({});           // ← ADD THIS LINE
+        setAllQuestions(questions);   // (you already do this in the effect, but no harm)
+  
         setStartTime(Date.now());
         if (isTimeBased) {
-          setTimeRemaining(30 * 60);
+          setTimeRemaining(1.5 * 60);
         }
       } catch (err) {
         console.error('Error starting quiz:', err);
       }
     }
   };
-
+  
   const handleAnswerSelect = (answer: string) => {
     if (!questions[currentQuestion]) return;
-    
+
+    setSelectedAnswer(answer);
     // Mark this question as answered
-    setUserAnswers({
-      ...userAnswers,
-      [questions[currentQuestion].question_id]: answer
-    });
+    // new:
+    const q = questions[currentQuestion] as Question & { global_id: string };
+    setUserAnswers(prev => ({
+      ...prev,
+      // use the UUID for every category
+      [q.global_id]: answer
+    }));
+
     
     // Track if the answer is correct
     const isCorrect = answer === questions[currentQuestion].answer;
-    
-    // Show the explanation
-    setShowExplanation(true);
-    
+
     // Update the score - using correctAnswers Set which is what the original code was using
     if (isCorrect) {
       setCorrectAnswers(prev => new Set(prev).add(currentQuestion));
@@ -449,14 +469,27 @@ const QuizzesPage = () => {
     const currentQuestionData = questions[currentQuestion] as QuestionWithTag;
     
     // Track progress in the database based on category
+    // after
     if (currentQuestionData.category === 'Science' && currentQuestionData.global_id) {
-      console.log(`Calling recordScienceProgress with global_id=${currentQuestionData.global_id}, isCorrect=${isCorrect}`);
-      recordScienceProgress(currentQuestionData.global_id, isCorrect);
-    } 
-    else if (currentQuestionData.category === 'Mathematics' && currentQuestionData.global_id) {
-      console.log(`Calling recordMathProgress with global_id=${currentQuestionData.global_id}, isCorrect=${isCorrect}`);
-      recordMathProgress(currentQuestionData.global_id, isCorrect);
+      const tagValue = currentQuestionData.tag || '';
+      console.log(`Calling recordScienceProgress with global_id=${currentQuestionData.global_id}, isCorrect=${isCorrect}, tag=${tagValue}`);
+      recordScienceProgress(
+        currentQuestionData.global_id,
+        isCorrect,
+        tagValue
+      );
     }
+
+    else if (currentQuestionData.category === 'Mathematics' && currentQuestionData.global_id) {
+      const tagValue = currentQuestionData.tag || '';
+      console.log(`Calling recordMathProgress with global_id=${currentQuestionData.global_id}, isCorrect=${isCorrect}, tag=${tagValue}`);
+      recordMathProgress(
+        currentQuestionData.global_id,
+        isCorrect,
+        tagValue
+      );
+    }
+    
     else if (currentQuestionData.category === 'Language Proficiency' && currentQuestionData.global_id) {
       // Use the tag from the current question or default to empty string
       const tagValue = currentQuestionData.tag || '';
@@ -480,13 +513,18 @@ const QuizzesPage = () => {
         isCorrect,
         tagValue
       );
-    }
-    
-    // If this is the last question, calculate final score after a delay
-    if (currentQuestion === questions.length - 1) {
-      setTimeout(() => {
-        calculateScore();
-      }, 1500);
+    }else if (currentQuestionData.category === 'Reading Comprehension' && currentQuestionData.global_id) {
+      // use the tag ('English' or 'Filipino') from the question
+      const tagValue = currentQuestionData.tag || '';
+      console.log(
+        `Calling recordReadingCompProgress with global_id=${currentQuestionData.global_id}, ` +
+        `isCorrect=${isCorrect}, tag=${tagValue}`
+      );
+      recordReadingCompProgress(
+        currentQuestionData.global_id,
+        isCorrect,
+        tagValue
+      );
     }
   };
   
@@ -520,7 +558,11 @@ const QuizzesPage = () => {
   // Once we have a score, show summary + new summary sidebar
   if (score) {
     // Build ReviewItem data for summary
-    const reviewData: ReviewItem[] = allQuestions.map((q, idx) => mapQuestionToReviewItem(q, userAnswers[q.question_id] || null));
+    const reviewData: ReviewItem[] = allQuestions.map(q => {
+         // global_id is guaranteed—assert non‐null
+        const key = q.global_id!;
+        return mapQuestionToReviewItem(q, userAnswers[key] || null);
+    });
 
     return (
       <div className="min-h-screen bg-gray-50 py-6 relative">
@@ -530,6 +572,8 @@ const QuizzesPage = () => {
             onRetry={() => {
               setQuizStarted(false);
               setScore(null);
+              setUserAnswers({});        // ← clear previous answers
+              setCorrectAnswers(new Set());
             }} 
           />
         </div>
@@ -542,266 +586,275 @@ const QuizzesPage = () => {
 
   // While quiz is ongoing, show the original "Question Review" sidebar
   return (
-    <div className="min-h-screen bg-gray-50 py-6">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        {/* If quiz not started, show the intro screen */}
-        {!quizStarted ? (
-          <div className="space-y-8">
-            <div className="text-center">
-              <h1 className="text-3xl font-bold text-gray-900">Practice Quizzes</h1>
-              <p className="mt-2 text-gray-600">
-                Choose your topic and difficulty to get started
-              </p>
-              <p className="mt-1 text-sm text-gray-500">
-                20 questions per quiz | Personalized feedback
-              </p>
-            </div>
-
-            {error && (
-              <div className="p-4 bg-alert-red/10 border border-alert-red/20 rounded-lg flex items-start space-x-3">
-                <ExclamationTriangleIcon className="w-5 h-5 text-alert-red flex-shrink-0 mt-0.5" />
-                <div>
-                  <h3 className="text-alert-red font-medium">Error</h3>
-                  <p className="text-sm text-alert-red/90">{error}</p>
-                </div>
-              </div>
-            )}
-
-            {/* Topic selection */}
-            <div>
-              <h2 className="text-xl font-semibold text-gray-900 mb-4">Select Topic</h2>
-              <div className="grid md:grid-cols-2 gap-4">
-                {topics.map((topic) => (
-                  <button
-                    key={topic.id}
-                    onClick={() => setSelectedTopic(topic.id)}
-                    className={`p-6 rounded-lg border-2 transition-all duration-200 ${
-                      selectedTopic === topic.id
-                        ? 'border-neural-purple bg-neural-purple/5'
-                        : 'border-gray-200 hover:border-neural-purple'
-                    }`}
-                  >
-                    <div className="flex items-center space-x-4">
-                      <div className={`w-12 h-12 rounded-lg flex items-center justify-center ${
-                        selectedTopic === topic.id 
-                          ? 'bg-neural-purple text-white' 
-                          : 'bg-neural-purple/10 text-neural-purple'
-                      }`}>
-                        <topic.icon className="w-6 h-6" />
-                      </div>
-                      <div className="text-left">
-                        <h3 className="font-semibold text-gray-900">{topic.name}</h3>
-                        <p className="text-sm text-gray-500">{topic.description}</p>
-                      </div>
-                    </div>
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Difficulty selection */}
-            <div>
-              <h2 className="text-xl font-semibold text-gray-900 mb-4">Select Difficulty</h2>
-              <div className="grid md:grid-cols-3 gap-4">
-                {difficulties.map((difficulty) => (
-                  <button
-                    key={difficulty.id}
-                    onClick={() => setSelectedDifficulty(difficulty.id)}
-                    className={`p-6 rounded-lg border-2 transition-all duration-200 ${
-                      selectedDifficulty === difficulty.id
-                        ? 'border-neural-purple bg-neural-purple/5'
-                        : 'border-gray-200 hover:border-neural-purple'
-                    }`}
-                  >
-                    <h3 className={`font-semibold ${difficulty.color}`}>{difficulty.name}</h3>
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Timer toggle */}
-            <div className="flex items-center justify-center space-x-4">
-              <label className="flex items-center space-x-2">
-                <input
-                  type="checkbox"
-                  checked={isTimeBased}
-                  onChange={(e) => setIsTimeBased(e.target.checked)}
-                  className="rounded border-gray-300 text-neural-purple focus:ring-neural-purple"
-                />
-                <span className="text-gray-700">Enable Timer (30 minutes)</span>
-              </label>
-            </div>
-
-            {/* Start Quiz button */}
-            <div className="text-center">
-              <button
-                onClick={startQuiz}
-                disabled={!selectedTopic || !selectedDifficulty || loading}
-                className={`px-8 py-3 rounded-lg font-semibold ${
-                  selectedTopic && selectedDifficulty && !loading
-                    ? 'bg-neural-purple text-white hover:bg-tech-lavender'
-                    : 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                } transition-colors duration-200`}
-              >
-                {loading ? 'Loading...' : 'Start Quiz'}
-              </button>
-            </div>
+    <>
+      {/* 1-Minute Warning Modal */}
+      {showOneMinuteModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white p-6 rounded-lg max-w-sm mx-auto text-center">
+            <h2 className="text-xl font-semibold mb-2">1 Minute Remaining</h2>
+            <p className="mb-4">
+              Only one minute left! When the timer hits zero, the quiz will end automatically.
+            </p>
+            <button
+              onClick={() => setShowOneMinuteModal(false)}
+              className="px-4 py-2 bg-neural-purple text-white rounded-lg hover:bg-tech-lavender"
+            >
+              Got it
+            </button>
           </div>
-        ) : (
-          // Quiz is ongoing
-          <div className="max-w-3xl mx-auto space-y-6">
-            {/* Header & progress bar */}
-            <div className="bg-white rounded-lg shadow-md p-4">
-              <div className="flex justify-between items-center">
-                <div>
-                  <h2 className="font-semibold text-gray-900">
-                    {selectedTopic}
-                  </h2>
-                  <p className="text-sm text-gray-500">
-                    Question {currentQuestion + 1} of {questions.length}
-                  </p>
-                </div>
-                {isTimeBased && (
-                  <div className="flex items-center space-x-2 text-gray-600">
-                    <ClockIcon className="w-5 h-5" />
-                    <span>{formatTime(timeRemaining)}</span>
+        </div>
+      )}
+
+      {/* ── Existing Quiz Page ── */}
+      <div className="min-h-screen bg-gray-50 py-6">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          {/* If quiz not started, show the intro screen */}
+          {!quizStarted ? (
+            <div className="space-y-8">
+              <div className="text-center">
+                <h1 className="text-3xl font-bold text-gray-900">Practice Quizzes</h1>
+                <p className="mt-2 text-gray-600">
+                  Choose your topic and difficulty to get started
+                </p>
+                <p className="mt-1 text-sm text-gray-500">
+                  20 questions per quiz | Personalized feedback
+                </p>
+              </div>
+
+              {error && (
+                <div className="p-4 bg-alert-red/10 border border-alert-red/20 rounded-lg flex items-start space-x-3">
+                  <ExclamationTriangleIcon className="w-5 h-5 text-alert-red flex-shrink-0 mt-0.5" />
+                  <div>
+                    <h3 className="text-alert-red font-medium">Error</h3>
+                    <p className="text-sm text-alert-red/90">{error}</p>
                   </div>
-                )}
-              </div>
-              <div className="mt-4 w-full bg-gray-200 rounded-full h-2">
-                <div
-                  className="bg-neural-purple h-2 rounded-full transition-all duration-300"
-                  style={{ width: `${((currentQuestion + 1) / questions.length) * 100}%` }}
-                />
-              </div>
-            </div>
+                </div>
+              )}
 
-            {/* Question + answer options */}
-            {questions[currentQuestion] && (
-              <div className="bg-white rounded-lg shadow-lg p-6">
-                <h2 className="text-xl font-semibold text-gray-900 mb-4">
-                  {questions[currentQuestion].question}
-                </h2>
-
-                <div className="space-y-3">
-                  {[
-                    { key: 'A', value: questions[currentQuestion].option_a },
-                    { key: 'B', value: questions[currentQuestion].option_b },
-                    { key: 'C', value: questions[currentQuestion].option_c },
-                    { key: 'D', value: questions[currentQuestion].option_d },
-                  ].map((option) => (
+              {/* Topic selection */}
+              <div>
+                <h2 className="text-xl font-semibold text-gray-900 mb-4">Select Topic</h2>
+                <div className="grid md:grid-cols-2 gap-4">
+                  {topics.map((topic) => (
                     <button
-                      key={option.key}
-                      onClick={() => handleAnswerSelect(option.key)}
-                      disabled={showExplanation}
-                      className={`w-full p-4 rounded-lg border-2 text-left transition-all duration-200 ${
-                        selectedAnswer === option.key
-                          ? option.key === questions[currentQuestion].answer
-                            ? 'border-growth-green bg-growth-green/10'
-                            : 'border-alert-red bg-alert-red/10'
+                      key={topic.id}
+                      onClick={() => setSelectedTopic(topic.id)}
+                      className={`p-6 rounded-lg border-2 transition-all duration-200 ${
+                        selectedTopic === topic.id
+                          ? 'border-neural-purple bg-neural-purple/5'
                           : 'border-gray-200 hover:border-neural-purple'
                       }`}
                     >
-                      <div className="flex items-center justify-between">
-                        <span>{option.value}</span>
-                        {showExplanation && selectedAnswer === option.key && (
-                          option.key === questions[currentQuestion].answer
-                            ? <CheckCircleIcon className="w-6 h-6 text-growth-green" />
-                            : <XCircleIcon className="w-6 h-6 text-alert-red" />
-                        )}
+                      <div className="flex items-center space-x-4">
+                        <div className={`w-12 h-12 rounded-lg flex items-center justify-center ${
+                          selectedTopic === topic.id 
+                            ? 'bg-neural-purple text-white' 
+                            : 'bg-neural-purple/10 text-neural-purple'
+                        }`}>
+                          <topic.icon className="w-6 h-6" />
+                        </div>
+                        <div className="text-left">
+                          <h3 className="font-semibold text-gray-900">{topic.name}</h3>
+                          <p className="text-sm text-gray-500">{topic.description}</p>
+                        </div>
                       </div>
                     </button>
                   ))}
                 </div>
+              </div>
 
-                {/* Explanation shown after user picks an answer */}
-                {showExplanation && (
-                  <div className="mt-6 p-4 bg-gray-50 rounded-lg">
-                    <h3 className="font-semibold text-gray-900 mb-2">Explanation:</h3>
-                    <p className="text-gray-600 whitespace-pre-line">
-                      {questions[currentQuestion].explanation}
+              {/* Difficulty selection */}
+              <div>
+                <h2 className="text-xl font-semibold text-gray-900 mb-4">Select Difficulty</h2>
+                <div className="grid md:grid-cols-3 gap-4">
+                  {difficulties.map((difficulty) => (
+                    <button
+                      key={difficulty.id}
+                      onClick={() => setSelectedDifficulty(difficulty.id)}
+                      className={`p-6 rounded-lg border-2 transition-all duration-200 ${
+                        selectedDifficulty === difficulty.id
+                          ? 'border-neural-purple bg-neural-purple/5'
+                          : 'border-gray-200 hover:border-neural-purple'
+                      }`}
+                    >
+                      <h3 className={`font-semibold ${difficulty.color}`}>{difficulty.name}</h3>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Timer toggle */}
+              <div className="flex items-center justify-center space-x-4">
+                <label className="flex items-center space-x-2">
+                  <input
+                    type="checkbox"
+                    checked={isTimeBased}
+                    onChange={(e) => setIsTimeBased(e.target.checked)}
+                    className="rounded border-gray-300 text-neural-purple focus:ring-neural-purple"
+                  />
+                  <span className="text-gray-700">Enable Timer (30 minutes)</span>
+                </label>
+              </div>
+
+              {/* Start Quiz button */}
+              <div className="text-center">
+                <button
+                  onClick={startQuiz}
+                  disabled={!selectedTopic || !selectedDifficulty || loading}
+                  className={`px-8 py-3 rounded-lg font-semibold ${
+                    selectedTopic && selectedDifficulty && !loading
+                      ? 'bg-neural-purple text-white hover:bg-tech-lavender'
+                      : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                  } transition-colors duration-200`}
+                >
+                  {loading ? 'Loading...' : 'Start Quiz'}
+                </button>
+              </div>
+            </div>
+          ) : (
+            // Quiz is ongoing
+            <div className="max-w-3xl mx-auto space-y-6">
+              {/* Header & progress bar */}
+              <div className="bg-white rounded-lg shadow-md p-4">
+                <div className="flex justify-between items-center">
+                  <div>
+                    <h2 className="font-semibold text-gray-900">
+                      {selectedTopic}
+                    </h2>
+                    <p className="text-sm text-gray-500">
+                      Question {currentQuestion + 1} of {questions.length}
                     </p>
                   </div>
-                )}
+                  {isTimeBased && (
+                    <div className="flex items-center space-x-2 text-gray-600">
+                      <ClockIcon className="w-5 h-5" />
+                      <span>{formatTime(timeRemaining)}</span>
+                    </div>
+                  )}
+                </div>
+                <div className="mt-4 w-full bg-gray-200 rounded-full h-2">
+                  <div
+                    className="bg-neural-purple h-2 rounded-full transition-all duration-300"
+                    style={{ width: `${((currentQuestion + 1) / questions.length) * 100}%` }}
+                  />
+                </div>
               </div>
-            )}
 
-            {/* Ongoing "Question Review" sidebar for navigation */}
-            <div className="hidden md:block fixed top-24 right-4 w-64 bg-white border rounded-lg shadow p-4 h-[80vh] overflow-y-auto z-40">
-              <h3 className="font-semibold mb-4 text-gray-800">Question Review</h3>
-              <div className="flex flex-wrap gap-2">
-                {allQuestions.map((q, idx) => {
-                  const isCurrent = idx === currentQuestion;
-                  const isAnswered = userAnswers[q.question_id] !== undefined;
+              {/* Question + answer options */}
+              {questions[currentQuestion] && (
+                <div className="bg-white rounded-lg shadow-lg p-6">
+                  <h2 className="text-xl font-semibold text-gray-900 mb-4">
+                    {questions[currentQuestion].question}
+                  </h2>
 
-                  return (
-                    <button
-                      key={`ongoing-review-${q.question_id}-${idx}`}
-                      onClick={() => {
-                        setCurrentQuestion(idx);
-                        setSelectedAnswer(userAnswers[q.question_id] || null);
-                        setShowExplanation(!!userAnswers[q.question_id]);
-                      }}
-                      className={`w-8 h-8 rounded-full text-sm font-medium flex items-center justify-center
-                        ${
-                          isCurrent 
-                            ? 'bg-neural-purple text-white' 
-                            : isAnswered 
-                            ? 'bg-neural-purple/20 text-neural-purple' 
+                  <div className="space-y-3">
+                    {OPTION_KEYS.map((optKey, idx) => {
+                      const letter = LETTERS[idx];
+                      const text  = questions[currentQuestion][optKey];
+                      const q = questions[currentQuestion] as QuestionWithTag;
+
+                      return (
+                        <button
+                          key={letter}
+                          onClick={() => {
+                            if (q.category === 'Science' && q.global_id) {
+                              const isCorrect = letter === q.answer;
+                              recordScienceProgress(q.global_id, isCorrect, q.tag!);
+                            }
+                            handleAnswerSelect(letter);
+                          }}
+                          className={`w-full p-4 rounded-lg border-2 text-left transition-all duration-200 ${
+                            selectedAnswer === letter
+                              ? 'border-neural-purple bg-neural-purple/10 text-neural-purple'
+                              : 'border-gray-200 hover:border-neural-purple'
+                          }`}
+                        >
+                          <div className="flex items-center justify-between">
+                            <span>{text}</span>
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* Ongoing "Question Review" sidebar */}
+              <div className="hidden md:block fixed top-24 right-4 w-64 bg-white border rounded-lg shadow p-4 h-[80vh] overflow-y-auto z-40">
+                <h3 className="font-semibold mb-4 text-gray-800">Question Review</h3>
+                <div className="flex flex-wrap gap-2">
+                  {allQuestions.map((q, idx) => {
+                    const isCurrent = idx === currentQuestion;
+                    const key = q.global_id!;
+                    const isAnswered = userAnswers[key] !== undefined;
+
+                    return (
+                      <button
+                        key={`ongoing-review-${q.question_id}-${idx}`}
+                        onClick={() => {
+                          setCurrentQuestion(idx);
+                          setSelectedAnswer(userAnswers[key] || null);
+                          setShowExplanation(!!userAnswers[q.question_id]);
+                        }}
+                        className={`w-8 h-8 rounded-full text-sm font-medium flex items-center justify-center ${
+                          isCurrent
+                            ? 'bg-neural-purple text-white'
+                            : isAnswered
+                            ? 'bg-neural-purple/20 text-neural-purple'
                             : 'bg-gray-100 text-gray-600'
-                        }
-                      `}
-                    >
-                      {idx + 1}
-                    </button>
-                  );
-                })}
+                        }`}
+                      >
+                        {idx + 1}
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
-            </div>
 
-            {/* Footer actions */}
-            <div className="flex justify-between items-center">
-              <button
-                onClick={() => {
-                  // Leave quiz resets all states
-                  setQuizStarted(false);
-                  setScore(null);
-                  setSelectedTopic('');
-                  setSelectedDifficulty('');
-                  setSelectedAnswer(null);
-                  setShowExplanation(false);
-                  setCurrentQuestion(0);
-                }}
-                className="px-4 py-2 rounded-lg text-alert-red border border-alert-red hover:bg-alert-red/10"
-              >
-                Leave Quiz
-              </button>
-
-              <div className="flex space-x-4">
+              {/* Footer actions */}
+              <div className="flex justify-between items-center">
                 <button
                   onClick={() => {
+                    setQuizStarted(false);
+                    setScore(null);
+                    setSelectedTopic('');
+                    setSelectedDifficulty('');
                     setSelectedAnswer(null);
                     setShowExplanation(false);
-                    setCurrentQuestion(Math.max(0, currentQuestion - 1));
+                    setCurrentQuestion(0);
                   }}
-                  disabled={currentQuestion === 0}
-                  className="px-4 py-2 rounded-lg border border-gray-200 text-gray-600 hover:border-neural-purple disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="px-4 py-2 rounded-lg text-alert-red border border-alert-red hover:bg-alert-red/10"
                 >
-                  Previous
+                  Leave Quiz
                 </button>
-                <button
-                  onClick={handleNextQuestion}
-                  className="px-4 py-2 rounded-lg bg-neural-purple text-white hover:bg-tech-lavender"
-                >
-                  {currentQuestion < questions.length - 1 ? 'Next Question' : 'Finish Quiz'}
-                </button>
+
+                <div className="flex space-x-4">
+                  <button
+                    onClick={() => {
+                      setSelectedAnswer(null);
+                      setShowExplanation(false);
+                      setCurrentQuestion(Math.max(0, currentQuestion - 1));
+                    }}
+                    disabled={currentQuestion === 0}
+                    className="px-4 py-2 rounded-lg border border-gray-200 text-gray-600 hover:border-neural-purple disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    Previous
+                  </button>
+                  <button
+                    onClick={handleNextQuestion}
+                    className="px-4 py-2 rounded-lg bg-neural-purple text-white hover:bg-tech-lavender"
+                  >
+                    {currentQuestion < questions.length - 1 ? 'Next Question' : 'Finish Quiz'}
+                  </button>
+                </div>
               </div>
             </div>
-          </div>
-        )}
+          )}
+        </div>
       </div>
-    </div>
+    </>
   );
+
 };
 
 export default QuizzesPage;
