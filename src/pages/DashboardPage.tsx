@@ -16,7 +16,13 @@ import {
   DocumentChartBarIcon,
   ChevronDownIcon,
   WifiIcon,
-  XCircleIcon
+  XCircleIcon,
+  UserCircleIcon,
+  MapPinIcon,
+  GlobeAltIcon,
+  LinkIcon,
+  PencilIcon,
+  XMarkIcon
 } from '@heroicons/react/24/outline';
 import UserProfileComponent from '../components/UserProfileComponent';
 import { supabase, checkSupabaseConnection } from '../lib/supabase';
@@ -52,6 +58,25 @@ interface ProgressStore {
     incorrectAnswers: number;
     accuracy: number;
   };
+}
+
+// Add interfaces for the user data and modal props
+interface UserData {
+  name: string;
+  username: string;
+  bio: string;
+  location: string;
+  school: string;
+  facebook: string;
+  github: string;
+  linkedin: string;
+  portfolio: string;
+}
+
+interface EditProfileModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  userData: UserData;
 }
 
 // Sample data for demonstration
@@ -95,47 +120,48 @@ const studentData = {
 };
 
 // Circle component for reusability
-const ScoreCircle = ({ 
-  score, 
-  subject, 
-  color, 
-  icon: Icon 
-}: { 
-  score: number; 
-  subject: string; 
-  color: string; 
-  icon: React.ElementType 
+// Compact donut used in "Answered Questions"
+const ScoreCircle = ({
+  score,
+  color,
+  label,
+}: {
+  score: number;
+  color: string;   // e.g. "text-sky-500"
+  label: string;
 }) => (
-  <div className="flex flex-col items-center">
-    <div className="relative w-24 h-24 flex items-center justify-center">
-      <svg className="w-full h-full -rotate-90" viewBox="0 0 100 100">
-        <circle 
-          className="text-gray-200 stroke-current" 
-          strokeWidth="10" 
-          cx="50" 
-          cy="50" 
-          r="40" 
+  <div className="flex flex-col items-center space-y-2">
+    <div className="relative w-20 h-20">
+      <svg
+        className="w-full h-full transform -rotate-90"
+        viewBox="0 0 100 100"
+      >
+        <circle
+          className="text-gray-200 stroke-current"
+          strokeWidth="8"
+          cx="50"
+          cy="50"
+          r="44"
           fill="transparent"
-        ></circle>
-        <circle 
+        />
+        <circle
           className={`${color} stroke-current`}
-          strokeWidth="10" 
-          strokeLinecap="round" 
-          cx="50" 
-          cy="50" 
-          r="40" 
+          strokeWidth="8"
+          strokeLinecap="round"
+          cx="50"
+          cy="50"
+          r="44"
           fill="transparent"
-          strokeDasharray={`${Math.PI * 80 * score / 100} ${Math.PI * 80}`}
-        ></circle>
+          strokeDasharray={`${Math.PI * 88 * (score / 100)} ${
+            Math.PI * 88
+          }`}
+        />
       </svg>
-      <div className="absolute flex flex-col items-center justify-center">
-        <span className="text-xl font-bold">{score}%</span>
-      </div>
+      <span className="absolute inset-0 flex items-center justify-center text-sm font-semibold">
+        {score}%
+      </span>
     </div>
-    <div className="flex items-center mt-2">
-      <Icon className={`w-4 h-4 ${color} mr-1`} />
-      <span className="text-xs font-medium text-gray-700">{subject}</span>
-    </div>
+    <span className="text-xs text-gray-600">{label}</span>
   </div>
 );
 
@@ -145,6 +171,214 @@ interface ScienceProgressData {
   correctAnswers: number;
   incorrectAnswers: number;
   accuracy: number;
+}
+
+// Update the EditProfileModal component with proper types
+const EditProfileModal: React.FC<EditProfileModalProps> = ({ isOpen, onClose, userData }) => {
+  const [formData, setFormData] = useState<UserData>({
+    name: userData.name || '',
+    username: userData.username || '',
+    bio: userData.bio || '',
+    location: userData.location || '',
+    school: userData.school || '',
+    facebook: userData.facebook || '',
+    github: userData.github || '',
+    linkedin: userData.linkedin || '',
+    portfolio: userData.portfolio || ''
+  });
+
+  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    // TODO: Implement profile update logic here
+    console.log('Updated profile data:', formData);
+    onClose();
+  };
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+      <div className="relative top-20 mx-auto p-8 border w-full max-w-2xl shadow-lg rounded-lg bg-white">
+        <div className="flex items-center justify-between mb-6">
+          <div>
+            <h3 className="text-2xl font-bold text-gray-900">Edit Profile</h3>
+            <p className="mt-1 text-sm text-gray-500">Update your profile information</p>
+          </div>
+          <button
+            onClick={onClose}
+            className="text-gray-400 hover:text-gray-500 transition-colors"
+          >
+            <XMarkIcon className="w-6 h-6" />
+          </button>
+        </div>
+
+        <form onSubmit={handleSubmit} className="space-y-6">
+          {/* Profile Info Section */}
+          <div className="space-y-6">
+            <div>
+              <label className="block text-sm font-medium text-gray-900 mb-2">
+                Full Name
+              </label>
+              <input
+                type="text"
+                value={formData.name}
+                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                placeholder="Enter your full name"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-900 mb-2">
+                Username
+              </label>
+              <div className="flex">
+                <span className="inline-flex items-center px-4 rounded-l-lg border border-r-0 border-gray-300 bg-gray-50 text-gray-500 text-sm">
+                  @
+                </span>
+                <input
+                  type="text"
+                  value={formData.username}
+                  onChange={(e) => setFormData({ ...formData, username: e.target.value })}
+                  className="flex-1 px-4 py-2 border border-gray-300 rounded-r-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  placeholder="username"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-900 mb-2">
+                Bio
+              </label>
+              <textarea
+                value={formData.bio}
+                onChange={(e) => setFormData({ ...formData, bio: e.target.value })}
+                rows={4}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                placeholder="Write a short bio about yourself"
+              />
+            </div>
+          </div>
+
+          {/* Location and Education */}
+          <div className="space-y-6">
+            <h4 className="text-lg font-medium text-gray-900">Location & Education</h4>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <label className="block text-sm font-medium text-gray-900 mb-2">
+                  Location
+                </label>
+                <input
+                  type="text"
+                  value={formData.location}
+                  onChange={(e) => setFormData({ ...formData, location: e.target.value })}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  placeholder="City, Country"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-900 mb-2">
+                  School
+                </label>
+                <input
+                  type="text"
+                  value={formData.school}
+                  onChange={(e) => setFormData({ ...formData, school: e.target.value })}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  placeholder="Enter your school name"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Social Links */}
+          <div className="space-y-6">
+            <h4 className="text-lg font-medium text-gray-900">Social Links</h4>
+            <div className="grid grid-cols-1 gap-6">
+              <div className="flex items-center">
+                <div className="w-10 h-10 flex-shrink-0 mr-3 rounded-lg bg-blue-50 flex items-center justify-center">
+                  <svg className="w-5 h-5 text-blue-600" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
+                  </svg>
+                </div>
+                <input
+                  type="url"
+                  value={formData.facebook}
+                  onChange={(e) => setFormData({ ...formData, facebook: e.target.value })}
+                  className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  placeholder="Facebook profile URL"
+                />
+              </div>
+
+              <div className="flex items-center">
+                <div className="w-10 h-10 flex-shrink-0 mr-3 rounded-lg bg-gray-50 flex items-center justify-center">
+                  <svg className="w-5 h-5 text-gray-700" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/>
+                  </svg>
+                </div>
+                <input
+                  type="url"
+                  value={formData.github}
+                  onChange={(e) => setFormData({ ...formData, github: e.target.value })}
+                  className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  placeholder="GitHub profile URL"
+                />
+              </div>
+
+              <div className="flex items-center">
+                <div className="w-10 h-10 flex-shrink-0 mr-3 rounded-lg bg-blue-50 flex items-center justify-center">
+                  <svg className="w-5 h-5 text-blue-700" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/>
+                  </svg>
+                </div>
+                <input
+                  type="url"
+                  value={formData.linkedin}
+                  onChange={(e) => setFormData({ ...formData, linkedin: e.target.value })}
+                  className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  placeholder="LinkedIn profile URL"
+                />
+              </div>
+
+              <div className="flex items-center">
+                <div className="w-10 h-10 flex-shrink-0 mr-3 rounded-lg bg-purple-50 flex items-center justify-center">
+                  <GlobeAltIcon className="w-5 h-5 text-purple-600" />
+                </div>
+                <input
+                  type="url"
+                  value={formData.portfolio}
+                  onChange={(e) => setFormData({ ...formData, portfolio: e.target.value })}
+                  className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  placeholder="Portfolio website URL"
+                />
+              </div>
+            </div>
+          </div>
+
+          <div className="flex items-center justify-end space-x-4 pt-6 border-t border-gray-200">
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-6 py-2.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-purple-500"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              className="px-6 py-2.5 text-sm font-medium text-white bg-purple-600 border border-transparent rounded-lg hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-500"
+            >
+              Save Changes
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+};
+
+interface StudyHoursData {
+  day: string;
+  hours: number;
 }
 
 const DashboardPage = () => {
@@ -158,6 +392,9 @@ const DashboardPage = () => {
   });
   const [loadingScienceData, setLoadingScienceData] = useState(false);
   const [supabaseStatus, setSupabaseStatus] = useState<{ connected: boolean; error?: string }>({ connected: true });
+  const [isEditProfileOpen, setIsEditProfileOpen] = useState(false);
+  const [selectedSubject, setSelectedSubject] = useState<'science' | 'mathematics' | 'language' | 'reading'>('science');
+  const [hoveredPoint, setHoveredPoint] = useState<number | null>(null);
   
   // Add useQuestions hook to access science progress stats
   const { getScienceProgressStats } = useQuestions();
@@ -564,643 +801,634 @@ const DashboardPage = () => {
     }
   };
 
-  // Add connection status bar at the top of the dashboard
-  const ConnectionStatusBar = () => {
-    if (supabaseStatus.connected) return null;
-    
-    return (
-      <div className="bg-amber-50 border-b border-amber-200 p-2">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center">
-              <XCircleIcon className="h-5 w-5 text-amber-500 mr-2" />
-              <p className="text-sm text-amber-700">
-                Hindi makonekta sa database. Gumagamit ng lokal na storage para sa data. 
-                <span className="ml-1 text-amber-600 font-medium">Error: {supabaseStatus.error}</span>
-              </p>
+  const userData = {
+    name: "Guy Ivan Ocon",
+    username: "yugnavi02",
+    bio: "Grade 12 STEM student preparing for UPCAT. Passionate about science and mathematics. Aiming to pursue Computer Science at UP Diliman.",
+    location: "Mintal, Davao City",
+    school: "Tagum City National High School",
+    facebook: "https://facebook.com/yugnavi02",
+    github: "https://github.com/yugnavi02",
+    linkedin: "https://linkedin.com/in/yugnavi02",
+    portfolio: "https://yugnavi02.github.io"
+  };
+
+  const ProfileSection = () => (
+    <div className="bg-white rounded-lg shadow">
+      <div className="p-6">
+        {/* Profile Header */}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-4">
+            <div className="flex-shrink-0">
+              <div className="w-16 h-16 rounded-full bg-purple-50 flex items-center justify-center">
+                <UserCircleIcon className="w-12 h-12 text-purple-600" />
+              </div>
             </div>
-            <button 
-              onClick={async () => {
-                const status = await checkSupabaseConnection();
-                setSupabaseStatus(status);
-              }}
-              className="text-xs font-medium text-amber-700 hover:text-amber-800 bg-amber-100 hover:bg-amber-200 px-2 py-1 rounded"
+            <div>
+              <h2 className="text-xl font-bold text-gray-900">{userData.name}</h2>
+              <p className="text-sm text-gray-500">@{userData.username}</p>
+            </div>
+          </div>
+          <div className="flex items-center space-x-2">
+            {!supabaseStatus.connected && (
+              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-800">
+                <XCircleIcon className="w-4 h-4 mr-1" />
+                Offline
+              </span>
+            )}
+            <button
+              onClick={() => setIsEditProfileOpen(true)}
+              className="inline-flex items-center px-3 py-1 border border-purple-200 rounded-full text-sm text-purple-600 bg-purple-50 hover:bg-purple-100 transition-colors"
             >
-              Subukang muli
+              <PencilIcon className="w-4 h-4 mr-1" />
+              Edit
             </button>
           </div>
         </div>
+
+        {/* Bio */}
+        <p className="mt-4 text-sm text-gray-600">{userData.bio}</p>
+
+        {/* Location and School Info */}
+        <div className="mt-4 space-y-2">
+          <div className="flex items-center text-sm text-gray-500">
+            <MapPinIcon className="w-4 h-4 mr-2 flex-shrink-0" />
+            <span className="truncate">{userData.location}</span>
+          </div>
+          <div className="flex items-center text-sm text-gray-500">
+            <AcademicCapIcon className="w-4 h-4 mr-2 flex-shrink-0" />
+            <span className="truncate">{userData.school}</span>
+          </div>
+        </div>
+
+        {/* Social Links */}
+        <div className="mt-4 pt-4 border-t border-gray-100">
+          <div className="flex flex-wrap gap-3">
+            <a href={userData.facebook} target="_blank" rel="noopener noreferrer" 
+               className="inline-flex items-center px-3 py-1 rounded-full text-sm bg-blue-50 text-blue-600 hover:bg-blue-100 transition-colors">
+              <svg className="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 24 24">
+                <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
+              </svg>
+              Facebook
+            </a>
+            <a href={userData.github} target="_blank" rel="noopener noreferrer"
+               className="inline-flex items-center px-3 py-1 rounded-full text-sm bg-gray-50 text-gray-600 hover:bg-gray-100 transition-colors">
+              <svg className="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 24 24">
+                <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/>
+              </svg>
+              GitHub
+            </a>
+            <a href={userData.linkedin} target="_blank" rel="noopener noreferrer"
+               className="inline-flex items-center px-3 py-1 rounded-full text-sm bg-blue-50 text-blue-700 hover:bg-blue-100 transition-colors">
+              <svg className="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 24 24">
+                <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/>
+              </svg>
+              LinkedIn
+            </a>
+            <a href={userData.portfolio} target="_blank" rel="noopener noreferrer"
+               className="inline-flex items-center px-3 py-1 rounded-full text-sm bg-purple-50 text-purple-600 hover:bg-purple-100 transition-colors">
+              <GlobeAltIcon className="w-4 h-4 mr-2" />
+              Portfolio
+            </a>
+          </div>
+        </div>
       </div>
-    );
+    </div>
+  );
+
+  const subjectData = {
+    science: {
+      icon: BeakerIcon,
+      color: 'sky',
+      percentage: 75,
+      correct: 112,
+      total: 150,
+      label: 'Science'
+    },
+    mathematics: {
+      icon: CalculatorIcon,
+      color: 'amber',
+      percentage: 68,
+      correct: 82,
+      total: 120,
+      label: 'Mathematics'
+    },
+    language: {
+      icon: LanguageIcon,
+      color: 'emerald',
+      percentage: 82,
+      correct: 131,
+      total: 160,
+      label: 'Language'
+    },
+    reading: {
+      icon: BookOpenIcon,
+      color: 'indigo',
+      percentage: 78,
+      correct: 109,
+      total: 140,
+      label: 'Reading'
+    }
+  };
+
+  const currentSubject = subjectData[selectedSubject];
+
+  // Simplified study hours data
+  const studyHoursData: StudyHoursData[] = [
+    { day: 'Jan 1', hours: 2.5 },
+    { day: 'Jan 2', hours: 3.2 },
+    { day: 'Jan 3', hours: 1.8 },
+    { day: 'Jan 4', hours: 2.9 },
+    { day: 'Jan 5', hours: 3.5 },
+    { day: 'Jan 6', hours: 2.1 },
+    { day: 'Jan 7', hours: 2.7 }
+  ];
+
+  // Graph dimensions and settings
+  const graphWidth = 400;
+  const graphHeight = 200;
+  const maxHours = 4;
+
+  // Calculate points for the line graph
+  const graphPoints = studyHoursData.map((d, i) => ({
+    x: (i * (graphWidth - 40)) / (studyHoursData.length - 1) + 20,
+    y: graphHeight - ((d.hours * (graphHeight - 40)) / maxHours) - 20,
+    hours: d.hours,
+    day: d.day
+  }));
+
+  const studyStats = {
+    currentStreak: 5,
+    longestStreak: 7,
+    totalHours: studyHoursData.reduce((sum, d) => sum + d.hours, 0),
+    averageHours: studyHoursData.reduce((sum, d) => sum + d.hours, 0) / studyHoursData.length,
+    subjectBreakdown: {
+      science: studyHoursData.reduce((sum, d) => sum + d.hours, 0),
+      math: 0,
+      language: 0,
+      reading: 0
+    },
+    weeklyTarget: 21,
+    bestDay: studyHoursData.reduce((max, d) => d.hours > max.hours ? d : max),
+    improvement: 15 // percentage improvement from previous week
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 py-6">
-      <ConnectionStatusBar />
-      
+    <div className="min-h-screen bg-gray-50 py-8">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Profile Overview */}
-        <div className="mb-6">
-          <UserProfileComponent />
-        </div>
-
-        {/* Unified Progress Card */}
-        <div className="bg-white rounded-lg shadow-md p-6 mb-6">
-          <div className="flex items-center justify-between mb-6">
-            <h2 className="text-lg font-semibold text-gray-900">Progress Overview</h2>
-            
-            {/* Tabs */}
-            <div className="flex rounded-md overflow-hidden border border-gray-200">
-              <button 
-                onClick={() => setActiveTab('questions')}
-                className={`px-4 py-2 text-sm font-medium flex items-center space-x-1 ${
-                  activeTab === 'questions' 
-                    ? 'bg-neural-purple text-white'
-                    : 'bg-white text-gray-600 hover:bg-gray-50'
-                }`}
-              >
-                <DocumentChartBarIcon className="w-4 h-4" />
-                <span>Question Stats</span>
-              </button>
-              <button 
-                onClick={() => setActiveTab('accuracy')}
-                className={`px-4 py-2 text-sm font-medium flex items-center space-x-1 ${
-                  activeTab === 'accuracy' 
-                    ? 'bg-neural-purple text-white'
-                    : 'bg-white text-gray-600 hover:bg-gray-50'
-                }`}
-              >
-                <ClipboardDocumentCheckIcon className="w-4 h-4" />
-                <span>Accuracy</span>
-              </button>
-            </div>
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          {/* Left Column */}
+          <div className="lg:col-span-1">
+            <ProfileSection />
           </div>
-          
-          <div className="flex flex-col space-y-6">
-            {/* Question Stats Tab Content */}
-            {activeTab === 'questions' && (
-              <>
-                {/* Subject Score Circles */}
-                <div className="grid grid-cols-4 gap-4">
-                  <ScoreCircle 
-                    score={studentData.performance.subjectMastery.science} 
-                    subject="Science" 
-                    color="text-sky-500"
-                    icon={BeakerIcon}
-                  />
-                  <ScoreCircle 
-                    score={studentData.performance.subjectMastery.math} 
-                    subject="Mathematics" 
-                    color="text-amber-500"
-                    icon={CalculatorIcon}
-                  />
-                  <ScoreCircle 
-                    score={studentData.performance.subjectMastery.english} 
-                    subject="Language" 
-                    color="text-emerald-500"
-                    icon={LanguageIcon}
-                  />
-                  <ScoreCircle 
-                    score={studentData.performance.subjectMastery.reading} 
-                    subject="Reading" 
-                    color="text-indigo-500"
-                    icon={BookOpenIcon}
-                  />
+
+          {/* Right Column */}
+          <div className="lg:col-span-2 space-y-8">
+            {/* Questions Answered */}
+            <div className="bg-white rounded-lg shadow p-6">
+              <h2 className="text-lg font-medium text-gray-900 mb-6">Questions Answered</h2>
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
+                {/* Science */}
+                <div className="flex flex-col items-center">
+                  <div className="relative w-36 h-36">
+                    <svg className="w-full h-full transform -rotate-90" viewBox="0 0 100 100">
+                      <circle
+                        className="text-gray-200 stroke-current"
+                        strokeWidth="8"
+                        cx="50"
+                        cy="50"
+                        r="42"
+                        fill="transparent"
+                      />
+                      <circle
+                        className="text-sky-500 stroke-current"
+                        strokeWidth="8"
+                        strokeLinecap="round"
+                        cx="50"
+                        cy="50"
+                        r="42"
+                        fill="transparent"
+                        strokeDasharray={`${2.51 * 75} ${2.51 * 100}`}
+                      />
+                    </svg>
+                    <div className="absolute inset-0 flex flex-col items-center justify-center">
+                      <span className="text-3xl font-bold text-gray-700">75%</span>
+                      <span className="text-sm text-gray-500 mt-1">150/2000</span>
+                      <span className="text-xs font-medium text-gray-600 mt-1">Science</span>
+                    </div>
+                  </div>
                 </div>
-                
-                {/* Progress Bars */}
-                <div className="pt-4 border-t border-gray-100">
-                  <div className="space-y-4">
+
+                {/* Mathematics */}
+                <div className="flex flex-col items-center">
+                  <div className="relative w-36 h-36">
+                    <svg className="w-full h-full transform -rotate-90" viewBox="0 0 100 100">
+                      <circle
+                        className="text-gray-200 stroke-current"
+                        strokeWidth="8"
+                        cx="50"
+                        cy="50"
+                        r="42"
+                        fill="transparent"
+                      />
+                      <circle
+                        className="text-amber-500 stroke-current"
+                        strokeWidth="8"
+                        strokeLinecap="round"
+                        cx="50"
+                        cy="50"
+                        r="42"
+                        fill="transparent"
+                        strokeDasharray={`${2.51 * 60} ${2.51 * 100}`}
+                      />
+                    </svg>
+                    <div className="absolute inset-0 flex flex-col items-center justify-center">
+                      <span className="text-3xl font-bold text-gray-700">60%</span>
+                      <span className="text-sm text-gray-500 mt-1">120/2000</span>
+                      <span className="text-xs font-medium text-gray-600 mt-1">Mathematics</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Language */}
+                <div className="flex flex-col items-center">
+                  <div className="relative w-36 h-36">
+                    <svg className="w-full h-full transform -rotate-90" viewBox="0 0 100 100">
+                      <circle
+                        className="text-gray-200 stroke-current"
+                        strokeWidth="8"
+                        cx="50"
+                        cy="50"
+                        r="42"
+                        fill="transparent"
+                      />
+                      <circle
+                        className="text-emerald-500 stroke-current"
+                        strokeWidth="8"
+                        strokeLinecap="round"
+                        cx="50"
+                        cy="50"
+                        r="42"
+                        fill="transparent"
+                        strokeDasharray={`${2.51 * 80} ${2.51 * 100}`}
+                      />
+                    </svg>
+                    <div className="absolute inset-0 flex flex-col items-center justify-center">
+                      <span className="text-3xl font-bold text-gray-700">80%</span>
+                      <span className="text-sm text-gray-500 mt-1">160/2000</span>
+                      <span className="text-xs font-medium text-gray-600 mt-1">Language</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Reading */}
+                <div className="flex flex-col items-center">
+                  <div className="relative w-36 h-36">
+                    <svg className="w-full h-full transform -rotate-90" viewBox="0 0 100 100">
+                      <circle
+                        className="text-gray-200 stroke-current"
+                        strokeWidth="8"
+                        cx="50"
+                        cy="50"
+                        r="42"
+                        fill="transparent"
+                      />
+                      <circle
+                        className="text-indigo-500 stroke-current"
+                        strokeWidth="8"
+                        strokeLinecap="round"
+                        cx="50"
+                        cy="50"
+                        r="42"
+                        fill="transparent"
+                        strokeDasharray={`${2.51 * 70} ${2.51 * 100}`}
+                      />
+                    </svg>
+                    <div className="absolute inset-0 flex flex-col items-center justify-center">
+                      <span className="text-3xl font-bold text-gray-700">70%</span>
+                      <span className="text-sm text-gray-500 mt-1">140/2000</span>
+                      <span className="text-xs font-medium text-gray-600 mt-1">Reading</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Overall Progress Bar */}
+              <div className="mt-8 pt-6 border-t border-gray-100">
+                <div className="flex items-center justify-between mb-2">
+                  <div>
+                    <h3 className="text-sm font-medium text-gray-900">Total Progress</h3>
+                    <p className="text-sm text-gray-500">570/8000 questions answered</p>
+                  </div>
+                  <span className="text-sm font-medium text-gray-900">7.1%</span>
+                </div>
+                <div className="w-full bg-gray-100 rounded-full h-4 overflow-hidden">
+                  <div className="h-full rounded-full bg-gradient-to-r from-cyan-400 to-cyan-500 transition-all duration-500" 
+                       style={{ width: '7.1%' }}>
+                    <div className="h-full w-full opacity-50 bg-[repeating-linear-gradient(45deg,transparent,transparent_10px,rgba(255,255,255,0.2)_10px,rgba(255,255,255,0.2)_20px)]" />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Performance Analytics */}
+            <div className="bg-white rounded-lg shadow p-6">
+              <div className="flex items-center justify-between mb-6">
+                <h3 className="text-lg font-medium text-gray-900">Performance Analytics</h3>
+                <div className="relative">
+                  <select
+                    value={selectedSubject}
+                    onChange={(e) => setSelectedSubject(e.target.value as typeof selectedSubject)}
+                    className="appearance-none bg-white border border-gray-300 rounded-lg pl-4 pr-10 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent cursor-pointer"
+                  >
+                    <option value="science">Science</option>
+                    <option value="mathematics">Mathematics</option>
+                    <option value="language">Language</option>
+                    <option value="reading">Reading</option>
+                  </select>
+                  <ChevronDownIcon className="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+                </div>
+              </div>
+              
+              {/* Content Grid */}
+              <div className="grid grid-cols-1 md:grid-cols-5 gap-8">
+                {/* Left Column - Chart */}
+                <div className="md:col-span-2">
+                  <div className="flex flex-col items-center">
+                    <div className="relative w-40 h-40">
+                      <svg className="w-full h-full transform -rotate-90" viewBox="0 0 100 100">
+                        <circle
+                          className="text-gray-200 stroke-current"
+                          strokeWidth="10"
+                          cx="50"
+                          cy="50"
+                          r="40"
+                          fill="transparent"
+                        />
+                        <circle
+                          className={`text-${currentSubject.color}-500 stroke-current`}
+                          strokeWidth="10"
+                          strokeLinecap="round"
+                          cx="50"
+                          cy="50"
+                          r="40"
+                          fill="transparent"
+                          strokeDasharray={`${2.51 * currentSubject.percentage} ${2.51 * 100}`}
+                        />
+                      </svg>
+                      <div className="absolute inset-0 flex flex-col items-center justify-center">
+                        <span className="text-3xl font-bold text-gray-700">{currentSubject.percentage}%</span>
+                        <span className="text-sm text-gray-500 mt-1">{currentSubject.correct}/{currentSubject.total}</span>
+                      </div>
+                    </div>
+                    <div className="flex items-center space-x-2 mt-4">
+                      <currentSubject.icon className={`w-6 h-6 text-${currentSubject.color}-500`} />
+                      <span className="text-lg font-medium text-gray-700">{currentSubject.label}</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Right Column - Stats */}
+                <div className="md:col-span-3 space-y-6">
+                  {/* Questions Stats */}
+                  <div className="grid grid-cols-3 gap-4">
+                    <div className="bg-gray-50 rounded-lg p-4">
+                      <p className="text-sm text-gray-500">Total Questions</p>
+                      <p className="text-2xl font-bold text-gray-900">{currentSubject.total}</p>
+                    </div>
+                    <div className="bg-green-50 rounded-lg p-4">
+                      <p className="text-sm text-green-600">Correct</p>
+                      <p className="text-2xl font-bold text-green-700">{currentSubject.correct}</p>
+                    </div>
+                    <div className="bg-red-50 rounded-lg p-4">
+                      <p className="text-sm text-red-600">Incorrect</p>
+                      <p className="text-2xl font-bold text-red-700">
+                        {currentSubject.total - currentSubject.correct}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Progress Section */}
+                  <div className="bg-white rounded-lg">
                     <div className="mb-4">
-                      <div className="flex justify-between mb-1">
-                        <h3 className="text-sm font-medium text-gray-700">Question Progress</h3>
-                        <span className="text-xs font-medium text-growth-green">{studentData.performance.questionsCompleted}/{studentData.performance.totalQuestions}</span>
-                      </div>
-                      <div className="w-full h-4 bg-gray-100 rounded-full overflow-hidden">
-                        <div 
-                          className="h-full bg-growth-green rounded-full flex items-center justify-center text-xs text-white font-medium"
-                          style={{ width: `${(studentData.performance.questionsCompleted / studentData.performance.totalQuestions) * 100}%` }}
-                        >
-                          {Math.round((studentData.performance.questionsCompleted / studentData.performance.totalQuestions) * 100)}%
-                        </div>
-                      </div>
-                      <p className="text-xs text-gray-500 mt-1">Goal: 500 questions by next week</p>
+                      <p className="mt-2 text-xs text-gray-500">
+                        {currentSubject.total} of 2000 questions completed
+                      </p>
                     </div>
-                    
-                    <div>
-                      <div className="flex justify-between mb-1">
-                        <h3 className="text-sm font-medium text-gray-700">UPCAT Goal</h3>
-                        <span className="text-xs font-medium text-neural-purple">{studentData.currentScore}/{studentData.goalScore}</span>
-                      </div>
-                      <div className="w-full h-4 bg-gray-100 rounded-full overflow-hidden">
-                        <div 
-                          className="h-full bg-neural-purple rounded-full flex items-center justify-center text-xs text-white font-medium"
-                          style={{ width: `${(studentData.currentScore / studentData.goalScore) * 100}%` }}
-                        >
-                          {Math.round((studentData.currentScore / studentData.goalScore) * 100)}%
-                        </div>
-                      </div>
-                      <p className="text-xs text-gray-500 mt-1">{studentData.goalScore - studentData.currentScore}% more to reach your target score</p>
-                    </div>
-                  </div>
-                </div>
-              </>
-            )}
-            
-            {/* Accuracy Tab Content */}
-            {activeTab === 'accuracy' && (
-              <div className="space-y-6">
-                <div className="grid md:grid-cols-2 gap-6">
-                  {/* Overall Accuracy */}
-                  <div className="bg-gray-50 rounded-lg p-4">
-                    <h3 className="text-sm font-medium text-gray-700 mb-2">Overall Accuracy</h3>
-                    <div className="flex items-center">
-                      <div className="relative w-24 h-24 flex-shrink-0">
-                        <svg className="w-full h-full -rotate-90" viewBox="0 0 100 100">
-                          <circle 
-                            className="text-gray-200 stroke-current" 
-                            strokeWidth="10" 
-                            cx="50" 
-                            cy="50" 
-                            r="40" 
-                            fill="transparent"
-                          ></circle>
-                          <circle 
-                            className="text-neural-purple stroke-current"
-                            strokeWidth="10" 
-                            strokeLinecap="round" 
-                            cx="50" 
-                            cy="50" 
-                            r="40" 
-                            fill="transparent"
-                            strokeDasharray={`${Math.PI * 80 * studentData.performance.accuracyRate / 100} ${Math.PI * 80}`}
-                          ></circle>
-                        </svg>
-                        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2">
-                          <span className="text-xl font-bold text-neural-purple">{studentData.performance.accuracyRate}%</span>
-                        </div>
-                      </div>
-                      <div className="ml-4">
-                        <div className="flex items-center mb-2">
-                          <div className="w-3 h-3 rounded-full bg-growth-green mr-2"></div>
-                          <span className="text-sm text-gray-600">Correct Answers</span>
-                        </div>
-                        <div className="flex items-center">
-                          <div className="w-3 h-3 rounded-full bg-alert-red mr-2"></div>
-                          <span className="text-sm text-gray-600">Incorrect Answers</span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                  
-                  {/* Test Type Accuracy */}
-                  <div className="bg-gray-50 rounded-lg p-4">
-                    <div className="flex items-center justify-between mb-4">
-                      <h3 className="text-sm font-medium text-gray-700">Test Type Accuracy</h3>
-                      
-                      {/* Dropdown */}
-                      <div className="relative">
-                        <select
-                          value={selectedTestType}
-                          onChange={(e) => setSelectedTestType(e.target.value as any)}
-                          className="appearance-none bg-white border border-gray-300 rounded-md pl-3 pr-10 py-1.5 text-sm font-medium text-gray-700 focus:outline-none focus:ring-neural-purple focus:border-neural-purple"
-                        >
-                          <option value="quizzes">Quizzes</option>
-                          <option value="mock_exams">Mock Exams</option>
-                          <option value="flashcards">Flashcards</option>
-                        </select>
-                        <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-500">
-                          <ChevronDownIcon className="h-4 w-4" />
-                        </div>
-                      </div>
-                    </div>
-                    
-                    {/* Selected Test Type Data */}
-                    <div className="flex items-center">
-                      <div className="relative w-20 h-20 flex-shrink-0">
-                        <svg className="w-full h-full -rotate-90" viewBox="0 0 100 100">
-                          <circle 
-                            className="text-gray-200 stroke-current" 
-                            strokeWidth="10" 
-                            cx="50" 
-                            cy="50" 
-                            r="40" 
-                            fill="transparent"
-                          ></circle>
-                          <circle 
-                            className={`${
-                              selectedTestType === 'quizzes' ? 'text-tech-lavender' :
-                              selectedTestType === 'mock_exams' ? 'text-energy-orange' :
-                              'text-growth-green'
-                            } stroke-current`}
-                            strokeWidth="10" 
-                            strokeLinecap="round" 
-                            cx="50" 
-                            cy="50" 
-                            r="40" 
-                            fill="transparent"
-                            strokeDasharray={`${Math.PI * 80 * currentTestData.accuracy / 100} ${Math.PI * 80}`}
-                          ></circle>
-                        </svg>
-                        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2">
-                          <span className="text-lg font-bold">{currentTestData.accuracy}%</span>
-                        </div>
-                      </div>
-                      <div className="ml-4 flex-1">
-                        <div className="space-y-2">
-                          <div className="flex justify-between text-xs">
-                            <span className="text-gray-600">Total Questions</span>
-                            <span className="font-medium">{currentTestData.total}</span>
-                          </div>
-                          <div className="flex justify-between text-xs">
-                            <span className="text-growth-green">Correct</span>
-                            <span className="font-medium">{currentTestData.correct}</span>
-                          </div>
-                          <div className="flex justify-between text-xs">
-                            <span className="text-alert-red">Incorrect</span>
-                            <span className="font-medium">{currentTestData.incorrect}</span>
-                          </div>
-                          <div className="text-xs text-gray-500 mt-1">
-                            Last activity: {currentTestData.lastActivity}
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-                
-                {/* Subject-specific Accuracy */}
-                <div className="border-t border-gray-100 pt-4">
-                  <h3 className="text-sm font-medium text-gray-700 mb-4">Accuracy by Subject</h3>
-                  <div className="space-y-4">
-                    <div className="flex items-center">
-                      <BeakerIcon className="w-5 h-5 text-sky-500 mr-3" />
-                      <div className="flex-1">
-                        <div className="flex justify-between text-sm mb-1">
-                          <span className="font-medium">Science</span>
-                          <span className="text-gray-600">72%</span>
-                        </div>
-                        <div className="w-full h-2 bg-gray-200 rounded-full">
-                          <div 
-                            className="h-2 bg-sky-500 rounded-full"
-                            style={{ width: '72%' }}
-                          ></div>
-                        </div>
-                      </div>
-                    </div>
-                    
-                    <div className="flex items-center">
-                      <CalculatorIcon className="w-5 h-5 text-amber-500 mr-3" />
-                      <div className="flex-1">
-                        <div className="flex justify-between text-sm mb-1">
-                          <span className="font-medium">Mathematics</span>
-                          <span className="text-gray-600">65%</span>
-                        </div>
-                        <div className="w-full h-2 bg-gray-200 rounded-full">
-                          <div 
-                            className="h-2 bg-amber-500 rounded-full"
-                            style={{ width: '65%' }}
-                          ></div>
-                        </div>
-                      </div>
-                    </div>
-                    
-                    <div className="flex items-center">
-                      <LanguageIcon className="w-5 h-5 text-emerald-500 mr-3" />
-                      <div className="flex-1">
-                        <div className="flex justify-between text-sm mb-1">
-                          <span className="font-medium">Language Proficiency</span>
-                          <span className="text-gray-600">80%</span>
-                        </div>
-                        <div className="w-full h-2 bg-gray-200 rounded-full">
-                          <div 
-                            className="h-2 bg-emerald-500 rounded-full"
-                            style={{ width: '80%' }}
-                          ></div>
-                        </div>
-                      </div>
-                    </div>
-                    
-                    <div className="flex items-center">
-                      <BookOpenIcon className="w-5 h-5 text-indigo-500 mr-3" />
-                      <div className="flex-1">
-                        <div className="flex justify-between text-sm mb-1">
-                          <span className="font-medium">Reading Comprehension</span>
-                          <span className="text-gray-600">75%</span>
-                        </div>
-                        <div className="w-full h-2 bg-gray-200 rounded-full">
-                          <div 
-                            className="h-2 bg-indigo-500 rounded-full"
-                            style={{ width: '75%' }}
-                          ></div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
-            
-            {/* Stats Summary */}
-            <div className="grid grid-cols-3 gap-4 pt-4 border-t border-gray-100">
-              <div className="text-center">
-                <p className="text-xs text-gray-500">Weekly Streak</p>
-                <div className="flex items-center justify-center mt-1">
-                  <FireIcon className="w-4 h-4 text-energy-orange mr-1" />
-                  <p className="text-xl font-bold text-gray-900">{studentData.streak} days</p>
-                </div>
-              </div>
-              <div className="text-center">
-                <p className="text-xs text-gray-500">Accuracy Rate</p>
-                <p className="text-xl font-bold text-gray-900">{studentData.performance.accuracyRate}%</p>
-              </div>
-              <div className="text-center">
-                <p className="text-xs text-gray-500">Time Studying</p>
-                <p className="text-xl font-bold text-gray-900">18.5 hrs</p>
-              </div>
-            </div>
-          </div>
-        </div>
 
-        {/* Main Dashboard Grid */}
-        <div className="grid md:grid-cols-3 gap-6">
-          {/* Study Goals */}
-          <div className="bg-white rounded-lg shadow-md p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-semibold text-gray-900">Study Goals</h2>
-              <CalendarIcon className="w-5 h-5 text-gray-400" />
-            </div>
-            <div className="space-y-4">
-              {studentData.studyGoals.map(goal => (
-                <div key={goal.id} className="flex items-start space-x-3">
-                  <div className={`mt-1 w-5 h-5 rounded-full flex items-center justify-center ${
-                    goal.completed ? 'bg-growth-green' : 'bg-gray-200'
-                  }`}>
-                    <CheckCircleIcon className="w-4 h-4 text-white" />
-                  </div>
-                  <div>
-                    <p className={`text-sm ${goal.completed ? 'text-gray-500 line-through' : 'text-gray-900'}`}>
-                      {goal.text}
-                    </p>
-                    <p className="text-xs text-gray-500">Due: {goal.deadline}</p>
+                    {/* Recent Performance */}
+                    <div className="mt-6">
+                      <p className="text-sm font-medium text-gray-700 mb-3">Recent Performance</p>
+                      <div className="flex items-center space-x-2">
+                        <ArrowTrendingUpIcon className={`w-5 h-5 text-${currentSubject.color}-500`} />
+                        <span className="text-sm text-gray-600">
+                          Last 7 days: +{Math.round(currentSubject.percentage * 0.1)}% improvement
+                        </span>
+                      </div>
+                    </div>
                   </div>
                 </div>
-              ))}
+              </div>
             </div>
-          </div>
 
-          {/* Subject Mastery */}
-          <div className="bg-white rounded-lg shadow-md p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-semibold text-gray-900">Subject Mastery</h2>
-              <AcademicCapIcon className="w-5 h-5 text-gray-400" />
-            </div>
-            <div className="space-y-4">
-              {Object.entries(studentData.performance.subjectMastery).map(([subject, mastery]) => (
-                <div key={subject}>
-                  <div className="flex justify-between text-sm text-gray-600 mb-1">
-                    <span className="capitalize">{subject}</span>
-                    <span>{mastery}%</span>
-                  </div>
-                  <div className="w-full bg-gray-200 rounded-full h-2">
-                    <div 
-                      className={`h-2 rounded-full ${
-                        mastery >= 75 ? 'bg-growth-green' : 
-                        mastery >= 60 ? 'bg-energy-orange' : 
-                        'bg-alert-red'
-                      }`}
-                      style={{ width: `${mastery}%` }}
-                    ></div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Weekly Progress */}
-          <div className="bg-white rounded-lg shadow-md p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-semibold text-gray-900">Weekly Progress</h2>
-              <ArrowTrendingUpIcon className="w-5 h-5 text-gray-400" />
-            </div>
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
+            {/* Study Hours Card */}
+            <div className="bg-white rounded-lg shadow p-6 mt-6">
+              <div className="flex items-center justify-between mb-6">
                 <div>
-                  <p className="text-sm text-gray-500">Last Week</p>
-                  <p className="text-lg font-semibold">{studentData.performance.weeklyProgress.lastWeek}%</p>
+                  <h3 className="text-lg font-medium text-gray-900">Study Time Analytics</h3>
+                  <p className="text-sm text-gray-500">Last 7 days • {studyStats.totalHours.toFixed(1)} total hours</p>
                 </div>
-                <div>
-                  <p className="text-sm text-gray-500">This Week</p>
-                  <p className="text-lg font-semibold text-growth-green">
-                    {studentData.performance.weeklyProgress.thisWeek}%
-                    <span className="text-sm ml-1 text-growth-green">
-                      (+{studentData.performance.weeklyProgress.thisWeek - studentData.performance.weeklyProgress.lastWeek}%)
+                <div className="flex items-center space-x-6">
+                  <div className="text-center">
+                    <p className="text-sm text-gray-500">Daily Average</p>
+                    <p className="text-xl font-bold text-gray-900">{studyStats.averageHours.toFixed(1)}h</p>
+                  </div>
+                  <div className="text-center">
+                    <p className="text-sm text-gray-500">Current Streak</p>
+                    <p className="text-xl font-bold text-purple-600">{studyStats.currentStreak} days</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Line Chart */}
+              <div className="relative h-[300px] mb-8">
+                {/* Y-axis labels */}
+                <div className="absolute left-0 top-4 bottom-8 w-12 flex flex-col justify-between text-xs text-gray-400 font-medium">
+                  {[4, 3, 2, 1, 0].map((hour) => (
+                    <span key={hour} className="text-right pr-2">
+                      {hour}h
                     </span>
-                  </p>
+                  ))}
                 </div>
-              </div>
-              <div className="h-32 bg-gray-50 rounded-lg flex items-end justify-around p-4">
-                {/* Placeholder for trend graph */}
-                <div className="w-8 bg-gray-300 rounded-t" style={{ height: '60%' }}></div>
-                <div className="w-8 bg-gray-300 rounded-t" style={{ height: '45%' }}></div>
-                <div className="w-8 bg-gray-300 rounded-t" style={{ height: '75%' }}></div>
-                <div className="w-8 bg-gray-300 rounded-t" style={{ height: '55%' }}></div>
-                <div className="w-8 bg-neural-purple rounded-t" style={{ height: '85%' }}></div>
-              </div>
-            </div>
-          </div>
-        </div>
 
-        {/* Areas for Improvement */}
-        <div className="mt-6">
-          <div className="bg-white rounded-lg shadow-md p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-semibold text-gray-900">Areas for Improvement</h2>
-              <ExclamationTriangleIcon className="w-5 h-5 text-gray-400" />
-            </div>
-            <div className="grid md:grid-cols-2 gap-4">
-              {studentData.performance.weaknesses.map(weakness => (
-                <div key={weakness.topic} className="p-4 bg-alert-red/5 rounded-lg border border-alert-red/20">
-                  <div className="flex items-start space-x-3">
-                    <ExclamationTriangleIcon className="w-5 h-5 text-alert-red shrink-0 mt-1" />
-                    <div>
-                      <h3 className="font-medium text-gray-900">{weakness.topic}</h3>
-                      <p className="text-sm text-gray-600 mt-1">Accuracy: {weakness.accuracy}%</p>
-                      <p className="text-sm text-gray-500 mt-2">{weakness.suggestion}</p>
-                    </div>
+                {/* Chart Area */}
+                <div className="ml-12 h-full">
+                  {/* Grid lines */}
+                  <div className="absolute inset-0 bottom-8">
+                    {[4, 3, 2, 1, 0].map((hour, i) => (
+                      <div
+                        key={hour}
+                        className={`absolute w-full border-t ${i === 4 ? 'border-gray-200' : 'border-gray-100'}`}
+                        style={{ top: `${(i * 25)}%` }}
+                      />
+                    ))}
                   </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
 
-        {/* Events and Newsletter */}
-        <div className="grid md:grid-cols-2 gap-6 mt-6">
-          {/* Upcoming Events */}
-          <div className="bg-white rounded-lg shadow-md p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-semibold text-gray-900">Upcoming Events</h2>
-              <CalendarIcon className="w-5 h-5 text-gray-400" />
-            </div>
-            <div className="space-y-4">
-              {studentData.events.map(event => (
-                <div key={event.id} className="flex items-center space-x-3">
-                  <div className="w-12 h-12 bg-neural-purple/10 rounded-lg flex items-center justify-center">
-                    <CalendarIcon className="w-6 h-6 text-neural-purple" />
-                  </div>
-                  <div>
-                    <p className="font-medium text-gray-900">{event.title}</p>
-                    <p className="text-sm text-gray-500">{event.date}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Newsletter */}
-          <div className="bg-white rounded-lg shadow-md p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-semibold text-gray-900">UPCAT Newsletter</h2>
-              <NewspaperIcon className="w-5 h-5 text-gray-400" />
-            </div>
-            <div className="p-4 bg-neural-purple/5 rounded-lg">
-              <h3 className="font-medium text-neural-purple">{studentData.newsletter.title}</h3>
-              <p className="text-sm text-gray-600 mt-2">{studentData.newsletter.content}</p>
-              <button className="mt-4 text-sm text-neural-purple font-medium hover:text-tech-lavender">
-                Read more →
-              </button>
-            </div>
-          </div>
-        </div>
-
-        {/* Add Science Progress Section */}
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-6">
-          <div className="bg-white rounded-lg shadow-md p-6">
-            <h2 className="text-xl font-semibold text-gray-900 mb-4">Science Progress Report</h2>
-            
-            {/* Updated note with connection status and database table info */}
-            <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-md">
-              <div className="flex">
-                <ExclamationTriangleIcon className="h-5 w-5 text-amber-500 mr-2 flex-shrink-0 mt-0.5" />
-                <div>
-                  <h3 className="text-sm font-medium text-amber-800">
-                    Progress Tracking Note 
-                    {!supabaseStatus.connected && (
-                      <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-red-100 text-red-800">
-                        <XCircleIcon className="h-3 w-3 mr-1" />
-                        Offline
-                      </span>
-                    )}
-                  </h3>
-                  <p className="text-sm text-amber-700 mt-1">
-                    Ang iyong Science progress ay ine-save na direkta sa database table na "science_progress_report". 
-                    Kung may error sa pag-save, gumagamit ng local storage bilang fallback.
-                  </p>
-                  <p className="text-xs text-amber-600 mt-2">
-                    <strong>Para sa Admin:</strong> Kung patuloy na nakaka-encounter ng 403 Forbidden errors, 
-                    baka kailangang i-update pa ang RLS policy ng table para mapayagan ang authenticated users 
-                    na mag-insert ng records.
-                  </p>
-                  <p className="text-xs text-amber-600 mt-1">
-                    <em>Paalala:</em> Para sa karagdagang backup, maaring i-export ang data gamit ang 
-                    Import/Export buttons sa ibaba.
-                  </p>
-                </div>
-              </div>
-            </div>
-            
-            {loadingScienceData ? (
-              <div className="flex justify-center py-4">
-                <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-neural-purple"></div>
-              </div>
-            ) : (
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center">
-                    <BeakerIcon className="w-6 h-6 text-sky-500 mr-2" />
-                    <h3 className="text-lg font-medium">Science Questions</h3>
-                  </div>
-                  
-                  {/* Add Export/Import/Sync buttons */}
-                  <div className="flex space-x-2">
-                    <button
-                      onClick={syncLocalProgressToDatabase}
-                      className="inline-flex items-center px-3 py-1.5 border border-purple-300 text-sm font-medium rounded-md text-purple-700 bg-purple-50 hover:bg-purple-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500"
+                  {/* Line Chart */}
+                  <div className="relative h-full pb-8">
+                    <svg
+                      className="w-full h-full"
+                      viewBox={`0 0 ${graphWidth} ${graphHeight}`}
+                      preserveAspectRatio="xMidYMid meet"
                     >
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1.5" viewBox="0 0 20 20" fill="currentColor">
-                        <path d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z" />
-                      </svg>
-                      I-sync ang Data
-                    </button>
-                  
-                    <button
-                      onClick={importScienceProgressData}
-                      className="inline-flex items-center px-3 py-1.5 border border-indigo-300 text-sm font-medium rounded-md text-indigo-700 bg-indigo-50 hover:bg-indigo-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-                    >
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1.5" viewBox="0 0 20 20" fill="currentColor">
-                        <path fillRule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clipRule="evenodd" transform="rotate(180, 10, 10)" />
-                      </svg>
-                      I-import ang Data
-                    </button>
-                    
-                    <button
-                      onClick={exportScienceProgressData}
-                      className="inline-flex items-center px-3 py-1.5 border border-sky-300 text-sm font-medium rounded-md text-sky-700 bg-sky-50 hover:bg-sky-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-sky-500"
-                    >
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1.5" viewBox="0 0 20 20" fill="currentColor">
-                        <path fillRule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clipRule="evenodd" />
-                      </svg>
-                      I-export ang Data
-                    </button>
+                      {/* Background Gradient */}
+                      <defs>
+                        <linearGradient id="areaGradient" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="0%" stopColor="#9333EA" stopOpacity="0.12" />
+                          <stop offset="100%" stopColor="#9333EA" stopOpacity="0.02" />
+                        </linearGradient>
+                        <linearGradient id="lineGradient" x1="0" y1="0" x2="1" y2="0">
+                          <stop offset="0%" stopColor="#9333EA" />
+                          <stop offset="100%" stopColor="#A855F7" />
+                        </linearGradient>
+                      </defs>
+                      
+                      {/* Area under the line */}
+                      <path
+                        d={`
+                          M ${graphPoints[0].x} ${graphHeight}
+                          L ${graphPoints[0].x} ${graphPoints[0].y}
+                          ${graphPoints.map((p) => `L ${p.x} ${p.y}`).join(' ')}
+                          L ${graphPoints[graphPoints.length - 1].x} ${graphHeight}
+                          Z
+                        `}
+                        fill="url(#areaGradient)"
+                        className="transition-all duration-300"
+                      />
+
+                      {/* The line itself */}
+                      <path
+                        d={graphPoints.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`).join(' ')}
+                        stroke="url(#lineGradient)"
+                        strokeWidth="2.5"
+                        strokeLinecap="round"
+                        fill="none"
+                        className="transition-all duration-300"
+                      />
+
+                      {/* Interactive Data points */}
+                      {graphPoints.map((point, i) => (
+                        <g 
+                          key={i}
+                          onMouseEnter={() => setHoveredPoint(i)}
+                          onMouseLeave={() => setHoveredPoint(null)}
+                          className="cursor-pointer"
+                        >
+                          {/* Outer circle */}
+                          <circle
+                            cx={point.x}
+                            cy={point.y}
+                            r="6"
+                            fill="white"
+                            stroke="#9333EA"
+                            strokeWidth="2"
+                            className={`transform transition-all duration-150 ${hoveredPoint === i ? 'scale-125' : ''}`}
+                          />
+                          {/* Inner circle */}
+                          <circle
+                            cx={point.x}
+                            cy={point.y}
+                            r="3"
+                            fill="#9333EA"
+                            className={`transform transition-all duration-150 ${hoveredPoint === i ? 'scale-125' : ''}`}
+                          />
+                          
+                          {/* Hover tooltip */}
+                          {hoveredPoint === i && (
+                            <g>
+                              <rect
+                                x={point.x - 40}
+                                y={point.y - 45}
+                                width="80"
+                                height="32"
+                                rx="6"
+                                fill="#1F2937"
+                                className="opacity-95"
+                              />
+                              <text
+                                x={point.x}
+                                y={point.y - 24}
+                                textAnchor="middle"
+                                fill="white"
+                                fontSize="13"
+                                fontWeight="500"
+                                className="font-medium"
+                              >
+                                {point.hours}h • {point.day}
+                              </text>
+                            </g>
+                          )}
+                        </g>
+                      ))}
+                    </svg>
                   </div>
-                </div>
-                
-                <div className="flex justify-between items-center">
-                  <div className="w-1/3">
-                    <div className="relative pt-1">
-                      <div className="flex mb-2 items-center justify-between">
-                        <div>
-                          <span className="text-xs font-semibold inline-block py-1 px-2 uppercase rounded-full bg-sky-200 text-sky-600">
-                            Accuracy
-                          </span>
-                        </div>
-                        <div className="text-right">
-                          <span className="text-xs font-semibold inline-block text-sky-600">
-                            {scienceProgress.accuracy}%
-                          </span>
-                        </div>
+
+                  {/* X-axis labels */}
+                  <div className="absolute bottom-0 left-0 right-0 flex justify-between text-xs text-gray-400 font-medium">
+                    {studyHoursData.map((d, i) => (
+                      <div
+                        key={i}
+                        className={`text-center transition-colors duration-150 ${
+                          hoveredPoint === i ? 'text-purple-600 font-semibold' : ''
+                        }`}
+                        style={{ width: `${100 / studyHoursData.length}%` }}
+                      >
+                        {d.day}
                       </div>
-                      <div className="overflow-hidden h-2 mb-4 text-xs flex rounded bg-sky-200">
-                        <div 
-                          style={{ width: `${scienceProgress.accuracy}%` }} 
-                          className="shadow-none flex flex-col text-center whitespace-nowrap text-white justify-center bg-sky-500">
-                        </div>
-                      </div>
-                    </div>
+                    ))}
                   </div>
-                  
-                  <div className="w-2/3 grid grid-cols-3 gap-4 pl-6">
-                    <div className="bg-gray-50 p-3 rounded-lg">
-                      <p className="text-xs text-gray-500">Total Questions</p>
-                      <p className="text-lg font-semibold">{scienceProgress.totalQuestions}</p>
-                    </div>
-                    <div className="bg-green-50 p-3 rounded-lg">
-                      <p className="text-xs text-green-600">Correct</p>
-                      <p className="text-lg font-semibold text-green-600">{scienceProgress.correctAnswers}</p>
-                    </div>
-                    <div className="bg-red-50 p-3 rounded-lg">
-                      <p className="text-xs text-red-600">Incorrect</p>
-                      <p className="text-lg font-semibold text-red-600">{scienceProgress.incorrectAnswers}</p>
-                    </div>
-                  </div>
-                </div>
-                
-                <div className="pt-4 text-sm text-gray-500">
-                  <p>Continue practicing science quizzes to improve your score!</p>
                 </div>
               </div>
-            )}
+
+              {/* Stats Cards */}
+              <div className="grid grid-cols-4 gap-4">
+                <div className="bg-purple-50 rounded-lg p-4">
+                  <p className="text-sm text-purple-600">Most Productive</p>
+                  <p className="text-2xl font-bold text-purple-700">
+                    {studyHoursData.reduce((max, d) => d.hours > max.hours ? d : max).day}
+                  </p>
+                  <p className="text-sm text-purple-600">
+                    {Math.max(...studyHoursData.map(d => d.hours))}h studied
+                  </p>
+                </div>
+                <div className="bg-blue-50 rounded-lg p-4">
+                  <p className="text-sm text-blue-600">Weekly Progress</p>
+                  <p className="text-2xl font-bold text-blue-700">
+                    {Math.round((studyStats.totalHours / studyStats.weeklyTarget) * 100)}%
+                  </p>
+                  <p className="text-sm text-blue-600">
+                    of {studyStats.weeklyTarget}h target
+                  </p>
+                </div>
+                <div className="bg-green-50 rounded-lg p-4">
+                  <p className="text-sm text-green-600">Improvement</p>
+                  <p className="text-2xl font-bold text-green-700">
+                    +{studyStats.improvement}%
+                  </p>
+                  <p className="text-sm text-green-600">vs last week</p>
+                </div>
+                <div className="bg-amber-50 rounded-lg p-4">
+                  <p className="text-sm text-amber-600">Daily Average</p>
+                  <p className="text-2xl font-bold text-amber-700">
+                    {studyStats.averageHours.toFixed(1)}h
+                  </p>
+                  <p className="text-sm text-amber-600">per day</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Study Time Distribution */}
+            {/* ... existing code ... */}
           </div>
         </div>
       </div>
