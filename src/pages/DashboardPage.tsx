@@ -24,9 +24,10 @@ import {
   PencilIcon,
   XMarkIcon
 } from '@heroicons/react/24/outline';
-import UserProfileComponent from '../components/UserProfileComponent';
 import { supabase, checkSupabaseConnection } from '../lib/supabase';
 import { useQuestions, scienceProgressStore } from '../hooks/useQuestions';
+import { useUserProfile } from '../hooks/useUserProfile';
+
 
 // Define needed interfaces
 interface ProgressRecord {
@@ -77,7 +78,19 @@ interface EditProfileModalProps {
   isOpen: boolean;
   onClose: () => void;
   userData: UserData;
+
+  // → 5. Add this callback so the modal can save back to Supabase
+  onSave: (data: {
+    name: string;
+    username: string;
+    bio: string;
+    location: string;
+    school: string;
+  }) => Promise<void>;
 }
+
+
+
 
 // Sample data for demonstration
 const studentData = {
@@ -174,7 +187,7 @@ interface ScienceProgressData {
 }
 
 // Update the EditProfileModal component with proper types
-const EditProfileModal: React.FC<EditProfileModalProps> = ({ isOpen, onClose, userData }) => {
+const EditProfileModal: React.FC<EditProfileModalProps> = ({ isOpen, onClose, userData, onSave }) => {
   const [formData, setFormData] = useState<UserData>({
     name: userData.name || '',
     username: userData.username || '',
@@ -187,12 +200,19 @@ const EditProfileModal: React.FC<EditProfileModalProps> = ({ isOpen, onClose, us
     portfolio: userData.portfolio || ''
   });
 
-  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    // TODO: Implement profile update logic here
-    console.log('Updated profile data:', formData);
-    onClose();
-  };
+    // → 6. Call onSave, then close
+    const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+      e.preventDefault();
+      await onSave({
+        name:     formData.name,
+        username: formData.username,
+        bio:      formData.bio,
+        location: formData.location,
+        school:   formData.school
+      });
+      onClose();
+    };
+  
 
   if (!isOpen) return null;
 
@@ -336,26 +356,24 @@ interface StudyHoursData {
   hours: number;
 }
 
-const DashboardPage = () => {
+const DashboardPage: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'questions' | 'accuracy'>('questions');
   const [selectedTestType, setSelectedTestType] = useState<'quizzes' | 'mock_exams' | 'flashcards'>('quizzes');
-  const [scienceProgress, setScienceProgress] = useState<ScienceProgressData>({
-    totalQuestions: 0,
-    correctAnswers: 0,
-    incorrectAnswers: 0,
-    accuracy: 0
-  });
+  const [scienceProgress, setScienceProgress] = useState<ScienceProgressData>({totalQuestions: 0, correctAnswers: 0, incorrectAnswers: 0, accuracy: 0});
   const [loadingScienceData, setLoadingScienceData] = useState(false);
   const [supabaseStatus, setSupabaseStatus] = useState<{ connected: boolean; error?: string }>({ connected: true });
   const [isEditProfileOpen, setIsEditProfileOpen] = useState(false);
   const [selectedSubject, setSelectedSubject] = useState<'science' | 'mathematics' | 'language' | 'reading'>('science');
   const [hoveredPoint, setHoveredPoint] = useState<number | null>(null);
+  const { profile, loading: profileLoading, error: profileError, updateProfile, fetchProfile } = useUserProfile();
+
+  
+
   
   // Add useQuestions hook to access science progress stats
   const { getScienceProgressStats } = useQuestions();
-  
-  // Test type accuracy data
-  const testTypeData = {
+    // Test type accuracy data
+    const testTypeData = {
     quizzes: {
       accuracy: 72,
       total: 145,
@@ -380,6 +398,32 @@ const DashboardPage = () => {
   };
 
   const currentTestData = testTypeData[selectedTestType];
+
+    // Update function to fetch science progress data from Supabase Storage or local storage
+    const fetchScienceProgressData = async () => {
+      try {
+        setLoadingScienceData(true);
+        
+        const user = await supabase.auth.getUser();
+        if (!user.data.user) {
+          console.log('No user logged in, cannot fetch science progress');
+          return;
+        }
+        
+        // Get progress data from storage service
+        const progressData = await getScienceProgressStats(user.data.user.id);
+        
+        // Update state with the data
+        setScienceProgress(progressData);
+        
+        console.log('Science progress data loaded:', progressData);
+      } catch (err) {
+        console.error('Error fetching science progress data:', err);
+      } finally {
+        setLoadingScienceData(false);
+      }
+    };
+
   
   // Check Supabase connection on component mount
   useEffect(() => {
@@ -396,30 +440,12 @@ const DashboardPage = () => {
     fetchScienceProgressData();
   }, []);
 
-  // Update function to fetch science progress data from Supabase Storage or local storage
-  const fetchScienceProgressData = async () => {
-    try {
-      setLoadingScienceData(true);
-      
-      const user = await supabase.auth.getUser();
-      if (!user.data.user) {
-        console.log('No user logged in, cannot fetch science progress');
-        return;
-      }
-      
-      // Get progress data from storage service
-      const progressData = await getScienceProgressStats(user.data.user.id);
-      
-      // Update state with the data
-      setScienceProgress(progressData);
-      
-      console.log('Science progress data loaded:', progressData);
-    } catch (err) {
-      console.error('Error fetching science progress data:', err);
-    } finally {
-      setLoadingScienceData(false);
-    }
-  };
+  if (profileLoading) return <div className="p-6">Loading profile…</div>;
+  if (profileError)   return <div className="p-6 text-red-600">Error: {profileError}</div>;
+  if (!profile) {return <div className="p-6">Loading profile…</div>;
+  }
+
+
 
   // Update function to sync localStorage data to database
   const syncLocalProgressToDatabase = async () => {
@@ -756,17 +782,19 @@ const DashboardPage = () => {
     }
   };
 
+    // → 4. Replace static data with fields from `profile`
   const userData = {
-    name: "Guy Ivan Ocon",
-    username: "yugnavi02",
-    bio: "Grade 12 STEM student preparing for UPCAT. Passionate about science and mathematics. Aiming to pursue Computer Science at UP Diliman.",
-    location: "Mintal, Davao City",
-    school: "Tagum City National High School",
+    name:     profile.user_fullname || '',
+    username: profile.user_username || '',
+    bio:      profile.user_bio      || '',
+    location: profile.user_location || '',
+    school:   profile.user_school   || '',
     facebook: "https://facebook.com/yugnavi02",
-    github: "https://github.com/yugnavi02",
+    github:   "https://github.com/yugnavi02",
     linkedin: "https://linkedin.com/in/yugnavi02",
-    portfolio: "https://yugnavi02.github.io"
+    portfolio:"https://yugnavi02.github.io"
   };
+
 
   const ProfileSection = () => (
     <div className="bg-white rounded-lg shadow">
@@ -908,6 +936,25 @@ const DashboardPage = () => {
   };
 
   return (
+    <>
+    <EditProfileModal
+      isOpen={isEditProfileOpen}
+      onClose={() => setIsEditProfileOpen(false)}
+      userData={userData}
+       onSave={async (data) => {
+           await updateProfile({
+             user_fullname: data.name,
+             user_username: data.username,
+             user_bio:      data.bio,
+             user_location: data.location,
+             user_school:   data.school,
+           });
+           // re-pull your fresh profile and clear the loading flag
+           await fetchProfile(profile!.user_id!);
+         }}
+    />
+
+
     <div className="min-h-screen bg-gray-50 py-8">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -1367,6 +1414,7 @@ const DashboardPage = () => {
         </div>
       </div>
     </div>
+    </>
   );
 };
 
