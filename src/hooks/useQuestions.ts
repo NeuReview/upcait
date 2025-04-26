@@ -684,7 +684,7 @@ export function useQuestions(): UseQuestionsReturn {
       if (!user) return;
 
       const { data: existingStats, error: fetchError } = await supabase
-        .from('user_statistics')
+        .from('science_progress_report_quizzes')
         .select('*')
         .eq('user_id', (await user).data.user?.id)
         .single();
