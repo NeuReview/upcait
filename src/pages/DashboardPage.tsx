@@ -68,24 +68,20 @@ interface UserData {
   bio: string;
   location: string;
   school: string;
-  facebook: string;
-  github: string;
-  linkedin: string;
-  portfolio: string;
+  socials: string;
 }
 
 interface EditProfileModalProps {
   isOpen: boolean;
   onClose: () => void;
   userData: UserData;
-
-  // → 5. Add this callback so the modal can save back to Supabase
   onSave: (data: {
     name: string;
     username: string;
     bio: string;
     location: string;
     school: string;
+    socials: string;
   }) => Promise<void>;
 }
 
@@ -194,10 +190,7 @@ const EditProfileModal: React.FC<EditProfileModalProps> = ({ isOpen, onClose, us
     bio: userData.bio || '',
     location: userData.location || '',
     school: userData.school || '',
-    facebook: userData.facebook || '',
-    github: userData.github || '',
-    linkedin: userData.linkedin || '',
-    portfolio: userData.portfolio || ''
+    socials: userData.socials || ''
   });
 
     // → 6. Call onSave, then close
@@ -208,7 +201,8 @@ const EditProfileModal: React.FC<EditProfileModalProps> = ({ isOpen, onClose, us
         username: formData.username,
         bio:      formData.bio,
         location: formData.location,
-        school:   formData.school
+        school:   formData.school,
+        socials:  formData.socials
       });
       onClose();
     };
@@ -321,10 +315,10 @@ const EditProfileModal: React.FC<EditProfileModalProps> = ({ isOpen, onClose, us
                 </div>
                 <input
                   type="url"
-                  value={formData.portfolio}
-                  onChange={(e) => setFormData({ ...formData, portfolio: e.target.value })}
+                  value={formData.socials}
+                  onChange={(e) => setFormData({ ...formData, socials: e.target.value })}
                   className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                  placeholder="Portfolio website URL"
+                  placeholder="Social media or portfolio URL"
                 />
               </div>
             </div>
@@ -789,10 +783,7 @@ const DashboardPage: React.FC = () => {
     bio:      profile.user_bio      || '',
     location: profile.user_location || '',
     school:   profile.user_school   || '',
-    facebook: "https://facebook.com/yugnavi02",
-    github:   "https://github.com/yugnavi02",
-    linkedin: "https://linkedin.com/in/yugnavi02",
-    portfolio:"https://yugnavi02.github.io"
+    socials:  profile.user_socials  || ''
   };
 
 
@@ -847,11 +838,17 @@ const DashboardPage: React.FC = () => {
         {/* Social Links */}
         <div className="mt-4 pt-4 border-t border-gray-100">
           <div className="flex flex-wrap gap-3">
-            <a href={userData.portfolio} target="_blank" rel="noopener noreferrer" 
-               className="inline-flex items-center px-3 py-1 rounded-full text-sm bg-purple-50 text-purple-600 hover:bg-purple-100 transition-colors">
-              <LinkIcon className="w-4 h-4 mr-2" />
-              Social Links
-            </a>
+            {userData.socials && (
+              <a 
+                href={userData.socials} 
+                target="_blank" 
+                rel="noopener noreferrer" 
+                className="inline-flex items-center px-3 py-1 rounded-full text-sm bg-purple-50 text-purple-600 hover:bg-purple-100 transition-colors"
+              >
+                <LinkIcon className="w-4 h-4 mr-2" />
+                Social Links
+              </a>
+            )}
           </div>
         </div>
       </div>
@@ -941,17 +938,18 @@ const DashboardPage: React.FC = () => {
       isOpen={isEditProfileOpen}
       onClose={() => setIsEditProfileOpen(false)}
       userData={userData}
-       onSave={async (data) => {
-           await updateProfile({
-             user_fullname: data.name,
-             user_username: data.username,
-             user_bio:      data.bio,
-             user_location: data.location,
-             user_school:   data.school,
-           });
-           // re-pull your fresh profile and clear the loading flag
-           await fetchProfile(profile!.user_id!);
-         }}
+      onSave={async (data) => {
+        await updateProfile({
+          user_fullname: data.name,
+          user_username: data.username,
+          user_bio: data.bio,
+          user_location: data.location,
+          user_school: data.school,
+          user_socials: data.socials
+        });
+        // re-pull your fresh profile and clear the loading flag
+        await fetchProfile(profile!.user_id!);
+      }}
     />
 
 

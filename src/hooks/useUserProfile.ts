@@ -12,6 +12,7 @@ enum ProfileCols {
   user_school = 'user_school',
   user_bio = 'user_bio',
   user_location = 'user_location',
+  user_socials = 'user_socials'
 }
 
 export interface UserProfile {
@@ -24,6 +25,7 @@ export interface UserProfile {
   user_school: string | null;
   user_bio: string | null;
   user_location: string | null;
+  user_socials: string | null;
 }
 
 interface UseUserProfileReturn {
@@ -41,6 +43,7 @@ interface UseUserProfileReturn {
         | 'user_school'
         | 'user_bio'
         | 'user_location'
+        | 'user_socials'
       >
     >
   ) => Promise<void>;
@@ -54,6 +57,7 @@ interface UseUserProfileReturn {
         | 'user_school'
         | 'user_bio'
         | 'user_location'
+        | 'user_socials'
       >
     >
   ) => Promise<void>;
@@ -84,13 +88,13 @@ export const useUserProfile = (): UseUserProfileReturn => {
             ProfileCols.user_school,
             ProfileCols.user_bio,
             ProfileCols.user_location,
+            ProfileCols.user_socials,
           ].join(', ')
         )
         .eq(ProfileCols.user_id, userId);
 
       if (fetchError) throw fetchError;
 
-      // cast through unknown so TS knows you really mean UserProfile[]
       const rows = (data as unknown) as UserProfile[];
 
       if (rows.length === 0) {
@@ -105,6 +109,7 @@ export const useUserProfile = (): UseUserProfileReturn => {
               user_school: null,
               user_bio: null,
               user_location: null,
+              user_socials: null,
             },
           ])
           .single();
@@ -140,6 +145,7 @@ export const useUserProfile = (): UseUserProfileReturn => {
         | 'user_school'
         | 'user_bio'
         | 'user_location'
+        | 'user_socials'
       >
     >
   ) => {
@@ -177,6 +183,7 @@ export const useUserProfile = (): UseUserProfileReturn => {
         | 'user_school'
         | 'user_bio'
         | 'user_location'
+        | 'user_socials'
       >
     >
   ) => {
