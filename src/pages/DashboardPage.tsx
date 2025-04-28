@@ -24,10 +24,9 @@ import {
   PencilIcon,
   XMarkIcon
 } from '@heroicons/react/24/outline';
+import UserProfileComponent from '../components/UserProfileComponent';
 import { supabase, checkSupabaseConnection } from '../lib/supabase';
 import { useQuestions, scienceProgressStore } from '../hooks/useQuestions';
-import { useUserProfile } from '../hooks/useUserProfile';
-
 
 // Define needed interfaces
 interface ProgressRecord {
@@ -63,30 +62,22 @@ interface ProgressStore {
 
 // Add interfaces for the user data and modal props
 interface UserData {
-  name: string;
-  username: string;
-  bio: string;
-  location: string;
-  school: string;
-  socials: string;
+  id?: number;
+  user_id?: string;
+  user_fullname: string;
+  user_username: string;
+  user_bio: string;
+  user_location: string;
+  user_school: string;
+  user_socials: string;
+  user_year_level: string;
 }
 
 interface EditProfileModalProps {
   isOpen: boolean;
   onClose: () => void;
   userData: UserData;
-  onSave: (data: {
-    name: string;
-    username: string;
-    bio: string;
-    location: string;
-    school: string;
-    socials: string;
-  }) => Promise<void>;
 }
-
-
-
 
 // Sample data for demonstration
 const studentData = {
@@ -182,192 +173,37 @@ interface ScienceProgressData {
   accuracy: number;
 }
 
-// Update the EditProfileModal component with proper types
-const EditProfileModal: React.FC<EditProfileModalProps> = ({ isOpen, onClose, userData, onSave }) => {
-  const [formData, setFormData] = useState<UserData>({
-    name: userData.name || '',
-    username: userData.username || '',
-    bio: userData.bio || '',
-    location: userData.location || '',
-    school: userData.school || '',
-    socials: userData.socials || ''
-  });
-
-    // → 6. Call onSave, then close
-    const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-      e.preventDefault();
-      await onSave({
-        name:     formData.name,
-        username: formData.username,
-        bio:      formData.bio,
-        location: formData.location,
-        school:   formData.school,
-        socials:  formData.socials
-      });
-      onClose();
-    };
-  
-
-  if (!isOpen) return null;
-
-  return (
-    <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
-      <div className="relative top-20 mx-auto p-8 border w-full max-w-2xl shadow-lg rounded-lg bg-white">
-        <div className="flex items-center justify-between mb-6">
-          <div>
-            <h3 className="text-2xl font-bold text-gray-900">Edit Profile</h3>
-            <p className="mt-1 text-sm text-gray-500">Update your profile information</p>
-          </div>
-          <button
-            onClick={onClose}
-            className="text-gray-400 hover:text-gray-500 transition-colors"
-          >
-            <XMarkIcon className="w-6 h-6" />
-          </button>
-        </div>
-
-        <form onSubmit={handleSubmit} className="space-y-6">
-          {/* Profile Info Section */}
-          <div className="space-y-6">
-            <div>
-              <label className="block text-sm font-medium text-gray-900 mb-2">
-                Full Name
-              </label>
-              <input
-                type="text"
-                value={formData.name}
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                placeholder="Enter your full name"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-900 mb-2">
-                Username
-              </label>
-              <div className="flex">
-                <span className="inline-flex items-center px-4 rounded-l-lg border border-r-0 border-gray-300 bg-gray-50 text-gray-500 text-sm">
-                  @
-                </span>
-                <input
-                  type="text"
-                  value={formData.username}
-                  onChange={(e) => setFormData({ ...formData, username: e.target.value })}
-                  className="flex-1 px-4 py-2 border border-gray-300 rounded-r-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                  placeholder="username"
-                />
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-900 mb-2">
-                Bio
-              </label>
-              <textarea
-                value={formData.bio}
-                onChange={(e) => setFormData({ ...formData, bio: e.target.value })}
-                rows={4}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                placeholder="Write a short bio about yourself"
-              />
-            </div>
-          </div>
-
-          {/* Location and Education */}
-          <div className="space-y-6">
-            <h4 className="text-lg font-medium text-gray-900">Location & Education</h4>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div>
-                <label className="block text-sm font-medium text-gray-900 mb-2">
-                  Location
-                </label>
-                <input
-                  type="text"
-                  value={formData.location}
-                  onChange={(e) => setFormData({ ...formData, location: e.target.value })}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                  placeholder="City, Country"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-900 mb-2">
-                  School
-                </label>
-                <input
-                  type="text"
-                  value={formData.school}
-                  onChange={(e) => setFormData({ ...formData, school: e.target.value })}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                  placeholder="Enter your school name"
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* Social Links */}
-          <div className="space-y-6">
-            <h4 className="text-lg font-medium text-gray-900">Social Links</h4>
-            <div className="grid grid-cols-1 gap-6">
-              <div className="flex items-center">
-                <div className="w-10 h-10 flex-shrink-0 mr-3 rounded-lg bg-purple-50 flex items-center justify-center">
-                  <GlobeAltIcon className="w-5 h-5 text-purple-600" />
-                </div>
-                <input
-                  type="url"
-                  value={formData.socials}
-                  onChange={(e) => setFormData({ ...formData, socials: e.target.value })}
-                  className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                  placeholder="Social media or portfolio URL"
-                />
-              </div>
-            </div>
-          </div>
-
-          <div className="flex items-center justify-end space-x-4 pt-6 border-t border-gray-200">
-            <button
-              type="button"
-              onClick={onClose}
-              className="px-6 py-2.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-purple-500"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              className="px-6 py-2.5 text-sm font-medium text-white bg-purple-600 border border-transparent rounded-lg hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-500"
-            >
-              Save Changes
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
-  );
-};
-
 interface StudyHoursData {
   day: string;
   hours: number;
 }
 
-const DashboardPage: React.FC = () => {
+interface ProfileSectionProps {
+  setIsEditProfileOpen: (isOpen: boolean) => void;
+  userData: UserData;
+  supabaseStatus: { connected: boolean; error?: string };
+}
+
+const DashboardPage = () => {
   const [activeTab, setActiveTab] = useState<'questions' | 'accuracy'>('questions');
   const [selectedTestType, setSelectedTestType] = useState<'quizzes' | 'mock_exams' | 'flashcards'>('quizzes');
-  const [scienceProgress, setScienceProgress] = useState<ScienceProgressData>({totalQuestions: 0, correctAnswers: 0, incorrectAnswers: 0, accuracy: 0});
+  const [scienceProgress, setScienceProgress] = useState<ScienceProgressData>({
+    totalQuestions: 0,
+    correctAnswers: 0,
+    incorrectAnswers: 0,
+    accuracy: 0
+  });
   const [loadingScienceData, setLoadingScienceData] = useState(false);
   const [supabaseStatus, setSupabaseStatus] = useState<{ connected: boolean; error?: string }>({ connected: true });
   const [isEditProfileOpen, setIsEditProfileOpen] = useState(false);
   const [selectedSubject, setSelectedSubject] = useState<'science' | 'mathematics' | 'language' | 'reading'>('science');
   const [hoveredPoint, setHoveredPoint] = useState<number | null>(null);
-  const { profile, loading: profileLoading, error: profileError, updateProfile, fetchProfile } = useUserProfile();
-
-  
-
   
   // Add useQuestions hook to access science progress stats
   const { getScienceProgressStats } = useQuestions();
-    // Test type accuracy data
-    const testTypeData = {
+  
+  // Test type accuracy data
+  const testTypeData = {
     quizzes: {
       accuracy: 72,
       total: 145,
@@ -393,31 +229,25 @@ const DashboardPage: React.FC = () => {
 
   const currentTestData = testTypeData[selectedTestType];
 
-    // Update function to fetch science progress data from Supabase Storage or local storage
-    const fetchScienceProgressData = async () => {
-      try {
-        setLoadingScienceData(true);
-        
-        const user = await supabase.auth.getUser();
-        if (!user.data.user) {
-          console.log('No user logged in, cannot fetch science progress');
-          return;
-        }
-        
-        // Get progress data from storage service
-        const progressData = await getScienceProgressStats(user.data.user.id);
-        
-        // Update state with the data
-        setScienceProgress(progressData);
-        
-        console.log('Science progress data loaded:', progressData);
-      } catch (err) {
-        console.error('Error fetching science progress data:', err);
-      } finally {
-        setLoadingScienceData(false);
-      }
-    };
+  // ──────────────────────────────────────────────────────────────
+  //  Quizzes → Science stats pulled from Supabase
+  // ──────────────────────────────────────────────────────────────
+  interface QuizStats {
+    total: number;
+    correct: number;
+    incorrect: number;
+  }
 
+  const [quizScienceStats, setQuizScienceStats] = useState<QuizStats>({
+    total: 0,
+    correct: 0,
+    incorrect: 0
+  });
+  const [quizMathStats, setQuizMathStats] = useState<QuizStats>({
+    total: 0,
+    correct: 0,
+    incorrect: 0
+  });
   
   // Check Supabase connection on component mount
   useEffect(() => {
@@ -434,12 +264,30 @@ const DashboardPage: React.FC = () => {
     fetchScienceProgressData();
   }, []);
 
-  if (profileLoading) return <div className="p-6">Loading profile…</div>;
-  if (profileError)   return <div className="p-6 text-red-600">Error: {profileError}</div>;
-  if (!profile) {return <div className="p-6">Loading profile…</div>;
-  }
-
-
+  // Update function to fetch science progress data from Supabase Storage or local storage
+  const fetchScienceProgressData = async () => {
+    try {
+      setLoadingScienceData(true);
+      
+      const user = await supabase.auth.getUser();
+      if (!user.data.user) {
+        console.log('No user logged in, cannot fetch science progress');
+        return;
+      }
+      
+      // Get progress data from storage service
+      const progressData = await getScienceProgressStats(user.data.user.id);
+      
+      // Update state with the data
+      setScienceProgress(progressData);
+      
+      console.log('Science progress data loaded:', progressData);
+    } catch (err) {
+      console.error('Error fetching science progress data:', err);
+    } finally {
+      setLoadingScienceData(false);
+    }
+  };
 
   // Update function to sync localStorage data to database
   const syncLocalProgressToDatabase = async () => {
@@ -776,18 +624,322 @@ const DashboardPage: React.FC = () => {
     }
   };
 
-    // → 4. Replace static data with fields from `profile`
-  const userData = {
-    name:     profile.user_fullname || '',
-    username: profile.user_username || '',
-    bio:      profile.user_bio      || '',
-    location: profile.user_location || '',
-    school:   profile.user_school   || '',
-    socials:  profile.user_socials  || ''
+  const [userData, setUserData] = useState<UserData>({
+    user_fullname: "",
+    user_username: "",
+    user_bio: "",
+    user_location: "",
+    user_school: "",
+    user_socials: "",
+    user_year_level: ""
+  });
+
+  // Fetch user profile data
+  const fetchUserProfile = async () => {
+    try {
+      const user = await supabase.auth.getUser();
+      if (!user.data.user) {
+        console.log('No user logged in');
+        return;
+      }
+
+      // Fetch user profile data
+      const { data: profileData, error: profileError } = await supabase
+        .from('user_profile')
+        .select('*')
+        .eq('user_id', user.data.user.id)
+        .single();
+
+      if (profileError) {
+        console.error('Error fetching user profile:', profileError);
+        return;
+      }
+
+      // If profile doesn't exist, create one with default values
+      if (!profileData) {
+        const defaultProfile: Partial<UserData> = {
+          user_fullname: '',
+          user_username: '',
+          user_bio: '',
+          user_location: '',
+          user_school: '',
+          user_socials: '',
+          user_year_level: '',
+          user_id: user.data.user.id
+        };
+
+        const { data: newProfile, error: createError } = await supabase
+          .from('user_profile')
+          .insert([defaultProfile])
+          .select()
+          .single();
+
+        if (createError) {
+          console.error('Error creating user profile:', createError);
+          return;
+        }
+
+        setUserData(newProfile as UserData);
+      } else {
+        setUserData(profileData as UserData);
+      }
+
+    } catch (err) {
+      console.error('Error in fetchUserProfile:', err);
+    }
   };
 
+  // Update user profile data
+  const updateUserProfile = async (updatedData: Partial<UserData>) => {
+    try {
+      const user = await supabase.auth.getUser();
+      if (!user.data.user) {
+        alert('You must be logged in to update your profile.');
+        return false;
+      }
 
-  const ProfileSection = () => (
+      // First check if profile exists
+      const { data: existingProfile } = await supabase
+        .from('user_profile')
+        .select('*')
+        .eq('user_id', user.data.user.id)
+        .single();
+
+      if (existingProfile) {
+        // Update existing profile
+        const { error: updateError } = await supabase
+          .from('user_profile')
+          .update({
+            ...updatedData,
+            updated_at: new Date().toISOString()
+          })
+          .eq('user_id', user.data.user.id);
+
+        if (updateError) {
+          console.error('Error updating profile:', updateError);
+          alert('Failed to update profile. Please try again.');
+          return false;
+        }
+      } else {
+        // Insert new profile
+        const { error: insertError } = await supabase
+          .from('user_profile')
+          .insert([{
+            user_id: user.data.user.id,
+            ...updatedData,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+          }]);
+
+        if (insertError) {
+          console.error('Error creating profile:', insertError);
+          alert('Failed to create profile. Please try again.');
+          return false;
+        }
+      }
+
+      // Refresh user data
+      await fetchUserProfile();
+      return true;
+    } catch (err) {
+      console.error('Error in updateUserProfile:', err);
+      return false;
+    }
+  };
+
+  // Fetch user profile on component mount
+  useEffect(() => {
+    fetchUserProfile();
+  }, []);
+
+  // Update EditProfileModal component
+  const EditProfileModal: React.FC<EditProfileModalProps> = ({ isOpen, onClose, userData }) => {
+    const defaultFormData: UserData = {
+      user_fullname: '',
+      user_username: '',
+      user_bio: '',
+      user_location: '',
+      user_school: '',
+      user_socials: '',
+      user_year_level: ''
+    };
+
+    const [formData, setFormData] = useState<UserData>(() => ({
+      ...defaultFormData,
+      ...Object.fromEntries(
+        Object.entries(userData).map(([key, value]) => [key, value ?? ''])
+      )
+    }));
+    const [isSubmitting, setIsSubmitting] = useState(false);
+
+    useEffect(() => {
+      setFormData({
+        ...defaultFormData,
+        ...Object.fromEntries(
+          Object.entries(userData).map(([key, value]) => [key, value ?? ''])
+        )
+      });
+    }, [userData]);
+
+    const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+      e.preventDefault();
+      setIsSubmitting(true);
+
+      try {
+        const success = await updateUserProfile(formData);
+        if (success) {
+          alert('Profile updated successfully!');
+          onClose();
+        }
+      } finally {
+        setIsSubmitting(false);
+      }
+    };
+
+    if (!isOpen) return null;
+
+    return (
+      <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+        <div className="relative top-20 mx-auto p-8 border w-full max-w-2xl shadow-lg rounded-lg bg-white">
+          <div className="flex items-center justify-between mb-6">
+            <div>
+              <h3 className="text-2xl font-bold text-gray-900">Edit Profile</h3>
+              <p className="mt-1 text-sm text-gray-500">Update your profile information</p>
+            </div>
+            <button
+              onClick={onClose}
+              className="text-gray-400 hover:text-gray-500 transition-colors"
+              disabled={isSubmitting}
+            >
+              <XMarkIcon className="w-6 h-6" />
+            </button>
+          </div>
+
+          <form onSubmit={handleSubmit} className="space-y-6">
+            <div className="space-y-6">
+              <div>
+                <label className="block text-sm font-medium text-gray-900 mb-2">
+                  Full Name
+                </label>
+                <input
+                  type="text"
+                  value={formData.user_fullname}
+                  onChange={(e) => setFormData({ ...formData, user_fullname: e.target.value })}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  placeholder="Enter your full name"
+                  disabled={isSubmitting}
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-900 mb-2">
+                  Username
+                </label>
+                <div className="flex">
+                  <span className="inline-flex items-center px-4 rounded-l-lg border border-r-0 border-gray-300 bg-gray-50 text-gray-500 text-sm">
+                    @
+                  </span>
+                  <input
+                    type="text"
+                    value={formData.user_username}
+                    onChange={(e) => setFormData({ ...formData, user_username: e.target.value })}
+                    className="flex-1 px-4 py-2 border border-gray-300 rounded-r-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                    placeholder="username"
+                    disabled={isSubmitting}
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-900 mb-2">
+                  Bio
+                </label>
+                <textarea
+                  value={formData.user_bio}
+                  onChange={(e) => setFormData({ ...formData, user_bio: e.target.value })}
+                  rows={4}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  placeholder="Write a short bio about yourself"
+                  disabled={isSubmitting}
+                />
+              </div>
+            </div>
+
+            <div className="space-y-6">
+              <h4 className="text-lg font-medium text-gray-900">Location & Education</h4>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <label className="block text-sm font-medium text-gray-900 mb-2">
+                    Location
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.user_location}
+                    onChange={(e) => setFormData({ ...formData, user_location: e.target.value })}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                    placeholder="City, Country"
+                    disabled={isSubmitting}
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-900 mb-2">
+                    School
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.user_school}
+                    onChange={(e) => setFormData({ ...formData, user_school: e.target.value })}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                    placeholder="Enter your school name"
+                    disabled={isSubmitting}
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="space-y-6">
+              <h4 className="text-lg font-medium text-gray-900">Social Links</h4>
+              <div className="grid grid-cols-1 gap-6">
+                <div className="flex items-center">
+                  <div className="w-10 h-10 flex-shrink-0 mr-3 rounded-lg bg-purple-50 flex items-center justify-center">
+                    <GlobeAltIcon className="w-5 h-5 text-purple-600" />
+                  </div>
+                  <input
+                    type="url"
+                    value={formData.user_socials}
+                    onChange={(e) => setFormData({ ...formData, user_socials: e.target.value })}
+                    className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                    placeholder="Portfolio website URL"
+                    disabled={isSubmitting}
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end space-x-4 pt-6 border-t border-gray-200">
+              <button
+                type="button"
+                onClick={onClose}
+                className="px-6 py-2.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                disabled={isSubmitting}
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                className="px-6 py-2.5 text-sm font-medium text-white bg-purple-600 border border-transparent rounded-lg hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                disabled={isSubmitting}
+              >
+                {isSubmitting ? 'Saving...' : 'Save Changes'}
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    );
+  };
+
+  const ProfileSection: React.FC<ProfileSectionProps> = ({ setIsEditProfileOpen, userData, supabaseStatus }) => (
     <div className="bg-white rounded-lg shadow">
       <div className="p-6">
         {/* Profile Header */}
@@ -799,8 +951,8 @@ const DashboardPage: React.FC = () => {
               </div>
             </div>
             <div>
-              <h2 className="text-xl font-bold text-gray-900">{userData.name}</h2>
-              <p className="text-sm text-gray-500">@{userData.username}</p>
+              <h2 className="text-xl font-bold text-gray-900">{userData.user_fullname}</h2>
+              <p className="text-sm text-gray-500">@{userData.user_username}</p>
             </div>
           </div>
           <div className="flex items-center space-x-2">
@@ -811,6 +963,7 @@ const DashboardPage: React.FC = () => {
               </span>
             )}
             <button
+              type="button"
               onClick={() => setIsEditProfileOpen(true)}
               className="inline-flex items-center px-3 py-1 border border-purple-200 rounded-full text-sm text-purple-600 bg-purple-50 hover:bg-purple-100 transition-colors"
             >
@@ -821,34 +974,28 @@ const DashboardPage: React.FC = () => {
         </div>
 
         {/* Bio */}
-        <p className="mt-4 text-sm text-gray-600">{userData.bio}</p>
+        <p className="mt-4 text-sm text-gray-600">{userData.user_bio}</p>
 
         {/* Location and School Info */}
         <div className="mt-4 space-y-2">
           <div className="flex items-center text-sm text-gray-500">
             <MapPinIcon className="w-4 h-4 mr-2 flex-shrink-0" />
-            <span className="truncate">{userData.location}</span>
+            <span className="truncate">{userData.user_location}</span>
           </div>
           <div className="flex items-center text-sm text-gray-500">
             <AcademicCapIcon className="w-4 h-4 mr-2 flex-shrink-0" />
-            <span className="truncate">{userData.school}</span>
+            <span className="truncate">{userData.user_school}</span>
           </div>
         </div>
 
         {/* Social Links */}
         <div className="mt-4 pt-4 border-t border-gray-100">
           <div className="flex flex-wrap gap-3">
-            {userData.socials && (
-              <a 
-                href={userData.socials} 
-                target="_blank" 
-                rel="noopener noreferrer" 
-                className="inline-flex items-center px-3 py-1 rounded-full text-sm bg-purple-50 text-purple-600 hover:bg-purple-100 transition-colors"
-              >
-                <LinkIcon className="w-4 h-4 mr-2" />
-                Social Links
-              </a>
-            )}
+            <a href={userData.user_socials} target="_blank" rel="noopener noreferrer" 
+               className="inline-flex items-center px-3 py-1 rounded-full text-sm bg-purple-50 text-purple-600 hover:bg-purple-100 transition-colors">
+              <LinkIcon className="w-4 h-4 mr-2" />
+              Social Links
+            </a>
           </div>
         </div>
       </div>
@@ -890,23 +1037,221 @@ const DashboardPage: React.FC = () => {
     }
   };
 
-  const currentSubject = subjectData[selectedSubject];
+  // Merge dynamic quiz‑science stats into the base subject data
+  const baseSubject = subjectData[selectedSubject];
 
-  // Simplified study hours data
-  const studyHoursData: StudyHoursData[] = [
-    { day: 'Jan 1', hours: 2.5 },
-    { day: 'Jan 2', hours: 3.2 },
-    { day: 'Jan 3', hours: 1.8 },
-    { day: 'Jan 4', hours: 2.9 },
-    { day: 'Jan 5', hours: 3.5 },
-    { day: 'Jan 6', hours: 2.1 },
-    { day: 'Jan 7', hours: 2.7 }
-  ];
+  const currentSubject =
+    selectedTestType === 'quizzes' && selectedSubject === 'science'
+      ? {
+          ...baseSubject,
+          total: scienceProgress.totalQuestions,
+          correct: scienceProgress.correctAnswers,
+          percentage:
+            scienceProgress.totalQuestions === 0
+              ? 0
+              : Math.round(
+                  (scienceProgress.correctAnswers / scienceProgress.totalQuestions) * 100
+                ),
+          color: baseSubject.color
+        }
+      : selectedTestType === 'quizzes' && selectedSubject === 'mathematics'
+      ? {
+          ...baseSubject,
+          total: quizMathStats.total,
+          correct: quizMathStats.correct,
+          percentage:
+            quizMathStats.total === 0
+              ? 0
+              : Math.round(
+                  (quizMathStats.correct / quizMathStats.total) * 100
+                ),
+          color: baseSubject.color
+        }
+      : baseSubject;
+  // Fetch Science‑Quizzes performance whenever the dropdowns change
+  useEffect(() => {
+    const fetchScienceQuizStats = async () => {
+      if (selectedTestType !== 'quizzes' || selectedSubject !== 'science') return;
+
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return;
+
+        const { data, error } = await supabase
+          .from('science_progress_report_quizzes')
+          .select('correct_question')
+          .eq('user_id', user.id);
+
+        if (error) {
+          console.error('Error fetching science quiz stats', error);
+          return;
+        }
+
+        const total = data.length;
+        const correct = data.filter(r => Number(r.correct_question) === 1).length;
+        const incorrect = total - correct;
+
+        setQuizScienceStats({ total, correct, incorrect });
+      } catch (err) {
+        console.error('Unexpected error fetching science quiz stats', err);
+      }
+    };
+
+    fetchScienceQuizStats();
+  }, [selectedTestType, selectedSubject]);
+
+  // Fetch Math‑Quizzes performance whenever the dropdowns change
+  useEffect(() => {
+    const fetchMathQuizStats = async () => {
+      if (selectedTestType !== 'quizzes' || selectedSubject !== 'mathematics') return;
+
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) {
+          console.warn('[Math‑Quiz] No user logged‑in');
+          return;
+        }
+
+        const { data, error } = await supabase
+          .from('math_progress_report_quizzes')
+          .select('correct_question')
+          .eq('user_id', user.id);
+
+        console.log('[Math‑Quiz] Raw rows →', data);
+
+        if (error) {
+          console.error('Error fetching math quiz stats', error);
+          return;
+        }
+
+        const total     = data.length;
+        const correct   = data.filter(r => Number(r.correct_question) === 1).length;
+        const incorrect = total - correct;
+
+        console.log('[Math‑Quiz] Computed →', { total, correct, incorrect });
+
+        setQuizMathStats({ total, correct, incorrect });
+      } catch (err) {
+        console.error('Unexpected error fetching math quiz stats', err);
+      }
+    };
+
+    fetchMathQuizStats();
+  }, [selectedTestType, selectedSubject]);
+
+  // ──────────────────────────────────────────────────────────────
+  // Study‑time analytics state (fetched from Supabase)
+  // ──────────────────────────────────────────────────────────────
+  const [studyHoursData, setStudyHoursData] = useState<StudyHoursData[]>([]);
+
+  interface StudyStats {
+    currentStreak: number;
+    totalHours: number;
+    averageHours: number;
+    weeklyTarget: number;
+    improvement: number;
+    bestDay: { day: string; hours: number };
+  }
+
+  const [studyStats, setStudyStats] = useState<StudyStats>({
+    currentStreak: 0,
+    totalHours: 0,
+    averageHours: 0,
+    weeklyTarget: 21,          // default fallback
+    improvement: 0,
+    bestDay: { day: '', hours: 0 }
+  });
+
+  // Fetch the last 7 days of study‑time analytics for the logged‑in user
+  useEffect(() => {
+    const fetchStudyTimeAnalytics = async () => {
+      try {
+        // 1) Get the logged‑in user (may be null if not authenticated)
+        const { data: { user } } = await supabase.auth.getUser();
+
+        // 2) Build a base query: grab the 7 most‑recent rows
+        let query = supabase
+          .from('user_study_time')
+          .select('created_at, study_sessions')
+          .order('created_at', { ascending: false })
+          .limit(7);
+
+        // If the table has a user_id column and we have a user, filter on it
+        if (user) {
+          query = query.eq('user_id', user.id);
+        }
+
+        // 3) Execute the query
+        let { data, error } = await query;
+
+        // Fallback: table doesn’t have user_id yet → retry without the filter
+        if (error && error.code === '42703') {
+          ({ data, error } = await supabase
+            .from('user_study_time')
+            .select('created_at, study_sessions')
+            .order('created_at', { ascending: false })
+            .limit(7));
+        }
+
+        if (error) {
+          console.error('Error fetching study analytics', error);
+          return;
+        }
+
+        if (!data || data.length === 0) {
+          console.warn('No study‑time rows found in user_study_time');
+          setStudyHoursData([]);
+          return;
+        }
+
+        // 4) Convert newest→oldest → oldest→newest for the graph
+        const rowsChrono = [...data].reverse();
+
+        const rows = rowsChrono.map((r: any) => ({
+          day: new Date(r.created_at).toLocaleDateString('en-US', {
+            month: 'short',
+            day: 'numeric'
+          }),
+          hours: r.study_sessions ?? 0
+        }));
+
+        setStudyHoursData(rows);
+
+        // 5) Compute stats
+        const total = rows.reduce((s, d) => s + d.hours, 0);
+        const avg   = rows.length ? total / rows.length : 0;
+
+        // longest trailing streak of >0‑hour days
+        let streak = 0;
+        for (let i = rows.length - 1; i >= 0; i--) {
+          if (rows[i].hours > 0) streak++;
+          else break;
+        }
+
+        // most productive day
+        const best = rows.reduce(
+          (max, d) => (d.hours > max.hours ? d : max),
+          { day: '', hours: 0 }
+        );
+
+        setStudyStats(prev => ({
+          ...prev,
+          currentStreak: streak,
+          totalHours: total,
+          averageHours: avg,
+          bestDay: best
+        }));
+      } catch (err) {
+        console.error('Unexpected error fetching study analytics', err);
+      }
+    };
+    fetchStudyTimeAnalytics();
+  }, []);
 
   // Graph dimensions and settings
   const graphWidth = 400;
   const graphHeight = 200;
-  const maxHours = 4;
+  const maxHours = Math.max(4, ...studyHoursData.map(d => d.hours));
 
   // Calculate points for the line graph
   const graphPoints = studyHoursData.map((d, i) => ({
@@ -916,49 +1261,17 @@ const DashboardPage: React.FC = () => {
     day: d.day
   }));
 
-  const studyStats = {
-    currentStreak: 5,
-    longestStreak: 7,
-    totalHours: studyHoursData.reduce((sum, d) => sum + d.hours, 0),
-    averageHours: studyHoursData.reduce((sum, d) => sum + d.hours, 0) / studyHoursData.length,
-    subjectBreakdown: {
-      science: studyHoursData.reduce((sum, d) => sum + d.hours, 0),
-      math: 0,
-      language: 0,
-      reading: 0
-    },
-    weeklyTarget: 21,
-    bestDay: studyHoursData.reduce((max, d) => d.hours > max.hours ? d : max),
-    improvement: 15 // percentage improvement from previous week
-  };
-
   return (
-    <>
-    <EditProfileModal
-      isOpen={isEditProfileOpen}
-      onClose={() => setIsEditProfileOpen(false)}
-      userData={userData}
-      onSave={async (data) => {
-        await updateProfile({
-          user_fullname: data.name,
-          user_username: data.username,
-          user_bio: data.bio,
-          user_location: data.location,
-          user_school: data.school,
-          user_socials: data.socials
-        });
-        // re-pull your fresh profile and clear the loading flag
-        await fetchProfile(profile!.user_id!);
-      }}
-    />
-
-
     <div className="min-h-screen bg-gray-50 py-8">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Left Column */}
           <div className="lg:col-span-1">
-            <ProfileSection />
+            <ProfileSection
+              setIsEditProfileOpen={setIsEditProfileOpen}
+              userData={userData}
+              supabaseStatus={supabaseStatus}
+            />
           </div>
 
           {/* Right Column */}
@@ -1114,18 +1427,44 @@ const DashboardPage: React.FC = () => {
             <div className="bg-white rounded-lg shadow p-6">
               <div className="flex items-center justify-between mb-6">
                 <h3 className="text-lg font-medium text-gray-900">Performance Analytics</h3>
-                <div className="relative">
-                  <select
-                    value={selectedSubject}
-                    onChange={(e) => setSelectedSubject(e.target.value as typeof selectedSubject)}
-                    className="appearance-none bg-white border border-gray-300 rounded-lg pl-4 pr-10 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent cursor-pointer"
-                  >
-                    <option value="science">Science</option>
-                    <option value="mathematics">Mathematics</option>
-                    <option value="language">Language</option>
-                    <option value="reading">Reading</option>
-                  </select>
-                  <ChevronDownIcon className="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+
+                {/* Dropdowns for test type and subject */}
+                <div className="flex items-center space-x-4">
+                  {/* Test‑type selector */}
+                  <div className="relative">
+                    <select
+                      value={selectedTestType}
+                      onChange={(e) =>
+                        setSelectedTestType(
+                          e.target.value as typeof selectedTestType
+                        )
+                      }
+                      className="appearance-none bg-white border border-gray-300 rounded-lg pl-4 pr-10 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent cursor-pointer"
+                    >
+                      <option value="quizzes">Quizzes</option>
+                      <option value="mock_exams">Mock Exams</option>
+                    </select>
+                    <ChevronDownIcon className="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+                  </div>
+
+                  {/* Subject selector */}
+                  <div className="relative">
+                    <select
+                      value={selectedSubject}
+                      onChange={(e) =>
+                        setSelectedSubject(
+                          e.target.value as typeof selectedSubject
+                        )
+                      }
+                      className="appearance-none bg-white border border-gray-300 rounded-lg pl-4 pr-10 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent cursor-pointer"
+                    >
+                      <option value="science">Science</option>
+                      <option value="mathematics">Mathematics</option>
+                      <option value="language">Language</option>
+                      <option value="reading">Reading</option>
+                    </select>
+                    <ChevronDownIcon className="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+                  </div>
                 </div>
               </div>
               
@@ -1255,101 +1594,113 @@ const DashboardPage: React.FC = () => {
 
                   {/* Line Chart */}
                   <div className="relative h-full pb-8">
-                    <svg
-                      className="w-full h-full"
-                      viewBox={`0 0 ${graphWidth} ${graphHeight}`}
-                      preserveAspectRatio="xMidYMid meet"
-                    >
-                      {/* Background Gradient */}
-                      <defs>
-                        <linearGradient id="areaGradient" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="0%" stopColor="#9333EA" stopOpacity="0.12" />
-                          <stop offset="100%" stopColor="#9333EA" stopOpacity="0.02" />
-                        </linearGradient>
-                        <linearGradient id="lineGradient" x1="0" y1="0" x2="1" y2="0">
-                          <stop offset="0%" stopColor="#9333EA" />
-                          <stop offset="100%" stopColor="#A855F7" />
-                        </linearGradient>
-                      </defs>
-                      
-                      {/* Area under the line */}
-                      <path
-                        d={`
-                          M ${graphPoints[0].x} ${graphHeight}
-                          L ${graphPoints[0].x} ${graphPoints[0].y}
-                          ${graphPoints.map((p) => `L ${p.x} ${p.y}`).join(' ')}
-                          L ${graphPoints[graphPoints.length - 1].x} ${graphHeight}
-                          Z
-                        `}
-                        fill="url(#areaGradient)"
-                        className="transition-all duration-300"
-                      />
+                    {graphPoints.length === 0 ? (
+                      <div className="flex items-center justify-center h-full text-sm text-gray-400">
+                        No study data
+                      </div>
+                    ) : (
+                      <svg
+                        className="w-full h-full"
+                        viewBox={`0 0 ${graphWidth} ${graphHeight}`}
+                        preserveAspectRatio="xMidYMid meet"
+                      >
+                        {/* Background Gradient */}
+                        <defs>
+                          <linearGradient id="areaGradient" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="0%" stopColor="#9333EA" stopOpacity="0.12" />
+                            <stop offset="100%" stopColor="#9333EA" stopOpacity="0.02" />
+                          </linearGradient>
+                          <linearGradient id="lineGradient" x1="0" y1="0" x2="1" y2="0">
+                            <stop offset="0%" stopColor="#9333EA" />
+                            <stop offset="100%" stopColor="#A855F7" />
+                          </linearGradient>
+                        </defs>
 
-                      {/* The line itself */}
-                      <path
-                        d={graphPoints.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`).join(' ')}
-                        stroke="url(#lineGradient)"
-                        strokeWidth="2.5"
-                        strokeLinecap="round"
-                        fill="none"
-                        className="transition-all duration-300"
-                      />
+                        {/* Area under the line */}
+                        <path
+                          d={`
+                            M ${graphPoints[0].x} ${graphHeight}
+                            L ${graphPoints[0].x} ${graphPoints[0].y}
+                            ${graphPoints.map((p) => `L ${p.x} ${p.y}`).join(' ')}
+                            L ${graphPoints[graphPoints.length - 1].x} ${graphHeight}
+                            Z
+                          `}
+                          fill="url(#areaGradient)"
+                          className="transition-all duration-300"
+                        />
 
-                      {/* Interactive Data points */}
-                      {graphPoints.map((point, i) => (
-                        <g 
-                          key={i}
-                          onMouseEnter={() => setHoveredPoint(i)}
-                          onMouseLeave={() => setHoveredPoint(null)}
-                          className="cursor-pointer"
-                        >
-                          {/* Outer circle */}
-                          <circle
-                            cx={point.x}
-                            cy={point.y}
-                            r="6"
-                            fill="white"
-                            stroke="#9333EA"
-                            strokeWidth="2"
-                            className={`transform transition-all duration-150 ${hoveredPoint === i ? 'scale-125' : ''}`}
-                          />
-                          {/* Inner circle */}
-                          <circle
-                            cx={point.x}
-                            cy={point.y}
-                            r="3"
-                            fill="#9333EA"
-                            className={`transform transition-all duration-150 ${hoveredPoint === i ? 'scale-125' : ''}`}
-                          />
-                          
-                          {/* Hover tooltip */}
-                          {hoveredPoint === i && (
-                            <g>
-                              <rect
-                                x={point.x - 40}
-                                y={point.y - 45}
-                                width="80"
-                                height="32"
-                                rx="6"
-                                fill="#1F2937"
-                                className="opacity-95"
-                              />
-                              <text
-                                x={point.x}
-                                y={point.y - 24}
-                                textAnchor="middle"
-                                fill="white"
-                                fontSize="13"
-                                fontWeight="500"
-                                className="font-medium"
-                              >
-                                {point.hours}h • {point.day}
-                              </text>
-                            </g>
-                          )}
-                        </g>
-                      ))}
-                    </svg>
+                        {/* The line itself */}
+                        <path
+                          d={graphPoints
+                            .map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`)
+                            .join(' ')}
+                          stroke="url(#lineGradient)"
+                          strokeWidth="2.5"
+                          strokeLinecap="round"
+                          fill="none"
+                          className="transition-all duration-300"
+                        />
+
+                        {/* Interactive Data points */}
+                        {graphPoints.map((point, i) => (
+                          <g
+                            key={i}
+                            onMouseEnter={() => setHoveredPoint(i)}
+                            onMouseLeave={() => setHoveredPoint(null)}
+                            className="cursor-pointer"
+                          >
+                            {/* Outer circle */}
+                            <circle
+                              cx={point.x}
+                              cy={point.y}
+                              r="6"
+                              fill="white"
+                              stroke="#9333EA"
+                              strokeWidth="2"
+                              className={`transform transition-all duration-150 ${
+                                hoveredPoint === i ? 'scale-125' : ''
+                              }`}
+                            />
+                            {/* Inner circle */}
+                            <circle
+                              cx={point.x}
+                              cy={point.y}
+                              r="3"
+                              fill="#9333EA"
+                              className={`transform transition-all duration-150 ${
+                                hoveredPoint === i ? 'scale-125' : ''
+                              }`}
+                            />
+
+                            {/* Hover tooltip */}
+                            {hoveredPoint === i && (
+                              <g>
+                                <rect
+                                  x={point.x - 40}
+                                  y={point.y - 45}
+                                  width="80"
+                                  height="32"
+                                  rx="6"
+                                  fill="#1F2937"
+                                  className="opacity-95"
+                                />
+                                <text
+                                  x={point.x}
+                                  y={point.y - 24}
+                                  textAnchor="middle"
+                                  fill="white"
+                                  fontSize="13"
+                                  fontWeight="500"
+                                  className="font-medium"
+                                >
+                                  {point.hours}h • {point.day}
+                                </text>
+                              </g>
+                            )}
+                          </g>
+                        ))}
+                      </svg>
+                    )}
                   </div>
 
                   {/* X-axis labels */}
@@ -1374,10 +1725,10 @@ const DashboardPage: React.FC = () => {
                 <div className="bg-purple-50 rounded-lg p-4">
                   <p className="text-sm text-purple-600">Most Productive</p>
                   <p className="text-2xl font-bold text-purple-700">
-                    {studyHoursData.reduce((max, d) => d.hours > max.hours ? d : max).day}
+                    {studyStats.bestDay.day || '—'}
                   </p>
                   <p className="text-sm text-purple-600">
-                    {Math.max(...studyHoursData.map(d => d.hours))}h studied
+                    {studyStats.bestDay.hours.toFixed(1)}h studied
                   </p>
                 </div>
                 <div className="bg-blue-50 rounded-lg p-4">
@@ -1411,8 +1762,14 @@ const DashboardPage: React.FC = () => {
           </div>
         </div>
       </div>
+      
+      {/* Add EditProfileModal */}
+      <EditProfileModal
+        isOpen={isEditProfileOpen}
+        onClose={() => setIsEditProfileOpen(false)}
+        userData={userData}
+      />
     </div>
-    </>
   );
 };
 

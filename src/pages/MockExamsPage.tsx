@@ -87,25 +87,25 @@ const QuestionReviewPanel = ({ reviewData }: { reviewData: ReviewItem[] }) => {
             const englishItems = items.slice(0, 50);
             const filipinoItems = items.slice(50, 100);
             return (
-              <div key={category} className="mb-4">
-                <h4 className="text-sm font-medium text-gray-700 mb-2">{category}</h4>
+          <div key={category} className="mb-4">
+            <h4 className="text-sm font-medium text-gray-700 mb-2">{category}</h4>
                 <div className="mb-2">
                   <h5 className="text-xs font-semibold text-gray-600">English</h5>
-                  <div className="flex flex-wrap gap-2">
+            <div className="flex flex-wrap gap-2">
                     {englishItems.map((q, index) => (
-                      <button
-                        key={q.question_id}
-                        onClick={() => {
-                          setSelectedQuestion(q);
-                          setShowModal(true);
-                        }}
-                        className={`w-8 h-8 rounded-full text-sm font-medium flex items-center justify-center ${getColor(q)}`}
-                      >
-                        {index + 1}
-                      </button>
-                    ))}
-                  </div>
-                </div>
+                <button
+                key={q.question_id}
+                onClick={() => {
+                  setSelectedQuestion(q);
+                  setShowModal(true);
+                }}
+                className={`w-8 h-8 rounded-full text-sm font-medium flex items-center justify-center ${getColor(q)}`}
+              >
+                {index + 1}
+              </button>
+              ))}
+            </div>
+          </div>
                 <hr className="my-2" />
                 <div>
                   <h5 className="text-xs font-semibold text-gray-600">Filipino</h5>
@@ -247,22 +247,22 @@ const ExamSummary = ({
     <div className="relative">
       {/* Floating Sidebar */}
       <div className="hidden md:block fixed top-24 right-4 w-64 bg-white border rounded-lg shadow p-4 h-[80vh] overflow-y-auto">
-  <h3 className="font-semibold mb-4 text-gray-800">Question Review</h3>
+        <h3 className="font-semibold mb-4 text-gray-800">Question Review</h3>
   {Object.entries(grouped).map(([category, items]) => {
     const isCollapsed = collapsedCategories.has(category);
     return (
-      <div key={category} className="mb-4">
+          <div key={category} className="mb-4">
         <h4
           onClick={() => toggleCategory(category)}
           className="flex justify-between items-center text-sm font-medium text-gray-700 mb-2 cursor-pointer select-none"
         >
-          {category}
+              {category}
           {isCollapsed ? (
             <ChevronUpIcon className="w-4 h-4 text-gray-400" />
           ) : (
             <ChevronDownIcon className="w-4 h-4 text-gray-400" />
           )}
-        </h4>
+            </h4>
         <div
           className="overflow-hidden transition-all duration-300 ease-in-out"
           style={{ maxHeight: isCollapsed ? 0 : '1000px' }}
@@ -271,21 +271,21 @@ const ExamSummary = ({
             <>
               <div className="mb-2">
                 <h5 className="text-xs font-semibold text-gray-600">English</h5>
-                <div className="grid grid-cols-5 gap-2">
+            <div className="grid grid-cols-5 gap-2">
                   {items.slice(0, 50).map((q, index) => (
-                    <button
-                      key={q.question_id}
-                      onClick={() => {
-                        setSelectedQuestion(q);
-                        setShowModal(true);
-                      }}
+                <button
+                  key={q.question_id}
+                  onClick={() => {
+                    setSelectedQuestion(q);
+                    setShowModal(true);
+                  }}
                       className={`rounded-lg px-2 py-1 text-sm font-medium flex items-center justify-center ${getColor(q)}`}
-                    >
-                      {index + 1}
-                    </button>
-                  ))}
-                </div>
-              </div>
+                >
+                  {index + 1}
+                </button>
+              ))}
+            </div>
+          </div>
               <hr className="my-2" />
               <div>
                 <h5 className="text-xs font-semibold text-gray-600">Filipino</h5>
@@ -325,7 +325,7 @@ const ExamSummary = ({
       </div>
     );
   })}
-</div>
+      </div>
 
       {/* Exam Summary Content */}
       <div className="bg-white rounded-lg shadow-lg p-8 max-w-3xl mx-auto">
@@ -452,11 +452,11 @@ const ExamSummary = ({
               ✕
             </button>
             <h2 className="text-lg font-semibold mb-4">
-              Question{' '}
-              {score.reviewData
-                .filter((q) => q.category === selectedQuestion?.category)
-                .findIndex((q) => q.question_id === selectedQuestion?.question_id) + 1}
-            </h2>
+            Question{' '}
+            {score.reviewData
+              .filter((q) => q.category === selectedQuestion?.category)
+              .findIndex((q) => q.question_id === selectedQuestion?.question_id) + 1}
+          </h2>
             <p className="text-gray-800 mb-4">{selectedQuestion.question}</p>
             <ul className="space-y-2 mb-4">
               {(['A', 'B', 'C', 'D'] as const).map((letter) => {
@@ -644,11 +644,11 @@ const MockExamsPage = () => {
 
   // Timer effect (updates every second)
   // Timer effect (updates every second)
-useEffect(() => {
-  let timer: number | undefined;
-
-  if (examStarted && isTimeBased && timeRemaining > 0) {
-    timer = window.setInterval(() => {
+  useEffect(() => {
+    let timer: number | undefined;
+    
+    if (examStarted && isTimeBased && timeRemaining > 0) {
+      timer = window.setInterval(() => {
       setTimeRemaining((prev) => {
         const newTime = prev - 1;
 
@@ -668,7 +668,7 @@ useEffect(() => {
 
         // When time runs out, clear the interval & persist zero
         if (newTime <= 0) {
-          clearInterval(timer);
+            clearInterval(timer);
           localStorage.setItem(
             "mockExamState",
             JSON.stringify({
@@ -680,8 +680,8 @@ useEffect(() => {
               timeRemaining: 0,
             })
           );
-          return 0;
-        }
+            return 0;
+          }
 
         // Persist every tick
         localStorage.setItem(
@@ -696,13 +696,13 @@ useEffect(() => {
           })
         );
         return newTime;
-      });
-    }, 1000);
-  }
+        });
+      }, 1000);
+    }
 
-  return () => {
-    if (timer) clearInterval(timer);
-  };
+    return () => {
+      if (timer) clearInterval(timer);
+    };
 }, [ examStarted, isTimeBased, timeRemaining, timerWarning, currentSection, currentQuestion, userAnswers, allQuestions, sectionQuestions,]);
 
   // Effect to force transition when time expires
@@ -788,14 +788,14 @@ useEffect(() => {
       const reviewItem = mapQuestionToReviewItem(question, userAnswer);
       reviewItems.push(reviewItem);
     });
-
+  
     Object.keys(categoryScores).forEach((category) => {
       const { total, correct } = categoryScores[category];
       categoryScores[category].percentage = (correct / total) * 100;
     });
-
+  
     const timeSpent = Math.floor((startTime ? Date.now() - startTime : 0) / 1000);
-
+  
     setScore({
       total: totalQuestions,
       correct: correctAnswers,
@@ -826,28 +826,28 @@ useEffect(() => {
     }));
     
   };
-
+  
   const startExam = async () => {
     // Reset all state variables
     setExamStarted(false);
-    setCurrentSection(0);
-    setCurrentQuestion(0);
-    setSelectedAnswer(null);
-    setShowExplanation(false);
-    setScore(null);
-    setAllQuestions([]);
-    setUserAnswers({});
-    setLocalError(null);
+      setCurrentSection(0);
+      setCurrentQuestion(0);
+      setSelectedAnswer(null);
+      setShowExplanation(false);
+      setScore(null);
+      setAllQuestions([]);
+      setUserAnswers({});
+      setLocalError(null);
     setQuestions([]);
     setSectionQuestions({});
     setForcedTransition(false);
     setTimerWarning(null);
 
-    if (isTimeBased) {
-      setTimeRemaining(examSections[0].timeLimit * 60);
-    }
-
-    const firstSection = examSections[0];
+      if (isTimeBased) {
+        setTimeRemaining(examSections[0].timeLimit * 60);
+      }
+  
+      const firstSection = examSections[0];
     const fetched = await fetchQuestions(firstSection.category, false);
 
     if (!fetched || fetched.length === 0) {
@@ -863,23 +863,23 @@ useEffect(() => {
     setQuestions(fetched);
     setSectionQuestions({ 0: fetched.map((q) => ({ ...q, sectionIndex: 0 })) });
     setAllQuestions(fetched.map((q) => ({ ...q, sectionIndex: 0 })));
-    setStartTime(Date.now());
+      setStartTime(Date.now());
     setExamStarted(true);
   };
 
   const resetExam = () => {
     localStorage.removeItem('mockExamState');
     clearUsedQuestionIds();
-    setExamStarted(false);
-    setCurrentSection(0);
-    setCurrentQuestion(0);
-    setSelectedAnswer(null);
-    setShowExplanation(false);
-    setScore(null);
-    setAllQuestions([]);
-    setUserAnswers({});
-    setShowLeaveConfirmation(false);
-    setLocalError(null);
+      setExamStarted(false);
+      setCurrentSection(0);
+      setCurrentQuestion(0);
+      setSelectedAnswer(null);
+      setShowExplanation(false);
+      setScore(null);
+      setAllQuestions([]);
+      setUserAnswers({});
+      setShowLeaveConfirmation(false);
+      setLocalError(null);
     setQuestions([]);
     setSectionQuestions({});
     setForcedTransition(false);
@@ -889,7 +889,7 @@ useEffect(() => {
       setTimeRemaining(examSections[0].timeLimit * 60);
     }
   };
-
+  
   const handleRetry = async () => {
     resetExam();
     await startExam();
@@ -1061,8 +1061,8 @@ useEffect(() => {
     return (
       <div className="min-h-screen bg-gray-50 py-6">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <ExamSummary 
-            score={score} 
+        <ExamSummary 
+          score={score} 
             onRetry={() => {
               resetExam();
             }} 
@@ -1157,77 +1157,77 @@ useEffect(() => {
         ) : (
           <div className="relative">
             <div className="max-w-3xl mx-auto space-y-6 mr-72">
-              <div className="bg-white rounded-lg shadow-md p-4">
-                <div className="flex justify-between items-center">
-                  <div>
-                    <h2 className="font-semibold text-gray-900">
-                      {examSections[currentSection].name}
-                    </h2>
-                    <p className="text-sm text-gray-500">
-                      Question {currentQuestion + 1} of {questions.length}
-                    </p>
-                  </div>
-                  {isTimeBased && (
-                    <div className="flex items-center space-x-2 text-gray-600">
-                      <ClockIcon className="w-5 h-5" />
-                      <span>{formatTimeRemaining(timeRemaining)}</span>
-                    </div>
-                  )}
-                </div>
-                <div className="mt-4 w-full bg-gray-200 rounded-full h-2">
-                  <div
-                    className="bg-neural-purple h-2 rounded-full transition-all duration-300"
-                    style={{
-                      width: `${((currentQuestion + 1) / questions.length) * 100}%`
-                    }}
-                  />
-                </div>
-              </div>
-              {questions[currentQuestion] && (
-                <div className="bg-white rounded-lg shadow-lg p-6">
-                  <h2 className="text-xl font-semibold text-gray-900 mb-4">
-                    {questions[currentQuestion].question}
+            <div className="bg-white rounded-lg shadow-md p-4">
+              <div className="flex justify-between items-center">
+                <div>
+                  <h2 className="font-semibold text-gray-900">
+                    {examSections[currentSection].name}
                   </h2>
-                  <div className="space-y-3">
-                    {[
-                      { key: 'A', value: questions[currentQuestion].option_a },
-                      { key: 'B', value: questions[currentQuestion].option_b },
-                      { key: 'C', value: questions[currentQuestion].option_c },
-                      { key: 'D', value: questions[currentQuestion].option_d },
+                  <p className="text-sm text-gray-500">
+                    Question {currentQuestion + 1} of {questions.length}
+                  </p>
+                </div>
+                {isTimeBased && (
+                  <div className="flex items-center space-x-2 text-gray-600">
+                    <ClockIcon className="w-5 h-5" />
+                    <span>{formatTimeRemaining(timeRemaining)}</span>
+                  </div>
+                )}
+              </div>
+              <div className="mt-4 w-full bg-gray-200 rounded-full h-2">
+                <div
+                  className="bg-neural-purple h-2 rounded-full transition-all duration-300"
+                  style={{
+                      width: `${((currentQuestion + 1) / questions.length) * 100}%`
+                  }}
+                />
+              </div>
+            </div>
+            {questions[currentQuestion] && (
+              <div className="bg-white rounded-lg shadow-lg p-6">
+                <h2 className="text-xl font-semibold text-gray-900 mb-4">
+                  {questions[currentQuestion].question}
+                </h2>
+                <div className="space-y-3">
+                  {[
+                    { key: 'A', value: questions[currentQuestion].option_a },
+                    { key: 'B', value: questions[currentQuestion].option_b },
+                    { key: 'C', value: questions[currentQuestion].option_c },
+                    { key: 'D', value: questions[currentQuestion].option_d },
                     ].map((option) => {
                       const currentQuestionId = questions[currentQuestion].question_id;
                       const isSelected = userAnswers[currentQuestionId] === option.key;
                       return (
-                        <button
-                          key={option.key}
-                          onClick={() => handleAnswerSelect(option.key)}
+                    <button
+                      key={option.key}
+                      onClick={() => handleAnswerSelect(option.key)}
                           disabled={false}
-                          className={`w-full p-4 rounded-lg border-2 text-left transition-all duration-200 ${
+                      className={`w-full p-4 rounded-lg border-2 text-left transition-all duration-200 ${
                             isSelected
                               ? 'border-neural-purple bg-neural-purple/10'
-                              : 'border-gray-200 hover:border-neural-purple'
-                          }`}
-                        >
-                          <div className="flex items-center justify-between">
-                            <span>{option.value}</span>
+                          : 'border-gray-200 hover:border-neural-purple'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between">
+                        <span>{option.value}</span>
                             {isSelected && (
                               <span className="w-3 h-3 rounded-full bg-neural-purple inline-block ml-2" />
-                            )}
-                          </div>
-                        </button>
+                        )}
+                      </div>
+                    </button>
                       );
                     })}
-                  </div>
                 </div>
-              )}
+              </div>
+            )}
               <div className="flex justify-between items-center mt-6">
-                <button
-                  onClick={handleLeaveExam}
-                  className="flex items-center px-4 py-2 text-gray-600 hover:text-neural-purple transition-colors duration-200"
-                >
-                  <ArrowLeftIcon className="w-5 h-5 mr-2" />
-                  Leave Exam
-                </button>
+              <button
+                onClick={handleLeaveExam}
+                className="flex items-center px-4 py-2 text-gray-600 hover:text-neural-purple transition-colors duration-200"
+              >
+                <ArrowLeftIcon className="w-5 h-5 mr-2" />
+                Leave Exam
+              </button>
                 <div className="flex gap-2">
                   <button
                     onClick={handlePrevQuestion}
@@ -1244,10 +1244,10 @@ useEffect(() => {
                     onClick={handleNextQuestion}
                     className="px-4 py-2 rounded-lg bg-neural-purple text-white hover:bg-tech-lavender transition-colors duration-200"
                   >
-                    {currentQuestion < questions.length - 1
-                      ? 'Next Question'
-                      : currentSection < examSections.length - 1
-                      ? 'Next Section'
+                    {currentQuestion < questions.length - 1 
+                      ? 'Next Question' 
+                      : currentSection < examSections.length - 1 
+                        ? 'Next Section' 
                       : 'Finish Exam'}
                   </button>
                 </div>
@@ -1344,7 +1344,7 @@ useEffect(() => {
                                       }`}
                                     >
                                       {idx + 1}
-                                    </button>
+                  </button>
                                   );
                                 })}
                               </div>
@@ -1489,8 +1489,8 @@ useEffect(() => {
                               );
                             })}
                           </div>
-                        )}
-                      </div>
+                )}
+              </div>
                     </div>
                   );
                 }

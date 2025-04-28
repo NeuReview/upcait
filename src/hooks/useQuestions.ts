@@ -518,7 +518,7 @@ export function useQuestions(): UseQuestionsReturn {
 
         const filipinoQuery = supabase
           .from('question_bank_filipino_lang_prof')
-          .select('*')
+        .select('*')
           .eq('difficulty', difficulty)
           .limit(10);
 
@@ -599,7 +599,7 @@ export function useQuestions(): UseQuestionsReturn {
             global_id
           `)
           .eq('difficulty', difficulty)
-          .limit(20);
+        .limit(20);
 
         const { data, error: supabaseError } = await query;
 
@@ -608,10 +608,10 @@ export function useQuestions(): UseQuestionsReturn {
           throw supabaseError;
         }
 
-        if (!data || data.length === 0) {
+      if (!data || data.length === 0) {
           console.log('No data returned from query:', { category, difficulty });
-          throw new Error(`No questions found for ${category} at ${difficulty} level. Please try a different combination.`);
-        }
+        throw new Error(`No questions found for ${category} at ${difficulty} level. Please try a different combination.`);
+      }
 
         console.log('Raw fetched data:', data);
 
@@ -664,9 +664,9 @@ export function useQuestions(): UseQuestionsReturn {
         // Log global_ids for debugging
         console.log('Question global_ids:', transformedQuestions.map(q => q.global_id));
 
-        // Shuffle questions
+      // Shuffle questions
         const shuffledQuestions = [...transformedQuestions].sort(() => Math.random() - 0.5);
-        setQuestions(shuffledQuestions);
+      setQuestions(shuffledQuestions);
       }
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'An error occurred while fetching questions';
@@ -684,7 +684,7 @@ export function useQuestions(): UseQuestionsReturn {
       if (!user) return;
 
       const { data: existingStats, error: fetchError } = await supabase
-        .from('science_progress_report_quizzes')
+        .from('user_statistics')
         .select('*')
         .eq('user_id', (await user).data.user?.id)
         .single();
