@@ -296,9 +296,38 @@ const FlashcardsPage = () => {
                     <h2 className="text-xl font-bold text-gray-800 mb-6">
                       {flashcards[currentCard]?.question}
                     </h2>
+                    {/* Choices */}
+                    <div className="mt-6 grid grid-cols-2 gap-4 w-full">
+                      {(['A','B','C','D'] as const).map((letter) => {
+                        const text = {
+                          A: flashcards[currentCard]?.option_a,
+                          B: flashcards[currentCard]?.option_b,
+                          C: flashcards[currentCard]?.option_c,
+                          D: flashcards[currentCard]?.option_d
+                        }[letter] ?? '';
+                        return (
+                          <button
+                            key={letter}
+                            onClick={() => {
+                              handleAnswerSelect(letter);
+                              handleFlip();
+                            }}
+                            className={`w-full text-left px-4 py-2 border rounded-lg transition ${
+                              selectedAnswer === letter
+                                ? 'bg-neural-purple text-white border-neural-purple'
+                                : 'bg-white text-gray-800 border-gray-300 hover:border-neural-purple'
+                            }`}
+                          >
+                            <span className="font-bold mr-2">{letter}.</span> {text}
+                          </button>
+                        );
+                      })}
+                    </div>
+                    {/* Optionally, keep the manual flip button below for accessibility */}
                     <button
                       onClick={handleFlip}
-                      className="text-neural-purple hover:text-tech-lavender transition duration-200">
+                      className="mt-6 text-neural-purple hover:text-tech-lavender transition duration-200"
+                    >
                       <ArrowUturnUpIcon className="w-6 h-6" />
                     </button>
                   </div>

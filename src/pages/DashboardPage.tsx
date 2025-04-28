@@ -248,7 +248,82 @@ const DashboardPage = () => {
     correct: 0,
     incorrect: 0
   });
+  // Language‑quiz stats
+  const [quizLangStats, setQuizLangStats] = useState<QuizStats>({
+    total: 0,
+    correct: 0,
+    incorrect: 0
+  });
+  // Reading‑quiz stats
+  const [quizReadingStats, setQuizReadingStats] = useState<QuizStats>({
+    total: 0,
+    correct: 0,
+    incorrect: 0
+  });
+
+  // Science-MockExam stats
+  const [mockScienceStats, setMockScienceStats] = useState<QuizStats>({
+    total: 0,
+    correct: 0,
+    incorrect: 0
+  });
+  // Math-MockExam stats
+  const [mockMathStats, setMockMathStats] = useState<QuizStats>({
+    total: 0,
+    correct: 0,
+    incorrect: 0
+  });
+  // Language-MockExam stats
+  const [mockLangStats, setMockLangStats] = useState<QuizStats>({
+    total: 0,
+    correct: 0,
+    incorrect: 0
+  });
+  // Reading-MockExam stats
+  const [mockReadingStats, setMockReadingStats] = useState<QuizStats>({
+    total: 0,
+    correct: 0,
+    incorrect: 0
+  });
   
+  // ──────────────────────────────────────────────────────────────
+  // Answered questions stats (quizzes + mock)
+  // ──────────────────────────────────────────────────────────────
+  type SubjectKey = 'science' | 'mathematics' | 'language' | 'reading';
+
+  interface AnswerStats {
+    total: number;          // answered (quizzes + mock)
+    cap: number;            // e.g. 2000 per subject
+    percentage: number;     // total / cap * 100
+  }
+
+  const [answeredStats, setAnsweredStats] = useState<Record<SubjectKey, AnswerStats>>({
+    science:      { total: 0, cap: 2000, percentage: 0 },
+    mathematics:  { total: 0, cap: 2000, percentage: 0 },
+    language:     { total: 0, cap: 2000, percentage: 0 },
+    reading:      { total: 0, cap: 2000, percentage: 0 },
+  });
+
+  // Define a new state variable for the overall progress
+  const [overallProgress, setOverallProgress] = useState({
+    totalQuestions: 0,
+    totalCap: 0,
+    percentage: 0
+  });
+
+  // Add useEffect to update overall progress when answeredStats changes
+  useEffect(() => {
+    const totalQuestions = Object.values(answeredStats).reduce((sum, stat) => sum + stat.total, 0);
+    const totalCap = Object.values(answeredStats).reduce((sum, stat) => sum + stat.cap, 0);
+    const percentage = totalCap === 0 ? 0 : Math.round((totalQuestions / totalCap) * 100);
+    
+    setOverallProgress({
+      totalQuestions,
+      totalCap,
+      percentage
+    });
+  }, [answeredStats]);
+
   // Check Supabase connection on component mount
   useEffect(() => {
     async function checkConnection() {
@@ -1025,7 +1100,7 @@ const DashboardPage = () => {
       percentage: 82,
       correct: 131,
       total: 160,
-      label: 'Language'
+      label: 'Language\nProficiency'
     },
     reading: {
       icon: BookOpenIcon,
@@ -1033,7 +1108,7 @@ const DashboardPage = () => {
       percentage: 78,
       correct: 109,
       total: 140,
-      label: 'Reading'
+      label: 'Reading\nComprehension'
     }
   };
 
@@ -1067,7 +1142,256 @@ const DashboardPage = () => {
                 ),
           color: baseSubject.color
         }
+      : selectedTestType === 'quizzes' && selectedSubject === 'language'
+      ? {
+          ...baseSubject,
+          total: quizLangStats.total,
+          correct: quizLangStats.correct,
+          percentage:
+            quizLangStats.total === 0
+              ? 0
+              : Math.round(
+                  (quizLangStats.correct / quizLangStats.total) * 100
+                ),
+          color: baseSubject.color
+        }
+      : selectedTestType === 'quizzes' && selectedSubject === 'reading'
+      ? {
+          ...baseSubject,
+          total: quizReadingStats.total,
+          correct: quizReadingStats.correct,
+          percentage:
+            quizReadingStats.total === 0
+              ? 0
+              : Math.round((quizReadingStats.correct / quizReadingStats.total) * 100),
+          color: baseSubject.color
+        }
+      : selectedTestType === 'mock_exams' && selectedSubject === 'science'
+      ? {
+          ...baseSubject,
+          total: mockScienceStats.total,
+          correct: mockScienceStats.correct,
+          percentage:
+            mockScienceStats.total === 0
+              ? 0
+              : Math.round((mockScienceStats.correct / mockScienceStats.total) * 100),
+          color: baseSubject.color
+        }
+      : selectedTestType === 'mock_exams' && selectedSubject === 'mathematics'
+      ? {
+          ...baseSubject,
+          total: mockMathStats.total,
+          correct: mockMathStats.correct,
+          percentage:
+            mockMathStats.total === 0
+              ? 0
+              : Math.round((mockMathStats.correct / mockMathStats.total) * 100),
+          color: baseSubject.color
+        }
+        : selectedTestType === 'mock_exams' && selectedSubject === 'mathematics'
+        ? {
+            ...baseSubject,
+            total: mockMathStats.total,
+            correct: mockMathStats.correct,
+            percentage:
+              mockMathStats.total === 0
+                ? 0
+                : Math.round((mockMathStats.correct / mockMathStats.total) * 100),
+            color: baseSubject.color
+          }
+        : selectedTestType === 'mock_exams' && selectedSubject === 'language'
+        ? {
+            ...baseSubject,
+            total: mockLangStats.total,
+            correct: mockLangStats.correct,
+            percentage:
+              mockLangStats.total === 0
+                ? 0
+                : Math.round((mockLangStats.correct / mockLangStats.total) * 100),
+            color: baseSubject.color
+          }  
+        : selectedTestType === 'mock_exams' && selectedSubject === 'reading'
+        ? {
+            ...baseSubject,
+            total: mockReadingStats.total,
+            correct: mockReadingStats.correct,
+            percentage:
+              mockReadingStats.total === 0
+                ? 0
+                : Math.round((mockReadingStats.correct / mockReadingStats.total) * 100),
+            color: baseSubject.color
+          }
       : baseSubject;
+  // Fetch Reading-Quizzes performance whenever the dropdowns change
+  useEffect(() => {
+    const fetchReadingQuizStats = async () => {
+      if (selectedTestType !== 'quizzes' || selectedSubject !== 'reading') return;
+
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) {
+          console.warn('[Reading-Quiz] No user logged‑in');
+          return;
+        }
+
+        // 1) Try user-specific rows
+        const { data, error } = await supabase
+          .from('reading_comp_progress_report_quizzes')
+          .select('correct_question')
+          .eq('user_id', user.id);
+        console.log('[Reading-Quiz] post-filter rows →', data, 'error →', error);
+
+        // 2) Fallback to all rows if none
+        let quizData = data ?? [];
+        if (!error && quizData.length === 0) {
+          console.warn('[Reading-Quiz] No rows for this user, falling back to all rows...');
+          const { data: allData, error: allError } = await supabase
+            .from('reading_comp_progress_report_quizzes')
+            .select('correct_question');
+          console.log('[Reading-Quiz] fallback rows →', allData, 'error →', allError);
+          if (!allError && allData) quizData = allData;
+        }
+
+        // 3) Handle error
+        if (error) {
+          console.error('Error fetching reading quiz stats', error);
+          return;
+        }
+
+        // 4) Compute stats
+        const total     = quizData.length;
+        const correct   = quizData.filter(r => Number(r.correct_question) === 1).length;
+        const incorrect = total - correct;
+        console.log('[Reading-Quiz] Computed →', { total, correct, incorrect });
+
+        // 5) Update state
+        setQuizReadingStats({ total, correct, incorrect });
+      } catch (err) {
+        console.error('Unexpected error fetching reading quiz stats', err);
+      }
+    };
+
+    fetchReadingQuizStats();
+  }, [selectedTestType, selectedSubject]);
+
+  // Fetch Science-MockExam performance whenever the dropdowns change
+  useEffect(() => {
+    const fetchMockScienceStats = async () => {
+      if (selectedTestType !== 'mock_exams' || selectedSubject !== 'science') return;
+
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) {
+          console.warn('[Mock-Sci] No user logged-in');
+          return;
+        }
+
+        const { data, error } = await supabase
+          .from('science_progress_report_mockexam')
+          .select('correct_question')
+          .eq('user_id', user.id);
+
+        console.log('[Mock-Sci] Raw rows →', data, 'error →', error);
+
+        if (error) {
+          console.error('[Mock-Sci] Error fetching mock-exam stats', error);
+          return;
+        }
+
+        const total     = data.length;
+        const correct   = data.filter(r => Number(r.correct_question) === 1).length;
+        const incorrect = total - correct;
+
+        console.log('[Mock-Sci] Computed →', { total, correct, incorrect });
+
+        setMockScienceStats({ total, correct, incorrect });
+      } catch (err) {
+        console.error('[Mock-Sci] Unexpected error fetching mock-exam stats', err);
+      }
+    };
+
+    fetchMockScienceStats();
+  }, [selectedTestType, selectedSubject]);
+  // Fetch Math-MockExam performance whenever the dropdowns change
+  useEffect(() => {
+    const fetchMockMathStats = async () => {
+      if (selectedTestType !== 'mock_exams' || selectedSubject !== 'mathematics') return;
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return;
+        const { data, error } = await supabase
+          .from('math_progress_report_mockexam')
+          .select('correct_question')
+          .eq('user_id', user.id);
+        console.log('[Mock-Math] Raw rows →', data, 'error →', error);
+        if (error) {
+          console.error('[Mock-Math] Error fetching mock-exam stats', error);
+          return;
+        }
+        const total     = data.length;
+        const correct   = data.filter(r => Number(r.correct_question) === 1).length;
+        const incorrect = total - correct;
+        console.log('[Mock-Math] Computed →', { total, correct, incorrect });
+        setMockMathStats({ total, correct, incorrect });
+      } catch (err) {
+        console.error('[Mock-Math] Unexpected error fetching mock-exam stats', err);
+      }
+    };
+    fetchMockMathStats();
+  }, [selectedTestType, selectedSubject]);
+  // Fetch Language‑Quizzes performance whenever the dropdowns change
+  useEffect(() => {
+    const fetchLangQuizStats = async () => {
+      if (selectedTestType !== 'quizzes' || selectedSubject !== 'language') return;
+
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) {
+          console.warn('[Lang‑Quiz] No user logged‑in');
+          return;
+        }
+
+        // 1) Try user-specific rows, include user_id in select
+        const { data, error } = await supabase
+          .from('lang_prof_progress_report_quizzes')
+          .select('user_id, correct_question')
+          .eq('user_id', user.id);
+        console.log('[Lang-Quiz] post-filter rows →', data, 'error →', error);
+
+        // 2) If none found for this user, fetch all rows as fallback (include user_id)
+        let quizData = data ?? [];
+        if (!error && quizData.length === 0) {
+          console.warn('[Lang-Quiz] No rows for this user, falling back to all rows...');
+          const { data: allData, error: allError } = await supabase
+            .from('lang_prof_progress_report_quizzes')
+            .select('user_id, correct_question');
+          console.log('[Lang-Quiz] fallback rows →', allData, 'error →', allError);
+          if (!allError && allData) {
+            quizData = allData;
+          }
+        }
+
+        // 3) Handle any real error
+        if (error) {
+          console.error('Error fetching language quiz stats', error);
+          return;
+        }
+
+        // 4) Compute stats from the chosen dataset
+        const total     = quizData.length;
+        const correct   = quizData.filter(r => Number(r.correct_question) === 1).length;
+        const incorrect = total - correct;
+        console.log('[Lang-Quiz] Computed →', { total, correct, incorrect });
+
+        // 5) Update state
+        setQuizLangStats({ total, correct, incorrect });
+      } catch (err) {
+        console.error('Unexpected error fetching language quiz stats', err);
+      }
+    };
+
+    fetchLangQuizStats();
+  }, [selectedTestType, selectedSubject]);
   // Fetch Science‑Quizzes performance whenever the dropdowns change
   useEffect(() => {
     const fetchScienceQuizStats = async () => {
@@ -1139,6 +1463,143 @@ const DashboardPage = () => {
     fetchMathQuizStats();
   }, [selectedTestType, selectedSubject]);
 
+  // Fetch Language-MockExam performance whenever the dropdowns change
+  useEffect(() => {
+    const fetchMockLangStats = async () => {
+      if (selectedTestType !== 'mock_exams' || selectedSubject !== 'language') return;
+
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) {
+          console.warn('[Mock-Lang] No user logged-in');
+          return;
+        }
+
+        const { data, error } = await supabase
+          .from('lang_prof_progress_report_mockexam')
+          .select('correct_question')
+          .eq('user_id', user.id);
+
+        console.log('[Mock-Lang] Raw rows →', data, 'error →', error);
+
+        if (error) {
+          console.error('[Mock-Lang] Error fetching mock-exam stats', error);
+          return;
+        }
+
+        const total     = data.length;
+        const correct   = data.filter(r => Number(r.correct_question) === 1).length;
+        const incorrect = total - correct;
+
+        console.log('[Mock-Lang] Computed →', { total, correct, incorrect });
+
+        setMockLangStats({ total, correct, incorrect });
+      } catch (err) {
+        console.error('[Mock-Lang] Unexpected error fetching mock-exam stats', err);
+      }
+    };
+    fetchMockLangStats();
+  }, [selectedTestType, selectedSubject]);
+
+  // Fetch Reading-MockExam performance whenever the dropdowns change
+  useEffect(() => {
+    const fetchMockReadingStats = async () => {
+      if (selectedTestType !== 'mock_exams' || selectedSubject !== 'reading') return;
+
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) {
+          console.warn('[Mock-Read] No user logged-in');
+          return;
+        }
+
+        const { data, error } = await supabase
+          .from('reading_comp_progress_report_mockexam')
+          .select('correct_question')
+          .eq('user_id', user.id);
+
+        console.log('[Mock-Read] Raw rows →', data, 'error →', error);
+
+        if (error) {
+          console.error('[Mock-Read] Error fetching mock-exam stats', error);
+          return;
+        }
+
+        const total     = data.length;
+        const correct   = data.filter(r => Number(r.correct_question) === 1).length;
+        const incorrect = total - correct;
+
+        console.log('[Mock-Read] Computed →', { total, correct, incorrect });
+
+        setMockReadingStats({ total, correct, incorrect });
+      } catch (err) {
+        console.error('[Mock-Read] Unexpected error fetching mock-exam stats', err);
+      }
+    };
+
+    fetchMockReadingStats();
+  }, [selectedTestType, selectedSubject]);
+
+  // Pull answered-question counts for every subject (quizzes + mock)
+  useEffect(() => {
+    const fetchAnsweredStats = async () => {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) {
+          console.warn('[Answered] No logged-in user');
+          return;
+        }
+        const uid = user.id;
+
+        // Helper to get count(*) from a table for this user
+        const countRows = async (table: string) => {
+          const { count, error } = await supabase
+            .from(table)
+            .select('*', { head: true, count: 'exact' })
+            .eq('user_id', uid);
+          if (error) {
+            console.error(`[Answered] ${table} →`, error);
+            return 0;
+          }
+          return count ?? 0;
+        };
+
+        // Map subject → its two tables
+        const tables: Record<SubjectKey, string[]> = {
+          science:     ['science_progress_report_quizzes',     'science_progress_report_mockexam'],
+          mathematics: ['math_progress_report_quizzes',        'math_progress_report_mockexam'],
+          language:    ['lang_prof_progress_report_quizzes',   'lang_prof_progress_report_mockexam'],
+          reading:     ['reading_comp_progress_report_quizzes', 'reading_comp_progress_report_mockexam'],
+        };
+
+        // Fetch all counts in parallel
+        const newStats: Record<SubjectKey, AnswerStats> = { ...answeredStats };
+        await Promise.all(
+          (Object.keys(tables) as SubjectKey[]).map(async (subject) => {
+            const [quizCnt, mockCnt] = await Promise.all(
+              tables[subject].map((tbl) => countRows(tbl))
+            );
+            const total = quizCnt + mockCnt;
+            newStats[subject] = {
+              total,
+              cap: newStats[subject].cap,
+              percentage: newStats[subject].cap
+                ? Math.round((total / newStats[subject].cap) * 100)
+                : 0,
+            };
+            console.log(`[Answered] ${subject} → quizzes=${quizCnt} mock=${mockCnt} total=${total}`);
+          })
+        );
+
+        setAnsweredStats(newStats);
+      } catch (err) {
+        console.error('[Answered] Unexpected error', err);
+      }
+    };
+
+    fetchAnsweredStats();
+  }, []);                // ← run once on mount
+
   // ──────────────────────────────────────────────────────────────
   // Study‑time analytics state (fetched from Supabase)
   // ──────────────────────────────────────────────────────────────
@@ -1184,7 +1645,7 @@ const DashboardPage = () => {
         // 3) Execute the query
         let { data, error } = await query;
 
-        // Fallback: table doesn’t have user_id yet → retry without the filter
+        // Fallback: table doesn't have user_id yet → retry without the filter
         if (error && error.code === '42703') {
           ({ data, error } = await supabase
             .from('user_study_time')
@@ -1280,129 +1741,44 @@ const DashboardPage = () => {
             <div className="bg-white rounded-lg shadow p-6">
               <h2 className="text-lg font-medium text-gray-900 mb-6">Questions Answered</h2>
               <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
-                {/* Science */}
-                <div className="flex flex-col items-center">
-                  <div className="relative w-36 h-36">
-                    <svg className="w-full h-full transform -rotate-90" viewBox="0 0 100 100">
-                      <circle
-                        className="text-gray-200 stroke-current"
-                        strokeWidth="8"
-                        cx="50"
-                        cy="50"
-                        r="42"
-                        fill="transparent"
-                      />
-                      <circle
-                        className="text-sky-500 stroke-current"
-                        strokeWidth="8"
-                        strokeLinecap="round"
-                        cx="50"
-                        cy="50"
-                        r="42"
-                        fill="transparent"
-                        strokeDasharray={`${2.51 * 75} ${2.51 * 100}`}
-                      />
-                    </svg>
-                    <div className="absolute inset-0 flex flex-col items-center justify-center">
-                      <span className="text-3xl font-bold text-gray-700">75%</span>
-                      <span className="text-sm text-gray-500 mt-1">150/2000</span>
-                      <span className="text-xs font-medium text-gray-600 mt-1">Science</span>
+                {(['science','mathematics','language','reading'] as SubjectKey[]).map((sKey) => {
+                  const subj = subjectData[sKey];
+                  const stats = answeredStats[sKey];
+                  return (
+                    <div key={sKey} className="flex flex-col items-center">
+                      <div className="relative w-44 h-44">
+                        <svg className="w-full h-full transform -rotate-90" viewBox="0 0 100 100">
+                          <circle
+                            className="text-gray-200 stroke-current"
+                            strokeWidth="8"
+                            cx="50"
+                            cy="50"
+                            r="45"
+                            fill="transparent"
+                          />
+                          <circle
+                            className={`text-${subj.color}-500 stroke-current`}
+                            strokeWidth="8"
+                            strokeLinecap="round"
+                            cx="50"
+                            cy="50"
+                            r="45"
+                            fill="transparent"
+                            strokeDasharray={2 * Math.PI * 45}
+                            strokeDashoffset={(1 - stats.percentage / 100) * 2 * Math.PI * 45}
+                          />
+                        </svg>
+                        <div className="absolute inset-0 flex flex-col items-center justify-center">
+                          <span className="text-3xl font-bold text-gray-700">{stats.percentage.toFixed(2)}%</span>
+                          <span className="text-sm text-gray-500 mt-1">{stats.total}/{stats.cap}</span>
+                          <span className="text-xs font-medium text-gray-600 mt-1 text-center whitespace-pre-line">
+                            {subj.label}
+                          </span>
+                        </div>
+                      </div>
                     </div>
-                  </div>
-                </div>
-
-                {/* Mathematics */}
-                <div className="flex flex-col items-center">
-                  <div className="relative w-36 h-36">
-                    <svg className="w-full h-full transform -rotate-90" viewBox="0 0 100 100">
-                      <circle
-                        className="text-gray-200 stroke-current"
-                        strokeWidth="8"
-                        cx="50"
-                        cy="50"
-                        r="42"
-                        fill="transparent"
-                      />
-                      <circle
-                        className="text-amber-500 stroke-current"
-                        strokeWidth="8"
-                        strokeLinecap="round"
-                        cx="50"
-                        cy="50"
-                        r="42"
-                        fill="transparent"
-                        strokeDasharray={`${2.51 * 60} ${2.51 * 100}`}
-                      />
-                    </svg>
-                    <div className="absolute inset-0 flex flex-col items-center justify-center">
-                      <span className="text-3xl font-bold text-gray-700">60%</span>
-                      <span className="text-sm text-gray-500 mt-1">120/2000</span>
-                      <span className="text-xs font-medium text-gray-600 mt-1">Mathematics</span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Language */}
-                <div className="flex flex-col items-center">
-                  <div className="relative w-36 h-36">
-                    <svg className="w-full h-full transform -rotate-90" viewBox="0 0 100 100">
-                      <circle
-                        className="text-gray-200 stroke-current"
-                        strokeWidth="8"
-                        cx="50"
-                        cy="50"
-                        r="42"
-                        fill="transparent"
-                      />
-                      <circle
-                        className="text-emerald-500 stroke-current"
-                        strokeWidth="8"
-                        strokeLinecap="round"
-                        cx="50"
-                        cy="50"
-                        r="42"
-                        fill="transparent"
-                        strokeDasharray={`${2.51 * 80} ${2.51 * 100}`}
-                      />
-                    </svg>
-                    <div className="absolute inset-0 flex flex-col items-center justify-center">
-                      <span className="text-3xl font-bold text-gray-700">80%</span>
-                      <span className="text-sm text-gray-500 mt-1">160/2000</span>
-                      <span className="text-xs font-medium text-gray-600 mt-1">Language</span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Reading */}
-                <div className="flex flex-col items-center">
-                  <div className="relative w-36 h-36">
-                    <svg className="w-full h-full transform -rotate-90" viewBox="0 0 100 100">
-                      <circle
-                        className="text-gray-200 stroke-current"
-                        strokeWidth="8"
-                        cx="50"
-                        cy="50"
-                        r="42"
-                        fill="transparent"
-                      />
-                      <circle
-                        className="text-indigo-500 stroke-current"
-                        strokeWidth="8"
-                        strokeLinecap="round"
-                        cx="50"
-                        cy="50"
-                        r="42"
-                        fill="transparent"
-                        strokeDasharray={`${2.51 * 70} ${2.51 * 100}`}
-                      />
-                    </svg>
-                    <div className="absolute inset-0 flex flex-col items-center justify-center">
-                      <span className="text-3xl font-bold text-gray-700">70%</span>
-                      <span className="text-sm text-gray-500 mt-1">140/2000</span>
-                      <span className="text-xs font-medium text-gray-600 mt-1">Reading</span>
-                    </div>
-                  </div>
-                </div>
+                  );
+                })}
               </div>
 
               {/* Overall Progress Bar */}
@@ -1410,13 +1786,18 @@ const DashboardPage = () => {
                 <div className="flex items-center justify-between mb-2">
                   <div>
                     <h3 className="text-sm font-medium text-gray-900">Total Progress</h3>
-                    <p className="text-sm text-gray-500">570/8000 questions answered</p>
+                    <p className="text-sm text-gray-500">
+                      {overallProgress.totalQuestions}/{overallProgress.totalCap} questions answered
+                    </p>
                   </div>
-                  <span className="text-sm font-medium text-gray-900">7.1%</span>
+                  <span className="text-sm font-medium text-gray-900">
+                    {overallProgress.percentage}%
+                  </span>
                 </div>
                 <div className="w-full bg-gray-100 rounded-full h-4 overflow-hidden">
-                  <div className="h-full rounded-full bg-gradient-to-r from-cyan-400 to-cyan-500 transition-all duration-500" 
-                       style={{ width: '7.1%' }}>
+                  <div 
+                    className="h-full rounded-full bg-gradient-to-r from-cyan-400 to-cyan-500 transition-all duration-500" 
+                    style={{ width: `${overallProgress.percentage}%` }}>
                     <div className="h-full w-full opacity-50 bg-[repeating-linear-gradient(45deg,transparent,transparent_10px,rgba(255,255,255,0.2)_10px,rgba(255,255,255,0.2)_20px)]" />
                   </div>
                 </div>
@@ -1460,8 +1841,8 @@ const DashboardPage = () => {
                     >
                       <option value="science">Science</option>
                       <option value="mathematics">Mathematics</option>
-                      <option value="language">Language</option>
-                      <option value="reading">Reading</option>
+                      <option value="language">Language Proficiency</option>
+                      <option value="reading">Reading Comprehension</option>
                     </select>
                     <ChevronDownIcon className="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
                   </div>
@@ -1480,7 +1861,7 @@ const DashboardPage = () => {
                           strokeWidth="10"
                           cx="50"
                           cy="50"
-                          r="40"
+                          r="45"
                           fill="transparent"
                         />
                         <circle
@@ -1489,13 +1870,14 @@ const DashboardPage = () => {
                           strokeLinecap="round"
                           cx="50"
                           cy="50"
-                          r="40"
+                          r="45"
                           fill="transparent"
-                          strokeDasharray={`${2.51 * currentSubject.percentage} ${2.51 * 100}`}
+                          strokeDasharray={2 * Math.PI * 45}
+                          strokeDashoffset={(1 - currentSubject.percentage / 100) * 2 * Math.PI * 45}
                         />
                       </svg>
                       <div className="absolute inset-0 flex flex-col items-center justify-center">
-                        <span className="text-3xl font-bold text-gray-700">{currentSubject.percentage}%</span>
+                        <span className="text-3xl font-bold text-gray-700">{currentSubject.percentage.toFixed(2)}%</span>
                         <span className="text-sm text-gray-500 mt-1">{currentSubject.correct}/{currentSubject.total}</span>
                       </div>
                     </div>
