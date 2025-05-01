@@ -20,6 +20,9 @@ import {
 import { useMockExam } from '../hooks/useMockExam';
 import type { Question } from '../types/quiz';
 import { useNavigate } from 'react-router-dom';
+import { supabase } from '../lib/supabase';
+
+
 
 interface ReviewItem extends Omit<Question, 'options' | 'answer'> {
   option_a: string;
@@ -565,6 +568,9 @@ const MockExamsPage = () => {
   const [forcedTransition, setForcedTransition] = useState(false);
   const [redirectWarningModal, setRedirectWarningModal] = useState(false);
   const [collapsedCategories, setCollapsedCategories] = useState<Set<string>>(new Set());
+  const [mockSessionId,   setMockSessionId]   = useState<string | null>(null);
+  const [mockStartTime,   setMockStartTime]   = useState<number | null>(null);
+
 
   
   const toggleCategory = (category: string) => {
@@ -765,105 +771,187 @@ const MockExamsPage = () => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }, [currentSection, currentQuestion]);
 
-  const calculateScore = () => {
+  const calculateScore = async () => {
+    // 1) Score calculation
     const examQuestions: Question[] = [...allQuestions];
     const totalQuestions = examQuestions.length;
-    let correctAnswers = 0;
-    const categoryScores: { [key: string]: { total: number; correct: number; percentage: number } } = {};
+    let correctCount = 0;
+    const categoryScores: Record<string, { total: number; correct: number; percentage: number }> = {};
     const reviewItems: ReviewItem[] = [];
-
-    examQuestions.forEach((question: Question) => {
-      const userAnswer = userAnswers[question.question_id];
-      const isCorrect = userAnswer === question.answer;
-
+  
+    examQuestions.forEach((question) => {
+      const userAnswer = userAnswers[question.question_id] || null;
+      const isCorrect  = userAnswer === question.answer;
+  
       if (!categoryScores[question.category]) {
         categoryScores[question.category] = { total: 0, correct: 0, percentage: 0 };
       }
+  
       categoryScores[question.category].total++;
       if (isCorrect) {
         categoryScores[question.category].correct++;
-        correctAnswers++;
+        correctCount++;
       }
-
-      const reviewItem = mapQuestionToReviewItem(question, userAnswer);
-      reviewItems.push(reviewItem);
+  
+      reviewItems.push(mapQuestionToReviewItem(question, userAnswer));
     });
   
-    Object.keys(categoryScores).forEach((category) => {
-      const { total, correct } = categoryScores[category];
-      categoryScores[category].percentage = (correct / total) * 100;
+    // round each category percentage
+    Object.values(categoryScores).forEach(cs => {
+      cs.percentage = Math.round((cs.correct / cs.total) * 100);
     });
   
-    const timeSpent = Math.floor((startTime ? Date.now() - startTime : 0) / 1000);
+    // 2) Compute elapsed seconds
+    const endMs  = Date.now();
+    const elapsed = mockStartTime ? Math.floor((endMs - mockStartTime) / 1000) : 0;
   
-    setScore({
-      total: totalQuestions,
-      correct: correctAnswers,
-      incorrect: totalQuestions - correctAnswers,
-      percentage: (correctAnswers / totalQuestions) * 100,
-      timeSpent,
+    // 3) Build the final score object and update state
+    const finalScore: ExamScore = {
+      total:        totalQuestions,
+      correct:      correctCount,
+      incorrect:    totalQuestions - correctCount,
+      percentage:   Math.round((correctCount / totalQuestions) * 100),
+      timeSpent:    elapsed,
       categoryScores,
-      reviewData: reviewItems
-    });
-
-    localStorage.setItem('mockExamState', JSON.stringify({
-      currentSection,
-      currentQuestion,
-      userAnswers,
-      allQuestions,
-      sectionQuestions,
-      timeRemaining: 0,
-      score: {
-        total: totalQuestions,
-        correct: correctAnswers,
-        incorrect: totalQuestions - correctAnswers,
-        percentage: (correctAnswers / totalQuestions) * 100,
-        timeSpent,
-        categoryScores,
-        reviewData: reviewItems
-      },
-      examFinished: true
-    }));
-    
+      reviewData:   reviewItems,
+    };
+    setScore(finalScore);
+  
+    // 4) Persist mock session end & duration
+    if (mockSessionId) {
+      const { error: updErr } = await supabase
+        .from('mock_exams_session')
+        .update({
+          end_time: new Date(endMs).toISOString(),
+          duration: elapsed,
+        })
+        .eq('id', mockSessionId);
+  
+      if (updErr) console.error('Failed to update mock session:', updErr);
+    }
+  
+    // 5) Upsert into daily_session_time
+    try {
+      const userRes = await supabase.auth.getUser();
+      if (!userRes.data.user) throw new Error('Not authenticated');
+      const userId = userRes.data.user.id;
+      const today  = new Date().toISOString().slice(0, 10); // "YYYY-MM-DD"
+  
+      // fetch existing row
+      const { data: existing, error: fetchErr } = await supabase
+        .from('daily_session_time')
+        .select('total_secs')
+        .eq('user_id', userId)
+        .eq('day', today)
+        .single();
+  
+      // ignore “no rows” error code
+      if (fetchErr && fetchErr.code !== 'PGRST116') {
+        console.error('Error fetching today’s session row', fetchErr);
+      }
+  
+      const prevSecs    = existing?.total_secs ?? 0;
+      const newTotalSec = prevSecs + elapsed;
+  
+      // **FIX** here: onConflict must be a string, not an array
+      const { error: upsertErr } = await supabase
+        .from('daily_session_time')
+        .upsert(
+          {
+            user_id:    userId,
+            day:        today,
+            total_secs: newTotalSec,
+          },
+          { onConflict: 'user_id,day' }
+        );
+  
+      if (upsertErr) console.error('Error upserting daily_session_time', upsertErr);
+    } catch (err) {
+      console.error('Failed to record daily session time:', err);
+    }
+  
+    // 6) Finally, save final state to localStorage
+    localStorage.setItem(
+      'mockExamState',
+      JSON.stringify({
+        currentSection,
+        currentQuestion,
+        userAnswers,
+        allQuestions,
+        sectionQuestions,
+        timeRemaining: 0,
+        score:         finalScore,
+        examFinished:  true,
+      })
+    );
   };
+  
   
   const startExam = async () => {
     // Reset all state variables
     setExamStarted(false);
-      setCurrentSection(0);
-      setCurrentQuestion(0);
-      setSelectedAnswer(null);
-      setShowExplanation(false);
-      setScore(null);
-      setAllQuestions([]);
-      setUserAnswers({});
-      setLocalError(null);
+    setCurrentSection(0);
+    setCurrentQuestion(0);
+    setSelectedAnswer(null);
+    setShowExplanation(false);
+    setScore(null);
+    setAllQuestions([]);
+    setUserAnswers({});
+    setLocalError(null);
     setQuestions([]);
     setSectionQuestions({});
     setForcedTransition(false);
     setTimerWarning(null);
-
-      if (isTimeBased) {
-        setTimeRemaining(examSections[0].timeLimit * 60);
-      }
   
-      const firstSection = examSections[0];
+    // Start timer for first section
+    if (isTimeBased) {
+      setTimeRemaining(examSections[0].timeLimit * 60);
+    }
+  
+    // FETCH first section’s questions
+    const firstSection = examSections[0];
     const fetched = await fetchQuestions(firstSection.category, false);
-
+  
+    // If none, advance anyway
     if (!fetched || fetched.length === 0) {
-      console.warn('No questions found for this section. Continuing exam.');
+      console.warn('No questions found—continuing exam.');
       setQuestions([]);
       setSectionQuestions({ 0: [] });
       setAllQuestions([]);
-      setStartTime(Date.now());
-      setExamStarted(true);
+    } else {
+      setQuestions(fetched);
+      setSectionQuestions({ 0: fetched.map(q => ({ ...q, sectionIndex: 0 })) });
+      setAllQuestions(fetched.map(q => ({ ...q, sectionIndex: 0 })));
+    }
+  
+    // ─── SESSION LOGIC ───
+    const nowMs = Date.now();
+    setMockStartTime(nowMs);                                         // ← SESSION
+  
+    // get current user (Supabase v2)
+    const { data: { user }, error: userErr } = await supabase.auth.getUser();
+    if (userErr || !user) {
+      console.error('Not authenticated', userErr);
       return;
     }
-
-    setQuestions(fetched);
-    setSectionQuestions({ 0: fetched.map((q) => ({ ...q, sectionIndex: 0 })) });
-    setAllQuestions(fetched.map((q) => ({ ...q, sectionIndex: 0 })));
-      setStartTime(Date.now());
+  
+    const { data: ins, error: insErr } = await supabase
+      .from('mock_exams_session')
+      .insert({
+        user_id:    user.id,
+        start_time: new Date(nowMs).toISOString(),
+      })
+      .select('id')
+      .single();
+  
+    if (insErr) {
+      console.error('Failed to create mock session', insErr);
+    } else {
+      setMockSessionId(ins.id);                                       // ← SESSION
+    }
+  
+    // Finally mark exam as started
+    setStartTime(nowMs);
     setExamStarted(true);
   };
 
@@ -1045,6 +1133,15 @@ const MockExamsPage = () => {
       calculateScore();
     }
   };
+  
+    useEffect(() => {
+      return () => {
+        if (examStarted && !score && mockSessionId && mockStartTime) {
+          calculateScore();
+        }
+      };
+    }, [examStarted, score, mockSessionId, mockStartTime]);
+  
 
   if (loading) {
     return (
@@ -1056,7 +1153,7 @@ const MockExamsPage = () => {
       </div>
     );
   }
-
+  
   if (score) {
     return (
       <div className="min-h-screen bg-gray-50 py-6">

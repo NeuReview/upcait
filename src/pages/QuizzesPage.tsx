@@ -15,6 +15,10 @@ import {
 } from '@heroicons/react/24/outline';
 import { useQuestions } from '../hooks/useQuestions';
 import type { Question } from '../types/quiz';
+import { supabase } from '../lib/supabase';
+import { upsertDailyTotal } from '../lib/supabase';
+
+
 
 type OptionKey = 'option_a' | 'option_b' | 'option_c' | 'option_d';
 const OPTION_KEYS: OptionKey[] = ['option_a', 'option_b', 'option_c', 'option_d'];
@@ -338,10 +342,13 @@ const QuizzesPage = () => {
   const {questions, loading, error, fetchQuestions, updateUserStats, recordScienceProgress, recordMathProgress, recordLanguageProficiencyProgress, recordReadingCompProgress} = useQuestions();
   
   const [score, setScore] = useState<QuizScore | null>(null);
-  const [startTime, setStartTime] = useState<number | null>(null);
   const [correctAnswers, setCorrectAnswers] = useState<Set<number>>(new Set());
   const [userAnswers, setUserAnswers] = useState<Record<string, string>>({});
   const [allQuestions, setAllQuestions] = useState<Question[]>([]);
+
+  const [sessionId,  setSessionId]  = useState<string | null>(null);
+  const [startTime,  setStartTime]  = useState<number | null>(null);
+ 
 
   // Keep a live copy of questions in allQuestions for the in-progress sidebar
   useEffect(() => {
@@ -385,63 +392,141 @@ const QuizzesPage = () => {
     };
   }, [quizStarted, isTimeBased, timeRemaining]);
 
-  const calculateScore = () => {
-    const endTime = Date.now();
-    const timeSpent = startTime ? Math.floor((endTime - startTime) / 1000) : 0;
-    
-    const categoryScores: { [key: string]: { total: number; correct: number; percentage: number } } = {};
-    
-    questions.forEach((q, index) => {
-      if (!categoryScores[q.category]) {
-        categoryScores[q.category] = { total: 0, correct: 0, percentage: 0 };
-      }
-      categoryScores[q.category].total++;
-      if (correctAnswers.has(index)) {
-        categoryScores[q.category].correct++;
-      }
-    });
-
-    Object.values(categoryScores).forEach(score => {
-      score.percentage = Math.round((score.correct / score.total) * 100);
-    });
-
-    const totalCorrect = correctAnswers.size;
-    const scoreData: QuizScore = {
-      total: questions.length,
-      correct: totalCorrect,
-      incorrect: questions.length - totalCorrect,
-      percentage: Math.round((totalCorrect / questions.length) * 100),
-      timeSpent,
-      categoryScores
-    };
-
-    setScore(scoreData);
-  };
-
-  const startQuiz = async () => {
-    if (selectedTopic && selectedDifficulty) {
-      try {
-        await fetchQuestions(selectedTopic, selectedDifficulty);
+  const calculateScore = async () => {
+    try {
+      // 1) Compute end timestamp & elapsed seconds
+      const endTs   = Date.now();
+      const elapsed = startTime ? Math.floor((endTs - startTime) / 1000) : 0;
   
-        // **reset all of our “in‐quiz” state**
-        setQuizStarted(true);
-        setCurrentQuestion(0);
-        setSelectedAnswer(null);
-        setShowExplanation(false);
-        setScore(null);
-        setCorrectAnswers(new Set());
-        setUserAnswers({});           // ← ADD THIS LINE
-        setAllQuestions(questions);   // (you already do this in the effect, but no harm)
+      // 2) Build per-category scores
+      const categoryScores: {
+        [key: string]: { total: number; correct: number; percentage: number }
+      } = {};
   
-        setStartTime(Date.now());
-        if (isTimeBased) {
-          setTimeRemaining(1.5 * 60);
+      questions.forEach((q, idx) => {
+        if (!categoryScores[q.category]) {
+          categoryScores[q.category] = { total: 0, correct: 0, percentage: 0 };
         }
-      } catch (err) {
-        console.error('Error starting quiz:', err);
+        categoryScores[q.category].total++;
+        if (correctAnswers.has(idx)) {
+          categoryScores[q.category].correct++;
+        }
+      });
+      Object.values(categoryScores).forEach(cs => {
+        cs.percentage = Math.round((cs.correct / cs.total) * 100);
+      });
+  
+      // 3) Build overall score object
+      const totalCorrect = correctAnswers.size;
+      const scoreData: QuizScore = {
+        total:       questions.length,
+        correct:     totalCorrect,
+        incorrect:   questions.length - totalCorrect,
+        percentage:  Math.round((totalCorrect / questions.length) * 100),
+        timeSpent:   elapsed,
+        categoryScores
+      };
+  
+      // 4) Update local state to show the summary
+      setScore(scoreData);
+  
+      // 5) Persist session end & duration + bump per-day total
+      if (sessionId) {
+        // 5a) fetch the current user
+        const {
+          data: { user },
+          error: authErr
+        } = await supabase.auth.getUser();
+        if (authErr || !user) {
+          console.error('Not authenticated:', authErr);
+          return;
+        }
+  
+        // 5b) update this session row
+        const { error: updErr } = await supabase
+          .from('quizzes_session')
+          .update({
+            end_time: new Date(endTs).toISOString(),
+            duration: elapsed,
+          })
+          .eq('id', sessionId);
+  
+        if (updErr) {
+          console.error('Failed to update quizzes_session:', updErr);
+        } else {
+          // 5c) immediately refresh the daily aggregate
+          const today = new Date(endTs).toISOString().slice(0, 10);
+          try {
+            await upsertDailyTotal(user.id, today);
+          } catch (e) {
+            console.error('upsertDailyTotal failed:', e);
+          }
+        }
       }
+  
+      // 6) (optional) clear timer/modal state, etc.
+    } catch (e) {
+      console.error('calculateScore failed:', e);
     }
   };
+  
+
+  const startQuiz = async () => {
+    if (!selectedTopic || !selectedDifficulty) return;
+  
+    try {
+      // 1) Fetch questions as before
+      await fetchQuestions(selectedTopic, selectedDifficulty);
+  
+      // … reset in-quiz state …
+      setQuizStarted(true);
+      setCurrentQuestion(0);
+      setSelectedAnswer(null);
+      setShowExplanation(false);
+      setScore(null);
+      setCorrectAnswers(new Set());
+      setUserAnswers({});
+      setAllQuestions(questions);
+  
+      // 2) Record startTime
+      const now = Date.now();
+      setStartTime(now);
+  
+      // 3) Grab the current user from Supabase
+      const {
+        data: { user },
+        error: userError
+      } = await supabase.auth.getUser();
+      if (userError || !user) {
+        console.error('could not get supabase user:', userError);
+        throw new Error('Not authenticated');
+      }
+  
+      // 4) Insert into quizzes_session
+      const { data: insertData, error: insertError } = await supabase
+        .from('quizzes_session')
+        .insert({
+          user_id:   user.id,                        // ← use the real UUID
+          start_time: new Date(now).toISOString(),
+        })
+        .select('id')
+        .single();
+  
+      if (insertError) {
+        console.error('insert quizzes_session failed:', insertError);
+        throw insertError;
+      }
+      setSessionId(insertData.id);
+  
+      // 5) Kick off timer if needed
+      if (isTimeBased) {
+        setTimeRemaining(1.5 * 60);
+      }
+    } catch (err) {
+      console.error('Error starting quiz:', err);
+    }
+  };
+  
   
   const handleAnswerSelect = (answer: string) => {
     if (!questions[currentQuestion]) return;

@@ -64,6 +64,51 @@ export const signInWithGoogle = async (): Promise<void> => {
   }
 };
 
+export async function upsertDailyTotal(
+  userId: string,
+  day: string   // ISO date string, e.g. '2025-05-01'
+) {
+  const dayStart = `${day}T00:00:00.000Z`;
+  const dayEnd   = `${day}T23:59:59.999Z`;
+
+  const [{ data: quizRows, error: qErr }, { data: mockRows, error: mErr }]
+    = await Promise.all([
+      supabase
+        .from('quizzes_session')
+        .select('duration')
+        .eq('user_id', userId)
+        .gte('start_time', dayStart)
+        .lte('start_time', dayEnd),
+      supabase
+        .from('mock_exams_session')
+        .select('duration')
+        .eq('user_id', userId)
+        .gte('start_time', dayStart)
+        .lte('start_time', dayEnd),
+    ]);
+
+  if (qErr) console.error('quizzes_session fetch error', qErr);
+  if (mErr) console.error('mock_exams_session fetch error', mErr);
+
+  // sum() now only accepts a number[] (never null)
+  const sum = (rows: { duration: number }[]) =>
+    rows.reduce((acc, r) => acc + (r.duration || 0), 0);
+
+  // default to [] if data is null
+  const totalSecs = sum(quizRows ?? []) + sum(mockRows ?? []);
+
+  // onConflict must be a single string
+  const { error: upErr } = await supabase
+    .from('daily_session_time')
+    .upsert(
+      { user_id: userId, day, total_secs: totalSecs },
+      { onConflict: 'user_id,day' }
+    );
+
+  if (upErr) console.error('upsertDailyTotal error:', upErr.message);
+}
+
+
 // ✅ Define types for connection testing
 export interface ConnectionTestResult {
   step: string;

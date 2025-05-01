@@ -198,6 +198,9 @@ const DashboardPage = () => {
   const [isEditProfileOpen, setIsEditProfileOpen] = useState(false);
   const [selectedSubject, setSelectedSubject] = useState<'science' | 'mathematics' | 'language' | 'reading'>('science');
   const [hoveredPoint, setHoveredPoint] = useState<number | null>(null);
+
+  const [showSuccess, setShowSuccess] = useState(false);
+
   
   // Add useQuestions hook to access science progress stats
   const { getScienceProgressStats } = useQuestions();
@@ -763,7 +766,39 @@ const DashboardPage = () => {
       console.error('Error in fetchUserProfile:', err);
     }
   };
-
+  
+  useEffect(() => {
+    const fetchStudyGoal = async () => {
+      const { data, error } = await supabase
+        .from('user_study_goals')
+        .select('weekly_goal_min')
+        .eq('user_id', userData.user_id)
+        .limit(1);
+  
+      if (error) {
+        console.error('Error loading study goal:', error);
+        return;
+      }
+  
+      // data may be null or an empty array
+      if (Array.isArray(data) && data.length > 0) {
+        const goalRow = data[0];
+        const hours = Math.floor(goalRow.weekly_goal_min / 60);
+        const mins  = goalRow.weekly_goal_min % 60;
+        setGoalHours(hours);
+        setGoalMinutes(mins);
+        setStudyStats(prev => ({
+          ...prev,
+          weeklyTarget: goalRow.weekly_goal_min / 60
+        }));
+      }
+    };
+  
+    if (userData.user_id) {
+      fetchStudyGoal();
+    }
+  }, [userData.user_id]);
+  
   // Update user profile data
   const updateUserProfile = async (updatedData: Partial<UserData>) => {
     try {
@@ -863,15 +898,37 @@ const DashboardPage = () => {
       try {
         const success = await updateUserProfile(formData);
         if (success) {
-          alert('Profile updated successfully!');
-          onClose();
-        }
+          setShowSuccess(true);
+        }        
       } finally {
         setIsSubmitting(false);
       }
     };
 
     if (!isOpen) return null;
+
+    // If saved successfully, show this and nothing else:
+    if (showSuccess) {
+      return (
+        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 w-full max-w-sm shadow-lg text-center">
+            <CheckCircleIcon className="mx-auto w-12 h-12 text-green-500 mb-4" />
+            <h3 className="text-xl font-semibold mb-2">Profile Updated</h3>
+            <p className="mb-6">Your profile was updated successfully!</p>
+            <button
+              onClick={() => {
+                setShowSuccess(false);
+                onClose();
+              }}
+              className="px-6 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700"
+            >
+              OK
+            </button>
+          </div>
+        </div>
+      );
+    }
+
 
     return (
       <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
@@ -1623,92 +1680,110 @@ const DashboardPage = () => {
     bestDay: { day: '', hours: 0 }
   });
 
+  const [isStudyGoalModalOpen, setIsStudyGoalModalOpen] = useState(false);
+
+  const initialHours = Math.floor(studyStats.weeklyTarget);
+  const initialMinutes = Math.round((studyStats.weeklyTarget - initialHours) * 60);
+
+  const [goalHours, setGoalHours]     = useState<number>(initialHours);
+  const [goalMinutes, setGoalMinutes] = useState<number>(initialMinutes);
+
+  const [weeklyGoalInput, setWeeklyGoalInput] = useState(studyStats.weeklyTarget);
+
   // Fetch the last 7 days of study‑time analytics for the logged‑in user
+  // --- inside DashboardPage, remove the old useEffect and paste this instead: ---
   useEffect(() => {
     const fetchStudyTimeAnalytics = async () => {
       try {
-        // 1) Get the logged‑in user (may be null if not authenticated)
-        const { data: { user } } = await supabase.auth.getUser();
-
-        // 2) Build a base query: grab the 7 most‑recent rows
-        let query = supabase
-          .from('user_study_time')
-          .select('created_at, study_sessions')
-          .order('created_at', { ascending: false })
-          .limit(7);
-
-        // If the table has a user_id column and we have a user, filter on it
-        if (user) {
-          query = query.eq('user_id', user.id);
-        }
-
-        // 3) Execute the query
-        let { data, error } = await query;
-
-        // Fallback: table doesn't have user_id yet → retry without the filter
-        if (error && error.code === '42703') {
-          ({ data, error } = await supabase
-            .from('user_study_time')
-            .select('created_at, study_sessions')
-            .order('created_at', { ascending: false })
-            .limit(7));
-        }
-
-        if (error) {
-          console.error('Error fetching study analytics', error);
+        // 1) get current user
+        const { data: authData, error: authErr } = await supabase.auth.getUser();
+        if (authErr || !authData.user) throw authErr ?? new Error("Not authenticated");
+        const uid = authData.user.id;
+  
+        // 2) fetch up to one year of daily totals, newest first
+        const { data, error: fetchErr } = await supabase
+          .from("daily_session_time")
+          .select("day, total_secs")
+          .eq("user_id", uid)
+          .order("day", { ascending: false })
+          .limit(365);
+  
+        if (fetchErr) {
+          console.error("Error fetching daily totals", fetchErr);
           return;
         }
-
-        if (!data || data.length === 0) {
-          console.warn('No study‑time rows found in user_study_time');
+        const allRows = data ?? [];
+        if (allRows.length === 0) {
           setStudyHoursData([]);
+          setStudyStats(prev => ({ ...prev, currentStreak: 0, improvement: 0 }));
           return;
         }
-
-        // 4) Convert newest→oldest → oldest→newest for the graph
-        const rowsChrono = [...data].reverse();
-
-        const rows = rowsChrono.map((r: any) => ({
-          day: new Date(r.created_at).toLocaleDateString('en-US', {
-            month: 'short',
-            day: 'numeric'
-          }),
-          hours: r.study_sessions ?? 0
-        }));
-
-        setStudyHoursData(rows);
-
-        // 5) Compute stats
-        const total = rows.reduce((s, d) => s + d.hours, 0);
-        const avg   = rows.length ? total / rows.length : 0;
-
-        // longest trailing streak of >0‑hour days
+  
+        // 3) compute calendar-aware streak:
+        //    iterate newest→oldest, require each row.day to be exactly
+        //    one calendar day before the previous, AND total_secs>0.
         let streak = 0;
-        for (let i = rows.length - 1; i >= 0; i--) {
-          if (rows[i].hours > 0) streak++;
-          else break;
+        let prevDate = new Date(allRows[0].day); // most recent day
+        for (const row of allRows) {
+          const d = new Date(row.day);
+          // difference in days
+          const diffMs  = prevDate.getTime() - d.getTime();
+          const diffDay = diffMs / (1000 * 60 * 60 * 24);
+          // first iteration diffDay===0, allow it; subsequent must be ≈1
+          const isConsecutive = streak === 0 ? row.total_secs > 0
+                                 : row.total_secs > 0 && Math.round(diffDay) === 1;
+  
+          if (isConsecutive) {
+            streak++;
+            prevDate = d;
+          } else {
+            break;
+          }
         }
-
-        // most productive day
-        const best = rows.reduce(
-          (max, d) => (d.hours > max.hours ? d : max),
-          { day: '', hours: 0 }
-        );
-
+  
+        // 4) build chart window: last 7 rows reversed → chronological
+        const last7 = allRows.slice(0, 7).reverse();
+        const mapped: StudyHoursData[] = last7.map(r => ({
+          day:   new Date(r.day).toLocaleDateString("en-US", { month: "short", day: "numeric" }),
+          hours: +(r.total_secs / 3600).toFixed(2)
+        }));
+        setStudyHoursData(mapped);
+  
+        // 5) simple totals & average for those 7 days
+        const totalH = mapped.reduce((sum, d) => sum + d.hours, 0);
+        const avgH   = mapped.length ? totalH / mapped.length : 0;
+  
+        // 6) best day in that window
+        const best = mapped.reduce((b, d) => (d.hours > b.hours ? d : b), { day: "", hours: 0 });
+  
+        // 7) improvement vs. the prior 7-day block
+        const sumHours = (rows: { total_secs: number }[]) =>
+          rows.reduce((acc, r) => acc + r.total_secs / 3600, 0);
+        const thisTotal = sumHours(allRows.slice(0, 7));
+        const lastTotal = sumHours(allRows.slice(7, 14));
+        const improvement =
+          lastTotal === 0
+            ? thisTotal === 0 ? 0 : 100
+            : ((thisTotal - lastTotal) / lastTotal) * 100;
+  
+        // 8) commit
         setStudyStats(prev => ({
           ...prev,
           currentStreak: streak,
-          totalHours: total,
-          averageHours: avg,
-          bestDay: best
+          totalHours:   totalH,
+          averageHours: avgH,
+          bestDay:      best,
+          improvement:  Math.round(improvement)
         }));
       } catch (err) {
-        console.error('Unexpected error fetching study analytics', err);
+        console.error("Unexpected error fetching study analytics", err);
       }
     };
+  
     fetchStudyTimeAnalytics();
   }, []);
-
+  
+  
   // Graph dimensions and settings
   const graphWidth = 400;
   const graphHeight = 200;
@@ -1947,11 +2022,19 @@ const DashboardPage = () => {
                     <p className="text-sm text-gray-500">Current Streak</p>
                     <p className="text-xl font-bold text-purple-600">{studyStats.currentStreak} days</p>
                   </div>
+
+                  <button
+        onClick={() => setIsStudyGoalModalOpen(true)}
+        className="px-3 py-1.5 text-xs font-semibold border border-purple-600 text-purple-600 rounded-md hover:bg-purple-50 transition"
+      >
+        Set Study Goal
+      </button>
+
                 </div>
               </div>
 
               {/* Line Chart */}
-              <div className="relative h-[300px] mb-8">
+              <div className="relative h-[300px] mb-8 overflow-visible">
                 {/* Y-axis labels */}
                 <div className="absolute left-0 top-4 bottom-8 w-12 flex flex-col justify-between text-xs text-gray-400 font-medium">
                   {[4, 3, 2, 1, 0].map((hour) => (
@@ -1985,6 +2068,7 @@ const DashboardPage = () => {
                         className="w-full h-full"
                         viewBox={`0 0 ${graphWidth} ${graphHeight}`}
                         preserveAspectRatio="xMidYMid meet"
+                        style={{ overflow: 'visible' }}
                       >
                         {/* Background Gradient */}
                         <defs>
@@ -2031,54 +2115,62 @@ const DashboardPage = () => {
                             onMouseLeave={() => setHoveredPoint(null)}
                             className="cursor-pointer"
                           >
-                            {/* Outer circle */}
                             <circle
                               cx={point.x}
                               cy={point.y}
-                              r="6"
+                              r={hoveredPoint === i ? 7 : 6}
                               fill="white"
+                              fontSize="4"         // smaller font
+                              fontWeight={500}
                               stroke="#9333EA"
                               strokeWidth="2"
-                              className={`transform transition-all duration-150 ${
-                                hoveredPoint === i ? 'scale-125' : ''
-                              }`}
+                              className="transition-all duration-150"
                             />
-                            {/* Inner circle */}
                             <circle
                               cx={point.x}
                               cy={point.y}
-                              r="3"
+                              r={hoveredPoint === i ? 4 : 3}
                               fill="#9333EA"
-                              className={`transform transition-all duration-150 ${
-                                hoveredPoint === i ? 'scale-125' : ''
-                              }`}
+                              className="transition-all duration-150"
                             />
-
                             {/* Hover tooltip */}
-                            {hoveredPoint === i && (
-                              <g>
-                                <rect
-                                  x={point.x - 40}
-                                  y={point.y - 45}
-                                  width="80"
-                                  height="32"
-                                  rx="6"
-                                  fill="#1F2937"
-                                  className="opacity-95"
-                                />
-                                <text
-                                  x={point.x}
-                                  y={point.y - 24}
-                                  textAnchor="middle"
-                                  fill="white"
-                                  fontSize="13"
-                                  fontWeight="500"
-                                  className="font-medium"
-                                >
-                                  {point.hours}h • {point.day}
-                                </text>
-                              </g>
-                            )}
+                            {hoveredPoint === i && (() => {
+                              const text = `${point.hours.toFixed(1)}h • ${point.day}`;
+                              const fontSize = 10;
+                              const paddingH = 8;    // horizontal padding
+                              const paddingV = 4;    // vertical padding
+                              // approximate width: characters * avg char-width + padding
+                              const approxCharWidth = 6;
+                              const W = text.length * approxCharWidth + paddingH * 2;
+                              const H = fontSize + paddingV * 2;
+                              const x0 = point.x - W/2;
+                              const y0 = point.y - H - 6;  // sits just above the dot
+
+                              return (
+                                <g>
+                                  <rect
+                                    x={x0}
+                                    y={y0}
+                                    width={W}
+                                    height={H}
+                                    rx={4}
+                                    fill="#1F2937"
+                                    style={{ opacity: 0.95 }}
+                                  />
+                                  <text
+                                    x={point.x}
+                                    y={y0 + paddingV + fontSize * 0.8}  // baseline tweak
+                                    textAnchor="middle"
+                                    fill="white"
+                                    fontSize={fontSize}
+                                    fontWeight="500"
+                                  >
+                                    {text}
+                                  </text>
+                                </g>
+                              )
+                            })()}
+
                           </g>
                         ))}
                       </svg>
@@ -2125,7 +2217,7 @@ const DashboardPage = () => {
                 <div className="bg-green-50 rounded-lg p-4">
                   <p className="text-sm text-green-600">Improvement</p>
                   <p className="text-2xl font-bold text-green-700">
-                    +{studyStats.improvement}%
+                    {studyStats.improvement}%
                   </p>
                   <p className="text-sm text-green-600">vs last week</p>
                 </div>
@@ -2144,6 +2236,91 @@ const DashboardPage = () => {
           </div>
         </div>
       </div>
+
+      {/* Study Goal Modal */}
+      {isStudyGoalModalOpen && (
+  <div className="fixed inset-0 bg-black bg-opacity-40 z-50 flex items-center justify-center">
+    <div className="bg-white rounded-lg p-6 w-full max-w-sm shadow-lg">
+      <h2 className="text-lg font-bold text-gray-900 mb-4">
+        Set Weekly Study Goal
+      </h2>
+      <p className="text-sm text-gray-600 mb-6">
+        How much time per week do you aim to study?
+      </p>
+
+      {/* <-- add justify-center here */}
+      <div className="flex items-center justify-center space-x-2 mb-6">
+        {/* Hour input */}
+        <div className="flex flex-col items-center justify-center">
+          <label className="text-xs text-gray-500 mb-1">Hour</label>
+          <input
+            type="number"
+            min={0}
+            max={168}
+            value={goalHours}
+            onChange={e => setGoalHours(Math.max(0, Number(e.target.value)))}
+            className="w-16 h-12 text-center border-2 border-purple-600 rounded-lg focus:outline-none"
+          />
+        </div>
+
+        <span className="text-2xl font-semibold relative top-2">:</span>
+
+
+        {/* Minute input */}
+        <div className="flex flex-col items-center justify-center">
+          <label className="text-xs text-gray-500 mb-1">Minute</label>
+          <input
+            type="number"
+            min={0}
+            max={59}
+            step={15}
+            value={goalMinutes}
+            onChange={e => {
+              let m = Math.max(0, Math.min(59, Number(e.target.value)));
+              setGoalMinutes(m);
+            }}
+            className="w-16 h-12 text-center border border-gray-300 rounded-lg focus:outline-none"
+          />
+        </div>
+      </div>
+
+      <div className="flex justify-end space-x-3">
+        <button
+          onClick={() => setIsStudyGoalModalOpen(false)}
+          className="px-4 py-2 text-sm rounded-md border border-gray-300 text-gray-600 hover:bg-gray-100"
+        >
+          Cancel
+        </button>
+        <button
+          onClick={async () => {
+            const totalMin = goalHours * 60 + goalMinutes;
+            const { error } = await supabase
+              .from('user_study_goals')
+              .upsert(
+                {
+                  user_id:         userData.user_id,
+                  weekly_goal_min: totalMin,
+                  updated_at:      new Date().toISOString()
+                },
+                { onConflict: 'user_id' }
+              );
+            if (error) {
+              console.error('Failed to save study goal:', error);
+              alert('Error saving your goal. Please try again.');
+              return;
+            }
+            setStudyStats(prev => ({ ...prev, weeklyTarget: totalMin / 60 }));
+            setIsStudyGoalModalOpen(false);
+          }}
+          className="px-4 py-2 text-sm rounded-md bg-purple-600 text-white hover:bg-purple-700"
+        >
+          Save Goal
+        </button>
+      </div>
+    </div>
+  </div>
+)}
+               
       
       {/* Add EditProfileModal */}
       <EditProfileModal
@@ -2151,6 +2328,7 @@ const DashboardPage = () => {
         onClose={() => setIsEditProfileOpen(false)}
         userData={userData}
       />
+
     </div>
   );
 };
