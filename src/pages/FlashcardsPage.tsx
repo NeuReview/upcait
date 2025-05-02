@@ -380,14 +380,16 @@ const FlashcardsPage: React.FC = () => {
                           <p className="text-sm text-gray-500">Answer:</p>
                           <p className="text-2xl font-bold text-growth-green text-center">
                             {(() => {
-                              const ans = flashcards[currentCard].answer;
-                              const map: Record<string,string> = {
-                                A: flashcards[currentCard].option_a||'',
-                                B: flashcards[currentCard].option_b||'',
-                                C: flashcards[currentCard].option_c||'',
-                                D: flashcards[currentCard].option_d||''
-                              };
-                              return ans ? map[ans] || ans : 'No answer';
+                             const card = flashcards[currentCard];
+                             const ans  = card.answer?.toUpperCase() || '';
+                             // build the key dynamically (lowercase lookup)
+                             const lowerKey = `option_${ans.toLowerCase()}` as
+                               'option_a'|'option_b'|'option_c'|'option_d';
+                             // fallback in case your props are uppercase
+                             const upperKey = `option_${ans}` as
+                               'option_A'|'option_B'|'option_C'|'option_D';
+                             const text = (card as any)[lowerKey] ?? (card as any)[upperKey] ?? 'No answer';
+                             return text;
                             })()}
                           </p>
                           {flashcards[currentCard].explanation && (
