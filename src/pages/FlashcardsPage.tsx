@@ -14,6 +14,8 @@ import {
   ArrowUturnDownIcon
 } from '@heroicons/react/24/outline';
 import { useFlashcards } from '../hooks/useFlashcards';
+import { supabase, upsertDailyTotal } from '../lib/supabase';
+
 
 const generalTopic = {
   id: 'General',
@@ -37,44 +39,60 @@ const FlashcardsPage: React.FC = () => {
   const [correctAnswers, setCorrectAnswers] = useState(0);
   const [incorrectAnswers, setIncorrectAnswers] = useState(0);
   const [showScoreSummary, setShowScoreSummary] = useState(false);
+  const [hasReturned, setHasReturned] = useState(false);
+
+  // <<< NEW: track flashcards session start timestamp >>>
+  const [flashStartTime, setFlashStartTime] = useState<number | null>(null);
 
   const { flashcards, loading, error, fetchFlashcards } = useFlashcards();
 
   // ─── Effects ─────────────────────────────────────────────────────────────
-  // Timer
+  // Timer ticking every second
   useEffect(() => {
     let timer: number | undefined;
     if (isStarted && isTimeBased && timeRemaining > 0) {
       timer = window.setInterval(() => {
-        setTimeRemaining(t => {
-          if (t <= 1) {
-            clearInterval(timer);
-            setIsStarted(false);
-            return 0;
-          }
-          return t - 1;
-        });
+        setTimeRemaining(t => Math.max(0, t - 1));
       }, 1000);
     }
-    return () => void (timer && clearInterval(timer));
+    return () => {
+      if (timer !== undefined) {
+        clearInterval(timer);
+      }
+    };
   }, [isStarted, isTimeBased, timeRemaining]);
+  
 
   // ─── Handlers ────────────────────────────────────────────────────────────
   const startSession = async () => {
+    // Re-enable the “Back to Topics” button on each new run
+    setHasReturned(false);
+  
     if (!selectedTopic) return;
+  
+    // reset all session state
     setIsStarted(false);
     setCurrentCard(0);
     setSelectedAnswer(null);
+    setShowBack(false);
     setCorrectAnswers(0);
     setIncorrectAnswers(0);
     setShowScoreSummary(false);
-    if (isTimeBased) setTimeRemaining(15 * 60);
-
-    const cards = await fetchFlashcards(selectedTopic);
-    console.log('Fetched flashcards:', cards);
+    if (isTimeBased) {
+      setTimeRemaining(15 * 60);
+    }
+  
+    // stamp start time
+    setFlashStartTime(Date.now());
+  
+    // fetch the new batch of flashcards
+    await fetchFlashcards(selectedTopic);
+  
+    // kick off the session
     setIsStarted(true);
   };
-
+  
+  // flip front ↔ back
   const handleFlip = () => {
     if (isFlipping) return;
     setIsFlipping(true);
@@ -115,10 +133,41 @@ const FlashcardsPage: React.FC = () => {
     await fetchFlashcards(selectedTopic);
   };
 
-  const finishSession = () => setShowScoreSummary(true);
+  const finishSession = () => {
+    setShowScoreSummary(true);
+  };
 
   const formatTime = (s: number) =>
     `${Math.floor(s / 60)}:${(s % 60).toString().padStart(2, '0')}`;
+
+  // ─── Persist flashcard session into daily_session_time ───────────────────
+  const recordFlashSession = async () => {
+    if (!flashStartTime) return;
+    const endMs      = Date.now();
+    const elapsedSec = Math.floor((endMs - flashStartTime) / 1000);
+    const startISO   = new Date(flashStartTime).toISOString();
+    const endISO     = new Date(endMs).toISOString();
+  
+    // get current user
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return console.error('Not authenticated');
+  
+    // 1) log the single flashcard session
+    const { error: sessionErr } = await supabase
+      .from('flashcard_sessions')
+      .insert({
+        user_id:    user.id,
+        start_time: startISO,
+        end_time:   endISO,
+        duration:   elapsedSec
+      });
+    if (sessionErr) console.error('Error logging flashcard session:', sessionErr);
+  
+    // 2) bump the daily total for all session types
+    //    (quizzes + mock exams + flashcards)
+    await upsertDailyTotal(user.id, startISO.slice(0,10));
+  };
+  
 
   // ─── Loading State ───────────────────────────────────────────────────────
   if (loading) {
@@ -156,15 +205,15 @@ const FlashcardsPage: React.FC = () => {
                   bg-gradient-to-br from-neural-purple/40 to-neural-purple/10
                   rounded-lg p-6 mb-8 shadow-md hover:shadow-lg transition
                   cursor-pointer border-2 max-w-2xl w-full
-                  ${selectedTopic === generalTopic.id
+                  ${ selectedTopic === generalTopic.id
                     ? 'border-neural-purple'
-                    : 'border-transparent'}
+                    : 'border-transparent' }
                 `}
               >
                 <div className="flex flex-col md:flex-row items-center">
                   <div className={`
                     rounded-full p-3 mb-4 md:mb-0 md:mr-5
-                    ${selectedTopic === generalTopic.id
+                    ${ selectedTopic === generalTopic.id
                       ? 'bg-neural-purple text-white'
                       : 'bg-white text-neural-purple'}
                   `}>
@@ -233,10 +282,7 @@ const FlashcardsPage: React.FC = () => {
           <>
             <h1 className="text-3xl font-bold text-gray-900 mb-6 flex items-center justify-between">
               <span>Flashcards: {selectedTopic}</span>
-              <button
-                onClick={() => setShowScoreSummary(true)}
-                aria-label="Show score summary"
-              >
+              <button onClick={() => setShowScoreSummary(true)} aria-label="Show score summary">
                 <ChartBarIcon className="w-6 h-6 text-neural-purple hover:text-tech-lavender" />
               </button>
             </h1>
@@ -269,7 +315,7 @@ const FlashcardsPage: React.FC = () => {
                 </div>
               </div>
 
-              {/* Grid-stacked Flashcard */}
+              {/* Flashcard */}
               {flashcards[currentCard] && (
                 <div className="w-full max-w-3xl mx-auto perspective">
                   <div
@@ -280,23 +326,22 @@ const FlashcardsPage: React.FC = () => {
                       ${showBack ? 'rotate-x-180' : ''}
                     `}
                   >
-                    {/* Front face */}
+                    {/* Front */}
                     <div className="col-start-1 row-start-1 backface-hidden bg-white rounded-xl shadow-lg p-8 flex flex-col justify-center items-center">
   <h2 className="text-xl font-bold text-gray-800 mb-6">
     {flashcards[currentCard].question}
   </h2>
   <div className="mt-6 grid grid-cols-2 gap-4 w-full">
-    {(['A', 'B', 'C', 'D'] as const).map((letter) => {
+    {(['A','B','C','D'] as const).map(letter => {
       const card = flashcards[currentCard];
       if (!card) return null;
 
-      // dual-key lookup
-      const lowerKey = `option_${letter.toLowerCase()}` as
-        | 'option_a' | 'option_b' | 'option_c' | 'option_d';
-      const upperKey = `option_${letter}` as
-        | 'option_A' | 'option_B' | 'option_C' | 'option_D';
-      const text =
-        (card as any)[lowerKey] ?? (card as any)[upperKey] ?? '';
+      // dual-key lookup: try lowercase key, then uppercase
+      const lowerKey = `option_${letter.toLowerCase()}` as 
+        'option_a'|'option_b'|'option_c'|'option_d';
+      const upperKey = `option_${letter}` as 
+        'option_A'|'option_B'|'option_C'|'option_D';
+      const text = (card as any)[lowerKey] ?? (card as any)[upperKey] ?? '';
 
       return (
         <button
@@ -325,7 +370,7 @@ const FlashcardsPage: React.FC = () => {
 </div>
 
 
-                    {/* Back face */}
+                    {/* Back */}
                     <div className="col-start-1 row-start-1 backface-hidden rotate-x-180 bg-white rounded-xl shadow-lg p-8 flex flex-col justify-center items-center">
                       <h2 className="text-xl font-bold text-gray-800 mb-6">
                         {flashcards[currentCard].question}
@@ -334,17 +379,16 @@ const FlashcardsPage: React.FC = () => {
                         <>
                           <p className="text-sm text-gray-500">Answer:</p>
                           <p className="text-2xl font-bold text-growth-green text-center">
-                          {(() => {
-                            const ans = flashcards[currentCard].answer;
-                            if (!ans) return 'No answer';
-                            const optionMap: Record<string, string> = {
-                              A: flashcards[currentCard].option_a ?? '',
-                              B: flashcards[currentCard].option_b ?? '',
-                              C: flashcards[currentCard].option_c ?? '',
-                              D: flashcards[currentCard].option_d ?? ''
-                            };
-                            return optionMap[ans] || ans;
-                          })()}
+                            {(() => {
+                              const ans = flashcards[currentCard].answer;
+                              const map: Record<string,string> = {
+                                A: flashcards[currentCard].option_a||'',
+                                B: flashcards[currentCard].option_b||'',
+                                C: flashcards[currentCard].option_c||'',
+                                D: flashcards[currentCard].option_d||''
+                              };
+                              return ans ? map[ans] || ans : 'No answer';
+                            })()}
                           </p>
                           {flashcards[currentCard].explanation && (
                             <p className="mt-4 text-gray-600 text-sm">
@@ -377,19 +421,17 @@ const FlashcardsPage: React.FC = () => {
                 <div className="flex space-x-4">
                   <button
                     onClick={previousCard}
-                    disabled={currentCard === 0 || isFlipping}
+                    disabled={currentCard===0 || isFlipping}
                     className="px-4 py-2 rounded-lg border border-gray-200 text-gray-600 hover:border-neural-purple disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
                   >
-                    <ArrowLeftIcon className="w-5 h-5" />
-                    <span>Previous</span>
+                    <ArrowLeftIcon className="w-5 h-5" /><span>Previous</span>
                   </button>
                   <button
                     onClick={nextCard}
-                    disabled={currentCard === flashcards.length - 1 || isFlipping}
+                    disabled={currentCard===flashcards.length-1 || isFlipping}
                     className="px-4 py-2 rounded-lg border border-gray-200 text-gray-600 hover:border-neural-purple disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
                   >
-                    <span>Next</span>
-                    <ArrowRightIcon className="w-5 h-5" />
+                    <span>Next</span><ArrowRightIcon className="w-5 h-5" />
                   </button>
                 </div>
               </div>
@@ -411,9 +453,10 @@ const FlashcardsPage: React.FC = () => {
                 <div
                   className="h-full bg-growth-green"
                   style={{
-                    width: `${correctAnswers + incorrectAnswers > 0
-                      ? (correctAnswers / (correctAnswers + incorrectAnswers)) * 100
-                      : 0
+                    width: `${
+                      correctAnswers + incorrectAnswers > 0
+                        ? (correctAnswers / (correctAnswers + incorrectAnswers)) * 100
+                        : 0
                     }%`
                   }}
                 />
@@ -422,15 +465,17 @@ const FlashcardsPage: React.FC = () => {
                 <span className="font-bold text-lg">
                   {correctAnswers + incorrectAnswers > 0
                     ? Math.round((correctAnswers / (correctAnswers + incorrectAnswers)) * 100)
-                    : 0
-                  }%
+                    : 0}
+                  %
                 </span>
               </div>
             </div>
             <div className="grid grid-cols-3 gap-4 mb-6">
               <div className="bg-gray-50 p-4 rounded-lg text-center">
                 <p className="text-gray-500 text-sm">Total</p>
-                <p className="font-bold text-xl text-gray-900">{correctAnswers + incorrectAnswers}</p>
+                <p className="font-bold text-xl text-gray-900">
+                  {correctAnswers + incorrectAnswers}
+                </p>
               </div>
               <div className="bg-growth-green/10 p-4 rounded-lg text-center">
                 <p className="text-growth-green text-sm">Correct</p>
@@ -442,15 +487,32 @@ const FlashcardsPage: React.FC = () => {
               </div>
             </div>
             <div className="flex justify-between">
+              {/* <<< NEW: record and then exit >>> */}
               <button
-                onClick={() => {
-                  setIsStarted(false);
-                  setShowScoreSummary(false);
-                }}
-                className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
-              >
-                Back to Topics
-              </button>
+  onClick={async () => {
+    // guard: only run on first click
+    if (hasReturned) return;
+
+    setHasReturned(true);
+    await recordFlashSession();
+    setIsStarted(false);
+    setShowScoreSummary(false);
+  }}
+  disabled={hasReturned}
+  className="
+    px-4 py-2
+    border border-gray-300
+    rounded-lg text-gray-700
+    hover:bg-gray-50
+    disabled:opacity-50
+    disabled:cursor-not-allowed
+  "
+>
+  Back to Topics
+</button>
+
+
+
               <button
                 onClick={() => setShowScoreSummary(false)}
                 className="px-4 py-2 bg-neural-purple text-white rounded-lg hover:bg-neural-purple/90"

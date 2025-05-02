@@ -71,33 +71,50 @@ export async function upsertDailyTotal(
   const dayStart = `${day}T00:00:00.000Z`;
   const dayEnd   = `${day}T23:59:59.999Z`;
 
-  const [{ data: quizRows, error: qErr }, { data: mockRows, error: mErr }]
-    = await Promise.all([
-      supabase
-        .from('quizzes_session')
-        .select('duration')
-        .eq('user_id', userId)
-        .gte('start_time', dayStart)
-        .lte('start_time', dayEnd),
-      supabase
-        .from('mock_exams_session')
-        .select('duration')
-        .eq('user_id', userId)
-        .gte('start_time', dayStart)
-        .lte('start_time', dayEnd),
-    ]);
+  // fetch durations from quizzes, mock exams, AND flashcards
+  const [{
+    data: quizRows, error: qErr
+  }, {
+    data: mockRows, error: mErr
+  }, {
+    data: flashRows, error: fErr
+  }] = await Promise.all([
+    supabase
+      .from('quizzes_session')
+      .select('duration')
+      .eq('user_id', userId)
+      .gte('start_time', dayStart)
+      .lte('start_time', dayEnd),
+
+    supabase
+      .from('mock_exams_session')
+      .select('duration')
+      .eq('user_id', userId)
+      .gte('start_time', dayStart)
+      .lte('start_time', dayEnd),
+
+    supabase
+      .from('flashcard_sessions')
+      .select('duration')
+      .eq('user_id', userId)
+      .gte('start_time', dayStart)
+      .lte('start_time', dayEnd),
+  ]);
 
   if (qErr) console.error('quizzes_session fetch error', qErr);
   if (mErr) console.error('mock_exams_session fetch error', mErr);
+  if (fErr) console.error('flashcard_sessions fetch error', fErr);
 
-  // sum() now only accepts a number[] (never null)
-  const sum = (rows: { duration: number }[]) =>
+  // helper to sum up durations (safely handles nulls)
+  const sumDurations = (rows: { duration: number }[] = []) =>
     rows.reduce((acc, r) => acc + (r.duration || 0), 0);
 
-  // default to [] if data is null
-  const totalSecs = sum(quizRows ?? []) + sum(mockRows ?? []);
+  const totalSecs =
+    sumDurations(quizRows ?? []) +
+    sumDurations(mockRows ?? []) +
+    sumDurations(flashRows ?? []);
 
-  // onConflict must be a single string
+  // upsert into daily_session_time
   const { error: upErr } = await supabase
     .from('daily_session_time')
     .upsert(
@@ -107,6 +124,7 @@ export async function upsertDailyTotal(
 
   if (upErr) console.error('upsertDailyTotal error:', upErr.message);
 }
+
 
 
 // ✅ Define types for connection testing
