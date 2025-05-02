@@ -1,19 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { 
   AcademicCapIcon, 
-  ChartBarIcon, 
-  FireIcon,
-  CalendarIcon,
-  NewspaperIcon,
-  ExclamationTriangleIcon,
   ArrowTrendingUpIcon,
   CheckCircleIcon,
   BeakerIcon,
   CalculatorIcon,
   LanguageIcon,
   BookOpenIcon,
-  ClipboardDocumentCheckIcon,
-  DocumentChartBarIcon,
   ChevronDownIcon,
   WifiIcon,
   XCircleIcon,
@@ -27,6 +20,16 @@ import {
 import UserProfileComponent from '../components/UserProfileComponent';
 import { supabase, checkSupabaseConnection } from '../lib/supabase';
 import { useQuestions, scienceProgressStore } from '../hooks/useQuestions';
+import {
+    ResponsiveContainer,
+    LineChart,
+    Line,
+    XAxis,
+    YAxis,
+    CartesianGrid,
+    Tooltip,
+  } from 'recharts';
+  
 
 // Define needed interfaces
 interface ProgressRecord {
@@ -204,7 +207,79 @@ const DashboardPage = () => {
   
   // Add useQuestions hook to access science progress stats
   const { getScienceProgressStats } = useQuestions();
+
+  interface StudyHoursData { day: string; hours: number }
+
+  function StudyTimeChart({ data }: { data: StudyHoursData[] }) {
+    return (
+      <div className="w-full h-[300px]">
+        <ResponsiveContainer width="100%" height="100%">
+          <LineChart
+            data={data}
+            margin={{ top: 20, right: 20, bottom: 20, left: 0 }}
+          >
+            <defs>
+              <linearGradient id="lineGradient" x1="0" y1="0" x2="1" y2="0">
+                <stop offset="0%" stopColor="#9333EA" />
+                <stop offset="100%" stopColor="#A855F7" />
+              </linearGradient>
+            </defs>
   
+            <XAxis
+              dataKey="day"
+              tick={{ fontSize: 12, fill: '#6B7280' }}
+              axisLine={false}
+              tickLine={false}
+              interval={0}
+              padding={{ left: 10, right: 10 }}
+            />
+  
+            <YAxis
+              tick={{ fontSize: 12, fill: '#6B7280' }}
+              domain={[0, 4]}
+              ticks={[4, 3, 2, 1, 0]}
+              tickFormatter={(val: number) => `${val}h`}
+              allowDecimals={false}
+              axisLine={false}
+              tickLine={false}
+            />
+  
+            <CartesianGrid strokeDasharray="3 3" vertical={false} />
+  
+            <Tooltip
+      contentStyle={{
+        backgroundColor: '#1F2937',
+        border: 'none',
+        borderRadius: 4,
+      }}
+      cursor={false}
+      labelFormatter={() => ''}
+      itemStyle={{ color: '#fff' }}
+      separator=""   
+      formatter={(value: number, _name: string, entry: any) =>
+        [`${value.toFixed(1)}h • ${entry.payload.day}`, '']
+      }
+    />
+  
+            <Line
+              type="monotone"
+              dataKey="hours"
+              stroke="url(#lineGradient)"
+              strokeWidth={2.5}
+              dot={{
+                r: 6,
+                stroke: '#9333EA',
+                strokeWidth: 2,
+                fill: '#fff',
+              }}
+              activeDot={{ r: 8 }}
+            />
+          </LineChart>
+        </ResponsiveContainer>
+      </div>
+    );
+  }
+
   // Test type accuracy data
   const testTypeData = {
     quizzes: {
@@ -2034,165 +2109,8 @@ const DashboardPage = () => {
               </div>
 
               {/* Line Chart */}
-              <div className="relative h-[300px] mb-8 overflow-visible">
-                {/* Y-axis labels */}
-                <div className="absolute left-0 top-4 bottom-8 w-12 flex flex-col justify-between text-xs text-gray-400 font-medium">
-                  {[4, 3, 2, 1, 0].map((hour) => (
-                    <span key={hour} className="text-right pr-2">
-                      {hour}h
-                    </span>
-                  ))}
-                </div>
-
-                {/* Chart Area */}
-                <div className="ml-12 h-full">
-                  {/* Grid lines */}
-                  <div className="absolute inset-0 bottom-8">
-                    {[4, 3, 2, 1, 0].map((hour, i) => (
-                      <div
-                        key={hour}
-                        className={`absolute w-full border-t ${i === 4 ? 'border-gray-200' : 'border-gray-100'}`}
-                        style={{ top: `${(i * 25)}%` }}
-                      />
-                    ))}
-                  </div>
-
-                  {/* Line Chart */}
-                  <div className="relative h-full pb-8">
-                    {graphPoints.length === 0 ? (
-                      <div className="flex items-center justify-center h-full text-sm text-gray-400">
-                        No study data
-                      </div>
-                    ) : (
-                      <svg
-                        className="w-full h-full"
-                        viewBox={`0 0 ${graphWidth} ${graphHeight}`}
-                        preserveAspectRatio="xMidYMid meet"
-                        style={{ overflow: 'visible' }}
-                      >
-                        {/* Background Gradient */}
-                        <defs>
-                          <linearGradient id="areaGradient" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="0%" stopColor="#9333EA" stopOpacity="0.12" />
-                            <stop offset="100%" stopColor="#9333EA" stopOpacity="0.02" />
-                          </linearGradient>
-                          <linearGradient id="lineGradient" x1="0" y1="0" x2="1" y2="0">
-                            <stop offset="0%" stopColor="#9333EA" />
-                            <stop offset="100%" stopColor="#A855F7" />
-                          </linearGradient>
-                        </defs>
-
-                        {/* Area under the line */}
-                        <path
-                          d={`
-                            M ${graphPoints[0].x} ${graphHeight}
-                            L ${graphPoints[0].x} ${graphPoints[0].y}
-                            ${graphPoints.map((p) => `L ${p.x} ${p.y}`).join(' ')}
-                            L ${graphPoints[graphPoints.length - 1].x} ${graphHeight}
-                            Z
-                          `}
-                          fill="url(#areaGradient)"
-                          className="transition-all duration-300"
-                        />
-
-                        {/* The line itself */}
-                        <path
-                          d={graphPoints
-                            .map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`)
-                            .join(' ')}
-                          stroke="url(#lineGradient)"
-                          strokeWidth="2.5"
-                          strokeLinecap="round"
-                          fill="none"
-                          className="transition-all duration-300"
-                        />
-
-                        {/* Interactive Data points */}
-                        {graphPoints.map((point, i) => (
-                          <g
-                            key={i}
-                            onMouseEnter={() => setHoveredPoint(i)}
-                            onMouseLeave={() => setHoveredPoint(null)}
-                            className="cursor-pointer"
-                          >
-                            <circle
-                              cx={point.x}
-                              cy={point.y}
-                              r={hoveredPoint === i ? 7 : 6}
-                              fill="white"
-                              fontSize="4"         // smaller font
-                              fontWeight={500}
-                              stroke="#9333EA"
-                              strokeWidth="2"
-                              className="transition-all duration-150"
-                            />
-                            <circle
-                              cx={point.x}
-                              cy={point.y}
-                              r={hoveredPoint === i ? 4 : 3}
-                              fill="#9333EA"
-                              className="transition-all duration-150"
-                            />
-                            {/* Hover tooltip */}
-                            {hoveredPoint === i && (() => {
-                              const text = `${point.hours.toFixed(1)}h • ${point.day}`;
-                              const fontSize = 10;
-                              const paddingH = 8;    // horizontal padding
-                              const paddingV = 4;    // vertical padding
-                              // approximate width: characters * avg char-width + padding
-                              const approxCharWidth = 6;
-                              const W = text.length * approxCharWidth + paddingH * 2;
-                              const H = fontSize + paddingV * 2;
-                              const x0 = point.x - W/2;
-                              const y0 = point.y - H - 6;  // sits just above the dot
-
-                              return (
-                                <g>
-                                  <rect
-                                    x={x0}
-                                    y={y0}
-                                    width={W}
-                                    height={H}
-                                    rx={4}
-                                    fill="#1F2937"
-                                    style={{ opacity: 0.95 }}
-                                  />
-                                  <text
-                                    x={point.x}
-                                    y={y0 + paddingV + fontSize * 0.8}  // baseline tweak
-                                    textAnchor="middle"
-                                    fill="white"
-                                    fontSize={fontSize}
-                                    fontWeight="500"
-                                  >
-                                    {text}
-                                  </text>
-                                </g>
-                              )
-                            })()}
-
-                          </g>
-                        ))}
-                      </svg>
-                    )}
-                  </div>
-
-                  {/* X-axis labels */}
-                  <div className="absolute bottom-0 left-0 right-0 flex justify-between text-xs text-gray-400 font-medium">
-                    {studyHoursData.map((d, i) => (
-                      <div
-                        key={i}
-                        className={`text-center transition-colors duration-150 ${
-                          hoveredPoint === i ? 'text-purple-600 font-semibold' : ''
-                        }`}
-                        style={{ width: `${100 / studyHoursData.length}%` }}
-                      >
-                        {d.day}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
+              {/* Recharts Line Chart */}
+             <StudyTimeChart data={studyHoursData} />
 
               {/* Stats Cards */}
               <div className="grid grid-cols-4 gap-4">
