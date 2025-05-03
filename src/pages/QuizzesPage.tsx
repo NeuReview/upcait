@@ -724,11 +724,19 @@ const QuizzesPage = () => {
                     <button
                       key={topic.id}
                       onClick={() => setSelectedTopic(topic.id)}
-                      className={`p-6 rounded-lg border-2 transition-all duration-200 ${
-                        selectedTopic === topic.id
-                          ? 'border-neural-purple bg-neural-purple/5'
-                          : 'border-gray-200 hover:border-neural-purple'
-                      }`}
+                      className={`
+                               p-6 rounded-lg border-2 transition-all duration-200 shadow-md
+                               ${
+                                 selectedTopic === topic.id
+                                   ? topic.id === 'Reading Comprehension'
+                                     // selected RC: purple border, white fill
+                                     ? 'border-neural-purple bg-white'
+                                     // selected other: purple tint
+                                     : 'border-neural-purple bg-neural-purple/5'
+                                   // unselected *all* cards: white fill, gray border
+                                   : 'border-gray-200 bg-white hover:border-neural-purple'
+                               }
+                             `}
                     >
                       <div className="flex items-center space-x-4">
                         <div className={`w-12 h-12 rounded-lg flex items-center justify-center ${
@@ -752,19 +760,47 @@ const QuizzesPage = () => {
               <div>
                 <h2 className="text-xl font-semibold text-gray-900 mb-4">Select Difficulty</h2>
                 <div className="grid md:grid-cols-3 gap-4">
-                  {difficulties.map((difficulty) => (
+                {difficulties.map((difficulty) => {
+                  const isSelected = selectedDifficulty === difficulty.id;
+
+                  // pick the correct Tailwind color keys
+                  const borderColor = difficulty.id === 'Easy'
+                    ? 'border-growth-green'
+                    : difficulty.id === 'Medium'
+                      ? 'border-energy-orange'
+                      : 'border-alert-red';
+
+                  const bgTint = difficulty.id === 'Easy'
+                    ? 'bg-growth-green/5'
+                    : difficulty.id === 'Medium'
+                      ? 'bg-energy-orange/5'
+                      : 'bg-alert-red/5';
+
+                  const hoverBorder = difficulty.id === 'Easy'
+                    ? 'hover:border-growth-green'
+                    : difficulty.id === 'Medium'
+                      ? 'hover:border-energy-orange'
+                      : 'hover:border-alert-red';
+
+                  return (
                     <button
                       key={difficulty.id}
                       onClick={() => setSelectedDifficulty(difficulty.id)}
-                      className={`p-6 rounded-lg border-2 transition-all duration-200 ${
-                        selectedDifficulty === difficulty.id
-                          ? 'border-neural-purple bg-neural-purple/5'
-                          : 'border-gray-200 hover:border-neural-purple'
-                      }`}
+                      className={`
+                        p-6 rounded-lg border-2 transition-all duration-200
+                        ${
+                          isSelected
+                            // selected: colored border + tint
+                            ? `${borderColor} ${bgTint}`
+                            // unselected: gray border, white bg, color-on-hover
+                            : `border-gray-200 bg-white ${hoverBorder}`
+                        }
+                      `}
                     >
                       <h3 className={`font-semibold ${difficulty.color}`}>{difficulty.name}</h3>
                     </button>
-                  ))}
+                  );
+                })}
                 </div>
               </div>
 
