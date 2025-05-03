@@ -787,7 +787,7 @@ const QuizzesPage = () => {
                       key={difficulty.id}
                       onClick={() => setSelectedDifficulty(difficulty.id)}
                       className={`
-                        p-6 rounded-lg border-2 transition-all duration-200
+                        p-6 rounded-lg shadow-md border-2 transition-all duration-200
                         ${
                           isSelected
                             // selected: colored border + tint
