@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, memo } from 'react';
 import { 
   AcademicCapIcon, 
   ArrowTrendingUpIcon,
@@ -17,7 +17,6 @@ import {
   PencilIcon,
   XMarkIcon
 } from '@heroicons/react/24/outline';
-import UserProfileComponent from '../components/UserProfileComponent';
 import { supabase, checkSupabaseConnection } from '../lib/supabase';
 import { useQuestions, scienceProgressStore } from '../hooks/useQuestions';
 import {
@@ -29,7 +28,7 @@ import {
     CartesianGrid,
     Tooltip,
   } from 'recharts';
-  
+
 
 // Define needed interfaces
 interface ProgressRecord {
@@ -74,6 +73,7 @@ interface UserData {
   user_school: string;
   user_socials: string;
   user_year_level: string;
+  accept_tos?: boolean;
 }
 
 interface EditProfileModalProps {
@@ -82,45 +82,87 @@ interface EditProfileModalProps {
   userData: UserData;
 }
 
-// Sample data for demonstration
-const studentData = {
-  name: "Juan Dela Cruz",
-  gradeLevel: "Grade 12",
-  goalScore: 98,
-  currentScore: 85,
-  streak: 15,
-  studyGoals: [
-    { id: 1, text: "Complete Math Module 5", deadline: "2024-02-20", completed: true },
-    { id: 2, text: "Review Science Concepts", deadline: "2024-02-22", completed: false },
-  ],
-  events: [
-    { id: 1, title: "UPCAT Registration", date: "2024-03-15" },
-    { id: 2, title: "Mock Exam #3", date: "2024-02-25" },
-  ],
-  newsletter: {
-    title: "UPCAT 2024 Updates",
-    content: "New study materials available for Science and Math sections.",
-  },
-  performance: {
-    questionsCompleted: 350,
-    totalQuestions: 1000,
-    accuracyRate: 68,
-    subjectMastery: {
-      math: 60,
-      science: 75,
-      english: 80,
-      reading: 70,
-    },
-    weeklyProgress: {
-      lastWeek: 58,
-      thisWeek: 65,
-    },
-    weaknesses: [
-      { topic: "Algebra", accuracy: 45, suggestion: "Practice more equations & word problems" },
-      { topic: "Chemistry", accuracy: 50, suggestion: "Review periodic table & reactions" },
-    ],
-  },
-};
+function TermsAndConditionsModal({
+  userData,
+  setShowTOSModal,
+  setUserAcceptedTOS,
+}: {
+  userData: { user_id?: string };
+  setShowTOSModal: (show: boolean) => void;
+  setUserAcceptedTOS: (accepted: boolean) => void;
+}) {
+  const [termsHtml, setTermsHtml] = useState<string>('<p>Loading…</p>');
+  const [hasScrolledToBottom, setHasScrolledToBottom] = useState(false);
+  const contentRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    fetch('/terms.html')
+      .then(r => r.text())
+      .then(setTermsHtml)
+      .catch(() => setTermsHtml('<p>Failed to load.</p>'));
+  }, []);
+
+  useEffect(() => {
+    if (contentRef.current) {
+      contentRef.current.innerHTML = termsHtml;
+    }
+  }, [termsHtml]);
+
+  const handleScroll = () => {
+    const el = contentRef.current;
+    if (el && el.scrollTop + el.clientHeight >= el.scrollHeight - 1) {
+      setHasScrolledToBottom(true);
+    }
+  };
+
+  const handleAccept = async () => {
+    await supabase
+      .from('user_profile')
+      .upsert(
+        { user_id: userData.user_id, accept_tos: true, updated_at: new Date().toISOString() },
+        { onConflict: 'user_id' }
+      );
+    setUserAcceptedTOS(true);
+    setShowTOSModal(false);
+  };
+  const handleDisagree = () => supabase.auth.signOut();
+
+  return (
+    <div className="fixed inset-0 bg-purple-900 bg-opacity-75 z-50 flex items-center justify-center">
+      <div className="bg-white rounded-lg shadow-lg max-w-2xl w-full mx-4">
+        <div className="bg-purple-600 px-6 py-4 rounded-t-lg">
+          <h2 className="text-white text-lg font-semibold">Terms of Service</h2>
+        </div>
+        <div
+          ref={contentRef}
+          onScroll={handleScroll}
+          className="p-6 max-h-[60vh] overflow-y-auto text-sm text-gray-700 space-y-4"
+        />
+        <div className="flex justify-end space-x-3 p-4 border-t border-gray-200">
+          <button onClick={handleDisagree} className="px-4 py-2 bg-gray-100 rounded-lg">
+            I Disagree
+          </button>
+          <button
+            onClick={handleAccept}
+            disabled={!hasScrolledToBottom}
+            className={
+              hasScrolledToBottom
+                ? 'px-4 py-2 bg-purple-600 text-white rounded-lg'
+                : 'px-4 py-2 bg-gray-300 text-gray-500 rounded-lg cursor-not-allowed'
+            }
+          >
+            I Agree
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+
+const TermsContent = memo(({ html }: { html: string }) => (
+  <div dangerouslySetInnerHTML={{ __html: html }} />
+));
 
 // Circle component for reusability
 // Compact donut used in "Answered Questions"
@@ -176,11 +218,6 @@ interface ScienceProgressData {
   accuracy: number;
 }
 
-interface StudyHoursData {
-  day: string;
-  hours: number;
-}
-
 interface ProfileSectionProps {
   setIsEditProfileOpen: (isOpen: boolean) => void;
   userData: UserData;
@@ -200,7 +237,9 @@ const DashboardPage = () => {
   const [supabaseStatus, setSupabaseStatus] = useState<{ connected: boolean; error?: string }>({ connected: true });
   const [isEditProfileOpen, setIsEditProfileOpen] = useState(false);
   const [selectedSubject, setSelectedSubject] = useState<'science' | 'mathematics' | 'language' | 'reading'>('science');
-  const [hoveredPoint, setHoveredPoint] = useState<number | null>(null);
+  const [hasScrolledToBottom, setHasScrolledToBottom] = useState(false);
+  const contentRef = useRef<HTMLDivElement>(null);
+
 
   const [showSuccess, setShowSuccess] = useState(false);
 
@@ -787,60 +826,68 @@ const DashboardPage = () => {
     user_year_level: ""
   });
 
+  const [showTOSModal, setShowTOSModal] = useState(false);
+  const [userAcceptedTOS, setUserAcceptedTOS] = useState<boolean|null>(null);
+
   // Fetch user profile data
+  // Fetch user profile data
+
   const fetchUserProfile = async () => {
-    try {
-      const user = await supabase.auth.getUser();
-      if (!user.data.user) {
-        console.log('No user logged in');
-        return;
-      }
-
-      // Fetch user profile data
-      const { data: profileData, error: profileError } = await supabase
-        .from('user_profile')
-        .select('*')
-        .eq('user_id', user.data.user.id)
-        .single();
-
-      if (profileError) {
-        console.error('Error fetching user profile:', profileError);
-        return;
-      }
-
-      // If profile doesn't exist, create one with default values
-      if (!profileData) {
-        const defaultProfile: Partial<UserData> = {
-          user_fullname: '',
-          user_username: '',
-          user_bio: '',
-          user_location: '',
-          user_school: '',
-          user_socials: '',
-          user_year_level: '',
-          user_id: user.data.user.id
-        };
-
-        const { data: newProfile, error: createError } = await supabase
-          .from('user_profile')
-          .insert([defaultProfile])
-          .select()
-          .single();
-
-        if (createError) {
-          console.error('Error creating user profile:', createError);
-          return;
+        try {
+          const {
+            data: { user },
+            error: authError
+          } = await supabase.auth.getUser();
+          if (authError || !user) {
+            console.log("not logged in");
+            return;
+          }
+    
+          // Try to pull the full profile row
+          const { data: profileRow, error: profileError } = await supabase
+            .from("user_profile")
+            .select("*")
+            .eq("user_id", user.id)
+            .single();
+    
+          let row = profileRow;
+          // if there was _no_ row, create the default one
+          if (profileError && profileError.code === "PGRST116") {
+            const { data: newRow, error: insertErr } = await supabase
+              .from("user_profile")
+              .insert([{ user_id: user.id }])
+              .select("*")
+              .single();
+            if (insertErr) {
+              console.error("could not create default profile", insertErr);
+              return;
+            }
+            row = newRow;
+          } else if (profileError) {
+            console.error("error loading profile", profileError);
+            return;
+          }
+    
+          // stash it in state
+          setUserData(row as UserData);
+    
+          // show TOS if they haven't accepted yet
+          const hasAccepted = row.accept_tos === true;
+          if (!hasAccepted) {
+            setShowTOSModal(true);
+          }
+        } catch (err) {
+          console.error(err);
         }
-
-        setUserData(newProfile as UserData);
-      } else {
-        setUserData(profileData as UserData);
-      }
-
-    } catch (err) {
-      console.error('Error in fetchUserProfile:', err);
-    }
-  };
+      };
+    
+  useEffect(() => {
+    fetchUserProfile();
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_, sess) => {
+      if (sess?.user) fetchUserProfile();
+    });
+    return () => subscription.unsubscribe();
+  }, []);
   
   useEffect(() => {
     const fetchStudyGoal = async () => {
@@ -932,10 +979,11 @@ const DashboardPage = () => {
     }
   };
 
-  // Fetch user profile on component mount
   useEffect(() => {
-    fetchUserProfile();
-  }, []);
+       if (userAcceptedTOS === false) {
+         setShowTOSModal(true);
+       }
+     }, [userAcceptedTOS]);
 
   // Update EditProfileModal component
   const EditProfileModal: React.FC<EditProfileModalProps> = ({ isOpen, onClose, userData }) => {
@@ -1872,8 +1920,18 @@ const DashboardPage = () => {
     day: d.day
   }));
 
+    // ─── Terms & Conditions Modal ────────────────────────────
+
+    
   return (
     <div className="min-h-screen bg-gray-50 py-8">
+      {showTOSModal && (
+  <TermsAndConditionsModal
+    userData={userData}
+    setShowTOSModal={setShowTOSModal}
+    setUserAcceptedTOS={setUserAcceptedTOS}
+  />
+)}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Left Column */}
