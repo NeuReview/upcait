@@ -42,9 +42,11 @@ const Navbar: React.FC = () => {
             <div className="flex justify-between h-16">
               {/* Brand + Desktop Nav */}
               <div className="flex items-center">
-                <Link to="/" className="text-2xl font-bold text-neural-purple">
-                  UPCAiT
-                </Link>
+              <img
+                src="/images/logo.png"
+                alt="UPCaiT Logo"
+                className="h-8 w-auto"
+              />
                 <div className="hidden sm:ml-6 sm:flex sm:space-x-8">
                   {navigation.map((item) =>
                     item.children ? (

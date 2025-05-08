@@ -212,7 +212,7 @@ const HomePage = () => {
         </div>
       </div>
 
-      {/* Pricing Section with Enhanced Visual Elements */}
+      {/* Pricing Section with Enhanced Visual Elements
       <div className="py-16 bg-white relative overflow-hidden">
         <div className="absolute inset-0 neural-bg opacity-5"></div>
         <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -258,7 +258,7 @@ const HomePage = () => {
             ))}
           </div>
         </div>
-      </div>
+      </div> */}
 
       {/* CTA Section with Enhanced Design */}
       <div className="bg-gradient-to-br from-neural-purple to-tech-lavender py-16 relative overflow-hidden">
