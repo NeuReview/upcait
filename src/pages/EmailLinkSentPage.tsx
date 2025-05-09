@@ -1,4 +1,3 @@
-// src/pages/EmailLinkSentPage.tsx
 import React, { useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { XCircleIcon, ArrowPathIcon, CheckCircleIcon } from '@heroicons/react/24/outline'

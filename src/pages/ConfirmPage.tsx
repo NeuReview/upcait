@@ -1,4 +1,3 @@
-// src/pages/ConfirmPage.tsx
 import React, { useEffect } from 'react'
 import { useSearchParams, useNavigate } from 'react-router-dom'
 import { CheckCircleIcon } from '@heroicons/react/24/outline'
