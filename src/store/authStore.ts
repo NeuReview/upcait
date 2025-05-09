@@ -179,7 +179,7 @@ signUp: async (email, password) => {
           if (error) throw error;
 
           set({ user: null, otpPending: false, acceptedTOS: null });
-          localStorage.removeItem('otp-email');
+          localStorage.removeItem('verify-email');
           window.location.href = '/login';
         } catch (err) {
           throw new Error((err as AuthError).message);

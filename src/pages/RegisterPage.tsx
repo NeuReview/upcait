@@ -101,7 +101,7 @@ const RegisterPage = () => {
       return
     }
 
-    localStorage.setItem('magic-email', email)
+    localStorage.setItem('verify-email', email)
     navigate('/email-sent')
   }
 
