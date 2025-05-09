@@ -18,7 +18,7 @@ const Footer = () => {
               />
           </Link>
             <p className="mt-4 text-gray-500">
-              Your AI-powered companion for UPCAT success. We help aspiring UP students prepare effectively with personalized learning paths and comprehensive study materials.
+              Your AI-powered companion for high stake exams. We help aspiring UP students prepare effectively with personalized learning paths and comprehensive study materials.
             </p>
           </div>
 
@@ -58,10 +58,10 @@ const Footer = () => {
             </h3>
             <ul className="mt-4 space-y-4">
               <li className="text-gray-500">
-                Email: support@upcait.com
+                Email: gdocon@up.edu.ph
               </li>
               <li className="text-gray-500">
-                Phone: +63 (2) 8981-8500
+                Phone: +63 927 474-9276
               </li>
               <li className="text-gray-500">
                 Address: Quezon City, Philippines

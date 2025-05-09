@@ -74,6 +74,10 @@ interface UserData {
   user_socials: string;
   user_year_level: string;
   accept_tos?: boolean;
+
+  // ← add these two
+  created_at?: string;
+  updated_at?: string;
 }
 
 interface EditProfileModalProps {
@@ -128,7 +132,7 @@ function TermsAndConditionsModal({
   const handleDisagree = () => supabase.auth.signOut();
 
   return (
-    <div className="fixed inset-0 bg-purple-900 bg-opacity-75 z-50 flex items-center justify-center">
+    <div className="fixed inset-0 bg-purple-200 bg-opacity-75 z-50 flex items-center justify-center">
       <div className="bg-white rounded-lg shadow-lg max-w-2xl w-full mx-4">
         <div className="bg-purple-600 px-6 py-4 rounded-t-lg">
           <h2 className="text-white text-lg font-semibold">Terms of Service</h2>
@@ -826,60 +830,58 @@ const DashboardPage = () => {
     user_year_level: ""
   });
 
-  const [showTOSModal, setShowTOSModal] = useState(false);
-  const [userAcceptedTOS, setUserAcceptedTOS] = useState<boolean|null>(null);
-
   // Fetch user profile data
   // Fetch user profile data
 
-  const fetchUserProfile = async () => {
-        try {
-          const {
-            data: { user },
-            error: authError
-          } = await supabase.auth.getUser();
-          if (authError || !user) {
-            console.log("not logged in");
-            return;
-          }
-    
-          // Try to pull the full profile row
-          const { data: profileRow, error: profileError } = await supabase
-            .from("user_profile")
-            .select("*")
-            .eq("user_id", user.id)
-            .single();
-    
-          let row = profileRow;
-          // if there was _no_ row, create the default one
-          if (profileError && profileError.code === "PGRST116") {
-            const { data: newRow, error: insertErr } = await supabase
-              .from("user_profile")
-              .insert([{ user_id: user.id }])
-              .select("*")
-              .single();
-            if (insertErr) {
-              console.error("could not create default profile", insertErr);
-              return;
-            }
-            row = newRow;
-          } else if (profileError) {
-            console.error("error loading profile", profileError);
-            return;
-          }
-    
-          // stash it in state
-          setUserData(row as UserData);
-    
-          // show TOS if they haven't accepted yet
-          const hasAccepted = row.accept_tos === true;
-          if (!hasAccepted) {
-            setShowTOSModal(true);
-          }
-        } catch (err) {
-          console.error(err);
-        }
-      };
+  const fetchUserProfile = async (): Promise<boolean> => {
+  try {
+    // 1) Get the currently authenticated user
+    const {
+      data: { user },
+      error: authError
+    } = await supabase.auth.getUser();
+    if (authError || !user) {
+      console.log("Not logged in; cannot fetch profile.");
+      return false;
+    }
+
+    // 2) Try to load their existing profile row
+    const { data: profileRow, error: profileError } = await supabase
+      .from("user_profile")
+      .select("*")
+      .eq("user_id", user.id)
+      .single();
+
+    let row = profileRow;
+
+    // 3) If no row exists (PG error PGRST116), create a default one
+    if (profileError && profileError.code === "PGRST116") {
+      const { data: newRow, error: insertErr } = await supabase
+        .from("user_profile")
+        .insert([{ user_id: user.id }])
+        .select("*")
+        .single();
+
+      if (insertErr) {
+        console.error("Could not create default profile", insertErr);
+        return false;
+      }
+      row = newRow;
+    } else if (profileError) {
+      console.error("Error loading profile", profileError);
+      return false;
+    }
+
+    // 4) Save the fetched/created profile into component state
+    setUserData(row);
+
+    // 5) Return whether they’ve already accepted the TOS
+    return row.accept_tos === true;
+  } catch (err) {
+    console.error("fetchUserProfile:", err);
+    return false;
+  }
+};
     
   useEffect(() => {
     fetchUserProfile();
@@ -922,68 +924,67 @@ const DashboardPage = () => {
   }, [userData.user_id]);
   
   // Update user profile data
-  const updateUserProfile = async (updatedData: Partial<UserData>) => {
-    try {
-      const user = await supabase.auth.getUser();
-      if (!user.data.user) {
-        alert('You must be logged in to update your profile.');
-        return false;
-      }
-
-      // First check if profile exists
-      const { data: existingProfile } = await supabase
-        .from('user_profile')
-        .select('*')
-        .eq('user_id', user.data.user.id)
-        .single();
-
-      if (existingProfile) {
-        // Update existing profile
-        const { error: updateError } = await supabase
-          .from('user_profile')
-          .update({
-            ...updatedData,
-            updated_at: new Date().toISOString()
-          })
-          .eq('user_id', user.data.user.id);
-
-        if (updateError) {
-          console.error('Error updating profile:', updateError);
-          alert('Failed to update profile. Please try again.');
-          return false;
-        }
-      } else {
-        // Insert new profile
-        const { error: insertError } = await supabase
-          .from('user_profile')
-          .insert([{
-            user_id: user.data.user.id,
-            ...updatedData,
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString()
-          }]);
-
-        if (insertError) {
-          console.error('Error creating profile:', insertError);
-          alert('Failed to create profile. Please try again.');
-          return false;
-        }
-      }
-
-      // Refresh user data
-      await fetchUserProfile();
-      return true;
-    } catch (err) {
-      console.error('Error in updateUserProfile:', err);
+  // Update user profile data
+const updateUserProfile = async (updatedData: Partial<UserData>) => {
+  try {
+    const { data: authData } = await supabase.auth.getUser();
+    if (!authData.user) {
+      alert('You must be logged in to update your profile.');
       return false;
     }
-  };
+    const uid = authData.user.id;
 
-  useEffect(() => {
-       if (userAcceptedTOS === false) {
-         setShowTOSModal(true);
-       }
-     }, [userAcceptedTOS]);
+    // Build a payload with only the editable fields
+    const payload: Partial<UserData> = {
+      user_fullname:   updatedData.user_fullname,
+      user_username:   updatedData.user_username,
+      user_bio:        updatedData.user_bio,
+      user_location:   updatedData.user_location,
+      user_school:     updatedData.user_school,
+      ...(updatedData.user_socials ? { user_socials: updatedData.user_socials } : {}),
+      user_year_level: updatedData.user_year_level,
+      updated_at:      new Date().toISOString(),
+    };
+
+    // Try to update first
+    const { data: existingProfile } = await supabase
+      .from('user_profile')
+      .select('user_id')
+      .eq('user_id', uid)
+      .single();
+
+    if (existingProfile) {
+      const { error } = await supabase
+        .from('user_profile')
+        .update(payload)
+        .eq('user_id', uid);
+
+      if (error) {
+        console.error('Error updating profile:', error);
+        alert('Failed to update profile. Please try again.');
+        return false;
+      }
+    } else {
+      // Insert new row if it didn’t exist
+      const { error } = await supabase
+        .from('user_profile')
+        .insert([{ user_id: uid, ...payload, created_at: new Date().toISOString() }]);
+
+      if (error) {
+        console.error('Error creating profile:', error);
+        alert('Failed to create profile. Please try again.');
+        return false;
+      }
+    }
+
+    await fetchUserProfile();
+    return true;
+  } catch (err) {
+    console.error('Error in updateUserProfile:', err);
+    return false;
+  }
+};
+
 
   // Update EditProfileModal component
   const EditProfileModal: React.FC<EditProfileModalProps> = ({ isOpen, onClose, userData }) => {
@@ -993,7 +994,7 @@ const DashboardPage = () => {
       user_bio: '',
       user_location: '',
       user_school: '',
-      user_socials: '',
+      user_socials: userData.user_socials ?? '',
       user_year_level: ''
     };
 
@@ -1132,7 +1133,7 @@ const DashboardPage = () => {
                     value={formData.user_location}
                     onChange={(e) => setFormData({ ...formData, user_location: e.target.value })}
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                    placeholder="City, Province"
+                    placeholder="City, Country"
                     disabled={isSubmitting}
                   />
                 </div>
@@ -1925,13 +1926,6 @@ const DashboardPage = () => {
     
   return (
     <div className="min-h-screen bg-gray-50 py-8">
-      {showTOSModal && (
-  <TermsAndConditionsModal
-    userData={userData}
-    setShowTOSModal={setShowTOSModal}
-    setUserAcceptedTOS={setUserAcceptedTOS}
-  />
-)}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Left Column */}
