@@ -520,7 +520,7 @@ const QuizzesPage = () => {
   
       // 5) Kick off timer if needed
       if (isTimeBased) {
-        setTimeRemaining(1.5 * 60);
+        setTimeRemaining(30 * 60);
       }
     } catch (err) {
       console.error('Error starting quiz:', err);

@@ -510,7 +510,7 @@ const examSections = [
     category: 'Language Proficiency',
     icon: LanguageIcon,
     questions: 100,
-    timeLimit: 1.30,
+    timeLimit: 55,
     subsections: [
       { name: 'English', questions: 50 },
       { name: 'Filipino', questions: 50 }
@@ -522,7 +522,7 @@ const examSections = [
     category: 'Science',
     icon: BeakerIcon,
     questions: 60,
-    timeLimit: 1.30
+    timeLimit: 50,
   },
   {
     id: 'math',
@@ -530,7 +530,7 @@ const examSections = [
     category: 'Mathematics',
     icon: AcademicCapIcon,
     questions: 60,
-    timeLimit: 1.30
+    timeLimit: 75,
   },
   {
     id: 'reading',
@@ -538,7 +538,7 @@ const examSections = [
     category: 'Reading Comprehension',
     icon: BookOpenIcon,
     questions: 100,
-    timeLimit: 1.30,
+    timeLimit: 75,
     subsections: [
       { name: 'English', questions: 50 },
       { name: 'Filipino', questions: 50 }

@@ -57,6 +57,14 @@ const LoginPage = () => {
     }
   };
 
+   const submitLabel = isForgotPassword
+    ? loading
+      ? 'Sending link…'
+      : 'Send link'
+    : loading
+    ? 'Signing in…'
+    : 'Sign in';
+
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
       <div className="sm:mx-auto sm:w-full sm:max-w-md">
@@ -174,7 +182,7 @@ const LoginPage = () => {
                 disabled={loading}
                 className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-neural-purple hover:bg-tech-lavender focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-neural-purple disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {loading ? 'Signing in...' : 'Sign in'}
+                {submitLabel}
               </button>
             </div>
           </form>
