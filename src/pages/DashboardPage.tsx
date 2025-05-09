@@ -74,6 +74,10 @@ interface UserData {
   user_socials: string;
   user_year_level: string;
   accept_tos?: boolean;
+
+  // ← add these two
+  created_at?: string;
+  updated_at?: string;
 }
 
 interface EditProfileModalProps {
@@ -920,62 +924,67 @@ const DashboardPage = () => {
   }, [userData.user_id]);
   
   // Update user profile data
-  const updateUserProfile = async (updatedData: Partial<UserData>) => {
-    try {
-      const user = await supabase.auth.getUser();
-      if (!user.data.user) {
-        alert('You must be logged in to update your profile.');
-        return false;
-      }
-
-      // First check if profile exists
-      const { data: existingProfile } = await supabase
-        .from('user_profile')
-        .select('*')
-        .eq('user_id', user.data.user.id)
-        .single();
-
-      if (existingProfile) {
-        // Update existing profile
-        const { error: updateError } = await supabase
-          .from('user_profile')
-          .update({
-            ...updatedData,
-            updated_at: new Date().toISOString()
-          })
-          .eq('user_id', user.data.user.id);
-
-        if (updateError) {
-          console.error('Error updating profile:', updateError);
-          alert('Failed to update profile. Please try again.');
-          return false;
-        }
-      } else {
-        // Insert new profile
-        const { error: insertError } = await supabase
-          .from('user_profile')
-          .insert([{
-            user_id: user.data.user.id,
-            ...updatedData,
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString()
-          }]);
-
-        if (insertError) {
-          console.error('Error creating profile:', insertError);
-          alert('Failed to create profile. Please try again.');
-          return false;
-        }
-      }
-
-      // Refresh user data
-      await fetchUserProfile();
-      return true;
-    } catch (err) {
-      console.error('Error in updateUserProfile:', err);
+  // Update user profile data
+const updateUserProfile = async (updatedData: Partial<UserData>) => {
+  try {
+    const { data: authData } = await supabase.auth.getUser();
+    if (!authData.user) {
+      alert('You must be logged in to update your profile.');
       return false;
     }
-  };
+    const uid = authData.user.id;
+
+    // Build a payload with only the editable fields
+    const payload: Partial<UserData> = {
+      user_fullname:   updatedData.user_fullname,
+      user_username:   updatedData.user_username,
+      user_bio:        updatedData.user_bio,
+      user_location:   updatedData.user_location,
+      user_school:     updatedData.user_school,
+      user_socials:    updatedData.user_socials,
+      user_year_level: updatedData.user_year_level,
+      updated_at:      new Date().toISOString(),
+    };
+
+    // Try to update first
+    const { data: existingProfile } = await supabase
+      .from('user_profile')
+      .select('user_id')
+      .eq('user_id', uid)
+      .single();
+
+    if (existingProfile) {
+      const { error } = await supabase
+        .from('user_profile')
+        .update(payload)
+        .eq('user_id', uid);
+
+      if (error) {
+        console.error('Error updating profile:', error);
+        alert('Failed to update profile. Please try again.');
+        return false;
+      }
+    } else {
+      // Insert new row if it didn’t exist
+      const { error } = await supabase
+        .from('user_profile')
+        .insert([{ user_id: uid, ...payload, created_at: new Date().toISOString() }]);
+
+      if (error) {
+        console.error('Error creating profile:', error);
+        alert('Failed to create profile. Please try again.');
+        return false;
+      }
+    }
+
+    await fetchUserProfile();
+    return true;
+  } catch (err) {
+    console.error('Error in updateUserProfile:', err);
+    return false;
+  }
+};
+
 
   // Update EditProfileModal component
   const EditProfileModal: React.FC<EditProfileModalProps> = ({ isOpen, onClose, userData }) => {
