@@ -20,6 +20,16 @@ const RegisterPage = () => {
   const [loading, setLoading] = useState(false)
   const navigate = useNavigate()
 
+   const pwCheck         = validatePassword(password)          // live strength
+   const passwordValid   = pwCheck.isValid
+   const passwordsMatch  = password && confirmPassword && password === confirmPassword
+   const isFormValid =
+     !loading &&                     // not submitting
+     email.length > 0 &&             // some email text
+     !emailError &&                  // not already taken
+     passwordValid &&                // meets all 5 strength rules
+     passwordsMatch                  // both fields identical
+
   // 1️⃣ onBlur: check user_profile for existing email
   const checkEmailExists = async () => {
     if (!email) {
@@ -76,7 +86,7 @@ const RegisterPage = () => {
       email,
       password,
       options: {
-        emailRedirectTo: `${window.location.origin}/email-sent`,
+        emailRedirectTo: `${window.location.origin}/confirm`,
       },
     })
     setLoading(false)
@@ -229,7 +239,7 @@ const RegisterPage = () => {
             {/* Create Account */}
             <button
               type="submit"
-              disabled={loading || !!emailError || errors.length > 0}
+              disabled={!isFormValid}
               className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-neural-purple hover:bg-tech-lavender focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-neural-purple disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {loading ? 'Creating account…' : 'Create account'}
