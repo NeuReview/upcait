@@ -128,7 +128,7 @@ function TermsAndConditionsModal({
   const handleDisagree = () => supabase.auth.signOut();
 
   return (
-    <div className="fixed inset-0 bg-purple-900 bg-opacity-75 z-50 flex items-center justify-center">
+    <div className="fixed inset-0 bg-purple-200 bg-opacity-75 z-50 flex items-center justify-center">
       <div className="bg-white rounded-lg shadow-lg max-w-2xl w-full mx-4">
         <div className="bg-purple-600 px-6 py-4 rounded-t-lg">
           <h2 className="text-white text-lg font-semibold">Terms of Service</h2>
@@ -826,60 +826,58 @@ const DashboardPage = () => {
     user_year_level: ""
   });
 
-  const [showTOSModal, setShowTOSModal] = useState(false);
-  const [userAcceptedTOS, setUserAcceptedTOS] = useState<boolean|null>(null);
-
   // Fetch user profile data
   // Fetch user profile data
 
-  const fetchUserProfile = async () => {
-        try {
-          const {
-            data: { user },
-            error: authError
-          } = await supabase.auth.getUser();
-          if (authError || !user) {
-            console.log("not logged in");
-            return;
-          }
-    
-          // Try to pull the full profile row
-          const { data: profileRow, error: profileError } = await supabase
-            .from("user_profile")
-            .select("*")
-            .eq("user_id", user.id)
-            .single();
-    
-          let row = profileRow;
-          // if there was _no_ row, create the default one
-          if (profileError && profileError.code === "PGRST116") {
-            const { data: newRow, error: insertErr } = await supabase
-              .from("user_profile")
-              .insert([{ user_id: user.id }])
-              .select("*")
-              .single();
-            if (insertErr) {
-              console.error("could not create default profile", insertErr);
-              return;
-            }
-            row = newRow;
-          } else if (profileError) {
-            console.error("error loading profile", profileError);
-            return;
-          }
-    
-          // stash it in state
-          setUserData(row as UserData);
-    
-          // show TOS if they haven't accepted yet
-          const hasAccepted = row.accept_tos === true;
-          if (!hasAccepted) {
-            setShowTOSModal(true);
-          }
-        } catch (err) {
-          console.error(err);
-        }
-      };
+  const fetchUserProfile = async (): Promise<boolean> => {
+  try {
+    // 1) Get the currently authenticated user
+    const {
+      data: { user },
+      error: authError
+    } = await supabase.auth.getUser();
+    if (authError || !user) {
+      console.log("Not logged in; cannot fetch profile.");
+      return false;
+    }
+
+    // 2) Try to load their existing profile row
+    const { data: profileRow, error: profileError } = await supabase
+      .from("user_profile")
+      .select("*")
+      .eq("user_id", user.id)
+      .single();
+
+    let row = profileRow;
+
+    // 3) If no row exists (PG error PGRST116), create a default one
+    if (profileError && profileError.code === "PGRST116") {
+      const { data: newRow, error: insertErr } = await supabase
+        .from("user_profile")
+        .insert([{ user_id: user.id }])
+        .select("*")
+        .single();
+
+      if (insertErr) {
+        console.error("Could not create default profile", insertErr);
+        return false;
+      }
+      row = newRow;
+    } else if (profileError) {
+      console.error("Error loading profile", profileError);
+      return false;
+    }
+
+    // 4) Save the fetched/created profile into component state
+    setUserData(row);
+
+    // 5) Return whether they’ve already accepted the TOS
+    return row.accept_tos === true;
+  } catch (err) {
+    console.error("fetchUserProfile:", err);
+    return false;
+  }
+};
     
   useEffect(() => {
     fetchUserProfile();
@@ -978,12 +976,6 @@ const DashboardPage = () => {
       return false;
     }
   };
-
-  useEffect(() => {
-       if (userAcceptedTOS === false) {
-         setShowTOSModal(true);
-       }
-     }, [userAcceptedTOS]);
 
   // Update EditProfileModal component
   const EditProfileModal: React.FC<EditProfileModalProps> = ({ isOpen, onClose, userData }) => {
@@ -1925,13 +1917,6 @@ const DashboardPage = () => {
     
   return (
     <div className="min-h-screen bg-gray-50 py-8">
-      {showTOSModal && (
-  <TermsAndConditionsModal
-    userData={userData}
-    setShowTOSModal={setShowTOSModal}
-    setUserAcceptedTOS={setUserAcceptedTOS}
-  />
-)}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Left Column */}

@@ -91,7 +91,7 @@ const handleVerifyOtp = async (e: React.FormEvent) => {
     setTimeout(() => {
       // ✅ 3. Update OTP verification status and navigate
       onOtpVerified(); // This sets otpPending to false in App.tsx
-      navigate('/dashboard');
+      navigate('/');
     }, 2000);
   } catch (err) {
     setError(err instanceof Error ? err.message : 'Invalid OTP. Try again.');
@@ -117,7 +117,7 @@ const handleVerifyOtp = async (e: React.FormEvent) => {
           Verify Your Email
         </h2>
         <p className="mt-2 text-center text-sm text-gray-600">
-          We’ve sent a One-Time Password (OTP) to your email <span className="font-medium text-gray-900">{email}</span>.
+          We've sent a One-Time Password (OTP) to your email <span className="font-medium text-gray-900">{email}</span>.
         </p>
       </div>
 

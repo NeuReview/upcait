@@ -51,7 +51,7 @@ const LoginPage = () => {
   const handleGoogleLogin = async () => {
     try {
       await googleSignIn();
-      navigate('/dashboard'); // ✅ Redirect Google Sign-In users directly to the dashboard
+      // ✅ Redirect Google Sign-In users directly to the dashboard
     } catch (error) {
       console.error('Google Sign-in failed:', error);
     }

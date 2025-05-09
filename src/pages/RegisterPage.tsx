@@ -41,8 +41,12 @@ const RegisterPage = () => {
     }
 
     try {
+      // send the magic‐link / signUp
       await signUp(email, password);
-      navigate('/dashboard');
+      // stash email so EmailLinkSentPage can pick it up
+      localStorage.setItem('magic-email', email);
+      // now show the “we’ve sent it” screen
+      navigate('/email-sent');
     } catch (err) {
       setErrors([err instanceof Error ? err.message : 'An error occurred']);
     }
