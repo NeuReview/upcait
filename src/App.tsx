@@ -26,7 +26,7 @@ function App() {
   const [loading, setLoading] = useState(true);
 
   // ✅ Define isPreorderPage to hide Navbar and adjust layout
-  const isPreorderPage = window.location.pathname === '/preorder' || (!user && window.location.pathname === '/');
+  //const isPreorderPage = window.location.pathname === '/upcait/preorder';
 
   // ✅ Fetch user session on app load
   useEffect(() => {
@@ -39,8 +39,8 @@ function App() {
 
   // ✅ Redirect logged-in users to OTP if verification is pending
   useEffect(() => {
-    if (user && otpPending && window.location.pathname !== '/otp') {
-      window.location.replace('/otp'); // Ensures immediate OTP redirection
+    if (user && otpPending && window.location.pathname !== '/upcait/otp') {
+      window.location.replace('/upcait/otp'); // Ensures immediate OTP redirection
     }
   }, [user, otpPending]);
 
@@ -59,46 +59,58 @@ function App() {
   return (
     <AuthProvider>
       <Router>
-        <div className="min-h-screen bg-gray-50 flex flex-col">
           {/* ✅ Hide Navbar on Preorder Page */}
-          {!isPreorderPage && user && !otpPending && window.location.pathname !== '/otp' && <Navbar />}
-
-          <div className={`${!isPreorderPage ? 'pt-16' : ''} flex-grow`}>
+          {user && !otpPending && window.location.pathname !== '/upcait/otp' && <Navbar />}
+          <div className="flex-grow pt-16">
             <Routes>
-              {/* ✅ First visit → Redirect to Preorder if not signed in */}
-              <Route path="/" element={user ? <HomePage /> : <Navigate to="/preorder" replace />} />
-              <Route path="/preorder" element={<PreOrderPage />} />
+              {/* Redirect unprefixed login and register to /upcait/... */}
+              <Route path="/dashboard" element={<Navigate to="/upcait/dashboard" replace />} />
+              <Route path="/quizzes" element={<Navigate to="/upcait/quizzes" replace />} />
+              <Route path="/mock-exams" element={<Navigate to="/upcait/mock-exams" replace />} />
+              <Route path="/flashcards" element={<Navigate to="/upcait/flashcards" replace />} />
+              <Route path="/resources" element={<Navigate to="/upcait/resources" replace />} />
+              <Route path="/profile" element={<Navigate to="/upcait/profile" replace />} />
+              <Route path="/otp" element={<Navigate to="/upcait/otp" replace />} />
+              <Route path="/reset-password" element={<Navigate to="/upcait/reset-password" replace />} />
+              <Route path="/pricing" element={<Navigate to="/upcait/pricing" replace />} />
+
+              <Route path="/login" element={<Navigate to="/upcait/login" replace />} />
+              <Route path="/register" element={<Navigate to="/upcait/register" replace />} />
+
+              {/* ✅ Redirect root path to /upcait for homepage */}
+              <Route path="/" element={<Navigate to="/upcait" replace />} />
+              {/* ✅ Actual homepage at /upcait */}
+              <Route path="/upcait" element={<HomePage />} />
 
               {/* ✅ Login & Registration */}
-              <Route path="/login" element={user ? <Navigate to={otpPending ? "/otp" : "/dashboard"} replace /> : <LoginPage />} />
-              <Route path="/register" element={user ? <Navigate to={otpPending ? "/otp" : "/dashboard"} replace /> : <RegisterPage />} />
-              <Route path="/reset-password" element={<ResetPasswordPage />} />
-              <Route path="/pricing" element={<PricingSection />} />
+              <Route path="/upcait/login" element={user ? <Navigate to={otpPending ? "/upcait/otp" : "/upcait/dashboard"} replace /> : <LoginPage />} />
+              <Route path="/upcait/register" element={user ? <Navigate to={otpPending ? "/upcait/otp" : "/upcait/dashboard"} replace /> : <RegisterPage />} />
+              <Route path="/upcait/reset-password" element={<ResetPasswordPage />} />
+              <Route path="/upcait/pricing" element={<PricingSection />} />
 
               {/* ✅ OTP Verification Route */}
               <Route 
-                path="/otp" 
-                element={user && otpPending ? <OtpPage onOtpVerified={handleOtpVerified} /> : <Navigate to="/dashboard" replace />} 
+                path="/upcait/otp" 
+                element={user && otpPending ? <OtpPage onOtpVerified={handleOtpVerified} /> : <Navigate to="/upcait/dashboard" replace />} 
               />
 
               {/* ✅ Protected Routes - Ensure OTP Verification Before Access */}
-              <Route path="/dashboard" element={user ? (otpPending ? <Navigate to="/otp" replace /> : <DashboardPage />) : <Navigate to="/preorder" replace />} />
-              <Route path="/quizzes" element={user ? (otpPending ? <Navigate to="/otp" replace /> : <QuizzesPage />) : <Navigate to="/preorder" replace />} />
-              <Route path="/mock-exams" element={user ? (otpPending ? <Navigate to="/otp" replace /> : <MockExamsPage />) : <Navigate to="/preorder" replace />} />
-              <Route path="/flashcards" element={user ? (otpPending ? <Navigate to="/otp" replace /> : <FlashcardsPage />) : <Navigate to="/preorder" replace />} />
-              <Route path="/resources" element={user ? (otpPending ? <Navigate to="/otp" replace /> : <ResourcesPage />) : <Navigate to="/preorder" replace />} />
-              <Route path="/profile" element={user ? (otpPending ? <Navigate to="/otp" replace /> : <ProfilePage />) : <Navigate to="/preorder" replace />} />
+              <Route path="/upcait/dashboard" element={user ? (otpPending ? <Navigate to="/upcait/otp" replace /> : <DashboardPage />) : <Navigate to="/upcait/preorder" replace />} />
+              <Route path="/upcait/quizzes" element={user ? (otpPending ? <Navigate to="/upcait/otp" replace /> : <QuizzesPage />) : <Navigate to="/upcait/preorder" replace />} />
+              <Route path="/upcait/mock-exams" element={user ? (otpPending ? <Navigate to="/upcait/otp" replace /> : <MockExamsPage />) : <Navigate to="/upcait/preorder" replace />} />
+              <Route path="/upcait/flashcards" element={user ? (otpPending ? <Navigate to="/upcait/otp" replace /> : <FlashcardsPage />) : <Navigate to="/upcait/preorder" replace />} />
+              <Route path="/upcait/resources" element={user ? (otpPending ? <Navigate to="/upcait/otp" replace /> : <ResourcesPage />) : <Navigate to="/upcait/preorder" replace />} />
+              <Route path="/upcait/profile" element={user ? (otpPending ? <Navigate to="/upcait/otp" replace /> : <ProfilePage />) : <Navigate to="/upcait/preorder" replace />} />
               <Route path="*" element={<NotFoundPage />} />
             </Routes>
           </div>
 
           {/* ✅ Show Chatbot only if user is logged in and not on preorder page */}
-          {user && !isPreorderPage && <Chatbot />}
+          {user && <Chatbot />}
           <Footer />
-        </div>
       </Router>
     </AuthProvider>
   );
 }
 
-export default App; 
+export default App;

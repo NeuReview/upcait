@@ -5,11 +5,7 @@ import { UserIcon, AcademicCapIcon, BuildingLibraryIcon } from '@heroicons/react
 
 const yearLevels = [
   'Grade 11',
-  'Grade 12',
-  '1st Year College',
-  '2nd Year College',
-  '3rd Year College',
-  '4th Year College'
+  'Grade 12'
 ];
 
 const UserProfile = () => {

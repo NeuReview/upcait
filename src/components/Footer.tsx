@@ -10,11 +10,13 @@ const Footer = () => {
         <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
           {/* Brand and Description */}
           <div className="col-span-1 md:col-span-2">
-          <img
-            src="/images/logo.png"
-            alt="UPCaiT Logo"
-            className="h-8 w-auto"
-          />
+          <Link to="/">
+              <img
+                src="/images/logo.png"
+                alt="UPCaiT Logo"
+                className="h-8 w-auto"
+              />
+          </Link>
             <p className="mt-4 text-gray-500">
               Your AI-powered companion for UPCAT success. We help aspiring UP students prepare effectively with personalized learning paths and comprehensive study materials.
             </p>
