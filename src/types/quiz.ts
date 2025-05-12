@@ -11,6 +11,7 @@ export interface Question {
   option_c?: string;
   option_d?: string;
   tag: string;
+  difficulty_level: 'Easy' | 'Medium' | 'Hard';
 }
 
 
