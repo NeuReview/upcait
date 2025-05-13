@@ -1195,68 +1195,92 @@ const updateUserProfile = async (updatedData: Partial<UserData>) => {
     );
   };
 
-  const ProfileSection: React.FC<ProfileSectionProps> = ({ setIsEditProfileOpen, userData, supabaseStatus }) => (
-    <div className="bg-white rounded-lg shadow">
-      <div className="p-6">
-        {/* Profile Header */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-4">
-            <div className="flex-shrink-0">
-              <div className="w-16 h-16 rounded-full bg-purple-50 flex items-center justify-center">
-                <UserCircleIcon className="w-12 h-12 text-purple-600" />
+  const ProfileSection: React.FC<ProfileSectionProps> = ({ setIsEditProfileOpen, userData, supabaseStatus }) => {
+    // ---------- placeholder fallbacks ----------
+    const fullName        = userData.user_fullname?.trim() || 'Your Name';
+    const usernameDisplay = userData.user_username?.trim() || 'username';
+    const bioDisplay      = userData.user_bio?.trim() || 'Click “Edit” to add a short bio and share something about yourself!';
+    const locationDisplay = userData.user_location?.trim() || 'Add your location';
+    const schoolDisplay   = userData.user_school?.trim() || 'Add your school';
+    // -------------------------------------------
+    return (
+      <div className="bg-white rounded-lg shadow">
+        <div className="p-6">
+          {/* Profile Header */}
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-4">
+              <div className="flex-shrink-0">
+                <div className="w-16 h-16 rounded-full bg-purple-50 flex items-center justify-center">
+                  <UserCircleIcon className="w-12 h-12 text-purple-600" />
+                </div>
+              </div>
+              <div>
+                <h2 className="text-xl font-bold text-gray-900">{fullName}</h2>
+                <p className="text-sm text-gray-500">@{usernameDisplay}</p>
               </div>
             </div>
-            <div>
-              <h2 className="text-xl font-bold text-gray-900">{userData.user_fullname}</h2>
-              <p className="text-sm text-gray-500">@{userData.user_username}</p>
+            <div className="flex items-center space-x-2">
+              {!supabaseStatus.connected && (
+                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-800">
+                  <XCircleIcon className="w-4 h-4 mr-1" />
+                  Offline
+                </span>
+              )}
+              <button
+                type="button"
+                onClick={() => setIsEditProfileOpen(true)}
+                className="inline-flex items-center px-3 py-1 border border-purple-200 rounded-full text-sm text-purple-600 bg-purple-50 hover:bg-purple-100 transition-colors"
+              >
+                <PencilIcon className="w-4 h-4 mr-1" />
+                Edit
+              </button>
             </div>
           </div>
-          <div className="flex items-center space-x-2">
-            {!supabaseStatus.connected && (
-              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-800">
-                <XCircleIcon className="w-4 h-4 mr-1" />
-                Offline
-              </span>
-            )}
-            <button
-              type="button"
-              onClick={() => setIsEditProfileOpen(true)}
-              className="inline-flex items-center px-3 py-1 border border-purple-200 rounded-full text-sm text-purple-600 bg-purple-50 hover:bg-purple-100 transition-colors"
-            >
-              <PencilIcon className="w-4 h-4 mr-1" />
-              Edit
-            </button>
-          </div>
-        </div>
 
-        {/* Bio */}
-        <p className="mt-4 text-sm text-gray-600">{userData.user_bio}</p>
+          {/* Bio */}
+          <p className="mt-4 text-sm text-gray-600">{bioDisplay}</p>
 
-        {/* Location and School Info */}
-        <div className="mt-4 space-y-2">
-          <div className="flex items-center text-sm text-gray-500">
-            <MapPinIcon className="w-4 h-4 mr-2 flex-shrink-0" />
-            <span className="truncate">{userData.user_location}</span>
+          {/* Location and School Info */}
+          <div className="mt-4 space-y-2">
+            <div className="flex items-center text-sm text-gray-500">
+              <MapPinIcon className="w-4 h-4 mr-2 flex-shrink-0" />
+              <span className="truncate">{locationDisplay}</span>
+            </div>
+            <div className="flex items-center text-sm text-gray-500">
+              <AcademicCapIcon className="w-4 h-4 mr-2 flex-shrink-0" />
+              <span className="truncate">{schoolDisplay}</span>
+            </div>
           </div>
-          <div className="flex items-center text-sm text-gray-500">
-            <AcademicCapIcon className="w-4 h-4 mr-2 flex-shrink-0" />
-            <span className="truncate">{userData.user_school}</span>
-          </div>
-        </div>
 
-        {/* Social Links */}
-        <div className="mt-4 pt-4 border-t border-gray-100">
-          <div className="flex flex-wrap gap-3">
-            <a href={userData.user_socials} target="_blank" rel="noopener noreferrer" 
-               className="inline-flex items-center px-3 py-1 rounded-full text-sm bg-purple-50 text-purple-600 hover:bg-purple-100 transition-colors">
-              <LinkIcon className="w-4 h-4 mr-2" />
-              Social Links
-            </a>
+          {/* Social Links */}
+          <div className="mt-4 pt-4 border-t border-gray-100">
+            <div className="flex flex-wrap gap-3">
+              {userData.user_socials ? (
+                <a
+                  href={userData.user_socials}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center px-3 py-1 rounded-full text-sm bg-purple-50 text-purple-600 hover:bg-purple-100 transition-colors"
+                >
+                  <LinkIcon className="w-4 h-4 mr-2" />
+                  Visit your link
+                </a>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setIsEditProfileOpen(true)}
+                  className="inline-flex items-center px-3 py-1 rounded-full text-sm bg-gray-100 text-gray-500 hover:bg-gray-200 transition-colors"
+                >
+                  <LinkIcon className="w-4 h-4 mr-2" />
+                  Add social link
+                </button>
+              )}
+            </div>
           </div>
         </div>
       </div>
-    </div>
-  );
+    );
+  };
 
   const subjectData = {
     science: {

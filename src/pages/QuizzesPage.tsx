@@ -229,6 +229,8 @@ const QuizSummary = ({ score, onRetry }: { score: QuizScore; onRetry: () => void
   showing correctness by category (like MockExamsPage).
 */
 const QuizSummarySidebar = ({ reviewData }: { reviewData: ReviewItem[] }) => {
+  // Track the global index inside reviewData so we can page fwd/back
+  const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
   const [selectedQuestion, setSelectedQuestion] = useState<ReviewItem | null>(null);
   const [showModal, setShowModal] = useState(false);
 
@@ -259,6 +261,8 @@ const QuizSummarySidebar = ({ reviewData }: { reviewData: ReviewItem[] }) => {
                 <button
                   key={`question-${q.question_id}-${idx}`}
                   onClick={() => {
+                    const globalIdx = reviewData.findIndex(item => item.question_id === q.question_id);
+                    setSelectedIndex(globalIdx);
                     setSelectedQuestion(q);
                     setShowModal(true);
                   }}
@@ -278,13 +282,15 @@ const QuizSummarySidebar = ({ reviewData }: { reviewData: ReviewItem[] }) => {
           <div className="bg-white rounded-lg p-6 max-w-xl w-full relative">
             <button
               className="absolute top-3 right-3 text-gray-500 hover:text-gray-700"
-              onClick={() => setShowModal(false)}
+              onClick={() => {
+                setShowModal(false);
+                setSelectedIndex(null);
+              }}
             >
               ✕
             </button>
             <h2 className="text-lg font-semibold mb-4">Question</h2>
             <p className="text-gray-800 mb-4">{selectedQuestion.question}</p>
-
             <ul className="space-y-2 mb-4">
               {(['A', 'B', 'C', 'D'] as const).map((letter) => {
                 const optionKey = `option_${letter.toLowerCase()}` as keyof ReviewItem;
@@ -319,6 +325,52 @@ const QuizSummarySidebar = ({ reviewData }: { reviewData: ReviewItem[] }) => {
 
             <p className="text-sm text-gray-500 mb-1">Explanation</p>
             <p className="text-gray-700">{selectedQuestion.explanation}</p>
+            {selectedQuestion.userAnswer === null && (
+              <p className="mt-4 p-3 border-l-4 border-alert-red bg-alert-red/10 text-alert-red font-medium rounded">
+                You did not select an answer for this question.
+              </p>
+            )}
+            {/* ─── Prev / Next navigation ─────────────────── */}
+            <div className="mt-6 flex justify-between items-center">
+              <button
+                onClick={() => {
+                  if (selectedIndex !== null && selectedIndex > 0) {
+                    const newIdx = selectedIndex - 1;
+                    setSelectedIndex(newIdx);
+                    setSelectedQuestion(reviewData[newIdx]);
+                  }
+                }}
+                disabled={selectedIndex === 0}
+                className={`px-4 py-2 rounded-lg border text-sm font-medium transition
+                  ${selectedIndex === 0
+                    ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                    : 'bg-white text-gray-700 hover:bg-gray-50'}`}
+              >
+                ← Prev
+              </button>
+
+              <span className="text-xs text-gray-500">
+                {selectedIndex !== null ? selectedIndex + 1 : 0} / {reviewData.length}
+              </span>
+
+              <button
+                onClick={() => {
+                  if (selectedIndex !== null && selectedIndex < reviewData.length - 1) {
+                    const newIdx = selectedIndex + 1;
+                    setSelectedIndex(newIdx);
+                    setSelectedQuestion(reviewData[newIdx]);
+                  }
+                }}
+                disabled={selectedIndex === reviewData.length - 1}
+                className={`px-4 py-2 rounded-lg border text-sm font-medium transition
+                  ${selectedIndex === reviewData.length - 1
+                    ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                    : 'bg-white text-gray-700 hover:bg-gray-50'}`}
+              >
+                Next →
+              </button>
+            </div>
+            {/* ─────────────────────────────────────────────── */}
           </div>
         </div>
       )}

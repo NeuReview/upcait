@@ -64,6 +64,7 @@ const mapQuestionToReviewItem = (question: Question, userAnswer: string | null):
 };
 
 const QuestionReviewPanel = ({ reviewData }: { reviewData: ReviewItem[] }) => {
+  const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
   const [selectedQuestion, setSelectedQuestion] = useState<ReviewItem | null>(null);
   const [showModal, setShowModal] = useState(false);
 
@@ -95,18 +96,20 @@ const QuestionReviewPanel = ({ reviewData }: { reviewData: ReviewItem[] }) => {
                 <div className="mb-2">
                   <h5 className="text-xs font-semibold text-gray-600">English</h5>
             <div className="flex flex-wrap gap-2">
-                    {englishItems.map((q, index) => (
-                <button
-                key={q.question_id}
-                onClick={() => {
-                  setSelectedQuestion(q);
-                  setShowModal(true);
-                }}
-                className={`w-8 h-8 rounded-full text-sm font-medium flex items-center justify-center ${getColor(q)}`}
-              >
-                {index + 1}
-              </button>
-              ))}
+                {englishItems.map((q, index) => (
+            <button
+            key={q.question_id}
+            onClick={() => {
+              const idx = reviewData.findIndex(item => item.question_id === q.question_id);
+              setSelectedIndex(idx);
+              setSelectedQuestion(q);
+              setShowModal(true);
+            }}
+            className={`w-8 h-8 rounded-full text-sm font-medium flex items-center justify-center ${getColor(q)}`}
+          >
+            {index + 1}
+          </button>
+          ))}
             </div>
           </div>
                 <hr className="my-2" />
@@ -117,6 +120,8 @@ const QuestionReviewPanel = ({ reviewData }: { reviewData: ReviewItem[] }) => {
                       <button
                         key={q.question_id}
                         onClick={() => {
+                          const idx = reviewData.findIndex(item => item.question_id === q.question_id);
+                          setSelectedIndex(idx);
                           setSelectedQuestion(q);
                           setShowModal(true);
                         }}
@@ -138,6 +143,8 @@ const QuestionReviewPanel = ({ reviewData }: { reviewData: ReviewItem[] }) => {
                     <button
                       key={q.question_id}
                       onClick={() => {
+                        const idx = reviewData.findIndex(item => item.question_id === q.question_id);
+                        setSelectedIndex(idx);
                         setSelectedQuestion(q);
                         setShowModal(true);
                       }}
@@ -159,7 +166,10 @@ const QuestionReviewPanel = ({ reviewData }: { reviewData: ReviewItem[] }) => {
           <div className="bg-white rounded-lg p-6 max-w-xl w-full relative">
             <button
               className="absolute top-3 right-3 text-gray-500 hover:text-gray-700"
-              onClick={() => setShowModal(false)}
+              onClick={() => {
+                setShowModal(false);
+                setSelectedIndex(null);
+              }}
             >
               ✕
             </button>
@@ -195,6 +205,47 @@ const QuestionReviewPanel = ({ reviewData }: { reviewData: ReviewItem[] }) => {
             </ul>
             <p className="text-sm text-gray-500 mb-1">Explanation</p>
             <p className="text-gray-700">{selectedQuestion.explanation}</p>
+            {/* ─── Prev / Next navigation ─────────────────── */}
+            <div className="mt-6 flex justify-between items-center">
+              <button
+                onClick={() => {
+                  if (selectedIndex !== null && selectedIndex > 0) {
+                    const newIdx = selectedIndex - 1;
+                    setSelectedIndex(newIdx);
+                    setSelectedQuestion(reviewData[newIdx]);
+                  }
+                }}
+                disabled={selectedIndex === 0}
+                className={`px-4 py-2 rounded-lg border text-sm font-medium transition
+                  ${selectedIndex === 0
+                    ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                    : 'bg-white text-gray-700 hover:bg-gray-50'}`}
+              >
+                ← Prev
+              </button>
+
+              <span className="text-xs text-gray-500">
+                {selectedIndex !== null ? selectedIndex + 1 : 0} / {reviewData.length}
+              </span>
+
+              <button
+                onClick={() => {
+                  if (selectedIndex !== null && selectedIndex < reviewData.length - 1) {
+                    const newIdx = selectedIndex + 1;
+                    setSelectedIndex(newIdx);
+                    setSelectedQuestion(reviewData[newIdx]);
+                  }
+                }}
+                disabled={selectedIndex === reviewData.length - 1}
+                className={`px-4 py-2 rounded-lg border text-sm font-medium transition
+                  ${selectedIndex === reviewData.length - 1
+                    ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                    : 'bg-white text-gray-700 hover:bg-gray-50'}`}
+              >
+                Next →
+              </button>
+            </div>
+            {/* ───────────────────────────────────────────── */}
           </div>
         </div>
       )}
@@ -221,6 +272,7 @@ const ExamSummary = ({
   const minutes = Math.floor(score.timeSpent / 60);
   const seconds = score.timeSpent % 60;
 
+  const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
   const [selectedQuestion, setSelectedQuestion] = useState<ReviewItem | null>(null);
   const [showModal, setShowModal] = useState(false);
 
@@ -279,6 +331,8 @@ const ExamSummary = ({
                 <button
                   key={q.question_id}
                   onClick={() => {
+                    const idx = score.reviewData.findIndex(item => item.question_id === q.question_id);
+                    setSelectedIndex(idx);
                     setSelectedQuestion(q);
                     setShowModal(true);
                   }}
@@ -297,6 +351,8 @@ const ExamSummary = ({
                     <button
                       key={q.question_id}
                       onClick={() => {
+                        const idx = score.reviewData.findIndex(item => item.question_id === q.question_id);
+                        setSelectedIndex(idx);
                         setSelectedQuestion(q);
                         setShowModal(true);
                       }}
@@ -314,6 +370,8 @@ const ExamSummary = ({
                 <button
                   key={q.question_id}
                   onClick={() => {
+                    const idx = score.reviewData.findIndex(item => item.question_id === q.question_id);
+                    setSelectedIndex(idx);
                     setSelectedQuestion(q);
                     setShowModal(true);
                   }}
@@ -450,7 +508,10 @@ const ExamSummary = ({
           <div className="bg-white rounded-lg p-6 max-w-xl w-full relative">
             <button
               className="absolute top-3 right-3 text-gray-500 hover:text-gray-700"
-              onClick={() => setShowModal(false)}
+              onClick={() => {
+                setShowModal(false);
+                setSelectedIndex(null);
+              }}
             >
               ✕
             </button>
@@ -495,6 +556,47 @@ const ExamSummary = ({
             </ul>
             <p className="text-sm text-gray-500 mb-1">Explanation</p>
             <p className="text-gray-700">{selectedQuestion.explanation}</p>
+            {/* ─── Prev / Next navigation ─────────────────── */}
+            <div className="mt-6 flex justify-between items-center">
+              <button
+                onClick={() => {
+                  if (selectedIndex !== null && selectedIndex > 0) {
+                    const newIdx = selectedIndex - 1;
+                    setSelectedIndex(newIdx);
+                    setSelectedQuestion(score.reviewData[newIdx]);
+                  }
+                }}
+                disabled={selectedIndex === 0}
+                className={`px-4 py-2 rounded-lg border text-sm font-medium transition
+                  ${selectedIndex === 0
+                    ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                    : 'bg-white text-gray-700 hover:bg-gray-50'}`}
+              >
+                ← Prev
+              </button>
+
+              <span className="text-xs text-gray-500">
+                {selectedIndex !== null ? selectedIndex + 1 : 0} / {score.reviewData.length}
+              </span>
+
+              <button
+                onClick={() => {
+                  if (selectedIndex !== null && selectedIndex < score.reviewData.length - 1) {
+                    const newIdx = selectedIndex + 1;
+                    setSelectedIndex(newIdx);
+                    setSelectedQuestion(score.reviewData[newIdx]);
+                  }
+                }}
+                disabled={selectedIndex === score.reviewData.length - 1}
+                className={`px-4 py-2 rounded-lg border text-sm font-medium transition
+                  ${selectedIndex === score.reviewData.length - 1
+                    ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                    : 'bg-white text-gray-700 hover:bg-gray-50'}`}
+              >
+                Next →
+              </button>
+            </div>
+            {/* ───────────────────────────────────────────── */}
           </div>
         </div>
       )}

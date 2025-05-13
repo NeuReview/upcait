@@ -37,14 +37,9 @@ function App() {
 
   const [loading, setLoading] = useState(true)
 
-  // Determine if we’re on the public PreOrder/Landing
-  const isPreorderPage =
-    window.location.pathname === '/preorder' ||
-    (!user && window.location.pathname === '/')
-
   // 1. On mount: load the session (user + otpPending flag)
   useEffect(() => {
-    ;(async () => {
+    (async () => {
       await fetchUser()
       setLoading(false)
     })()
@@ -55,7 +50,7 @@ function App() {
     if (user && !otpPending) {
       fetchTOS()
     }
-  }, [user, otpPending, fetchTOS])
+  }, [user, otpPending, fetchTOS]);
 
   // 3. Show spinner while:
   //    – we’re initially loading the session, OR
@@ -79,142 +74,105 @@ function App() {
   return (
     <AuthProvider>
       <Router>
-        <div className="min-h-screen flex flex-col bg-gray-50">
-          {!isPreorderPage && user && !otpPending && <Navbar />}
-
-          <main className={`${!isPreorderPage ? 'pt-16' : ''} flex-grow`}>
-            <Routes>
-              <Route
-                path="/"
-                element={
-                  user ? <HomePage /> : <Navigate to="/preorder" replace />
-                }
-              />
-              <Route path="/preorder" element={<PreOrderPage />} />
-
-              <Route
-                path="/login"
-                element={
-                  user && !otpPending ? (
-                    <Navigate to="/dashboard" replace />
-                  ) : (
-                    <LoginPage />
-                  )
-                }
-              />
-              <Route path="/register" element={<RegisterPage />} />
-              <Route path="/reset-password" element={<ResetPasswordPage />} />
-              <Route path="/pricing" element={<PricingSection />} />
-
-              {/* OTP Verification */}
-              <Route
-                path="/otp"
-                element={
-                  user && otpPending ? (
-                    <OtpPage onOtpVerified={() => setOtpPending(false)} />
-                  ) : (
-                    <Navigate to="/dashboard" replace />
-                  )
-                }
-              />
-
-              {/* Protected */}
-              <Route
-                path="/dashboard"
-                element={
-                  user ? (
+        {user ? (
+          <div className="min-h-screen flex flex-col bg-gray-50">
+            <Navbar />
+            <main className="pt-16 flex-grow">
+              <Routes>
+                <Route path="/" element={<DashboardPage />} />
+                <Route
+                  path="/otp"
+                  element={
+                    otpPending ? (
+                      <OtpPage onOtpVerified={() => setOtpPending(false)} />
+                    ) : (
+                      <Navigate to="/dashboard" replace />
+                    )
+                  }
+                />
+                <Route
+                  path="/dashboard"
+                  element={
                     otpPending ? (
                       <Navigate to="/otp" replace />
                     ) : (
                       <DashboardPage />
                     )
-                  ) : (
-                    <Navigate to="/preorder" replace />
-                  )
-                }
-              />
-              <Route
-                path="/quizzes"
-                element={
-                  user ? (
+                  }
+                />
+                <Route
+                  path="/quizzes"
+                  element={
                     otpPending ? (
                       <Navigate to="/otp" replace />
                     ) : (
                       <QuizzesPage />
                     )
-                  ) : (
-                    <Navigate to="/preorder" replace />
-                  )
-                }
-              />
-              <Route
-                path="/mock-exams"
-                element={
-                  user ? (
+                  }
+                />
+                <Route
+                  path="/mock-exams"
+                  element={
                     otpPending ? (
                       <Navigate to="/otp" replace />
                     ) : (
                       <MockExamsPage />
                     )
-                  ) : (
-                    <Navigate to="/preorder" replace />
-                  )
-                }
-              />
-              <Route
-                path="/flashcards"
-                element={
-                  user ? (
+                  }
+                />
+                <Route
+                  path="/flashcards"
+                  element={
                     otpPending ? (
                       <Navigate to="/otp" replace />
                     ) : (
                       <FlashcardsPage />
                     )
-                  ) : (
-                    <Navigate to="/preorder" replace />
-                  )
-                }
-              />
-              <Route
-                path="/resources"
-                element={
-                  user ? (
+                  }
+                />
+                <Route
+                  path="/resources"
+                  element={
                     otpPending ? (
                       <Navigate to="/otp" replace />
                     ) : (
                       <ResourcesPage />
                     )
-                  ) : (
-                    <Navigate to="/preorder" replace />
-                  )
-                }
-              />
-              <Route
-                path="/profile"
-                element={
-                  user ? (
+                  }
+                />
+                <Route
+                  path="/profile"
+                  element={
                     otpPending ? (
                       <Navigate to="/otp" replace />
                     ) : (
                       <ProfilePage />
                     )
-                  ) : (
-                    <Navigate to="/preorder" replace />
-                  )
-                }
-              />
-              {/* Auth flow pages */}
-              <Route path="/confirm" element={<ConfirmPage />} />
-              <Route path="/email-sent" element={<EmailLinkSentPage />} />
+                  }
+                />
+                {/* Auth flow pages */}
+                <Route path="/confirm" element={<ConfirmPage />} />
+                <Route path="/email-sent" element={<EmailLinkSentPage />} />
 
-              {/* 404 */}
-              <Route path="*" element={<NotFoundPage />} />
-            </Routes>
-          </main>
-
-          {user && !isPreorderPage && <Chatbot />}
-          <Footer />
-        </div>
+                {/* 404 */}
+                <Route path="*" element={<NotFoundPage />} />
+              </Routes>
+            </main>
+            <Chatbot />
+            <Footer />
+          </div>
+        ) : (
+          <Routes>
+            <Route path="/" element={<HomePage />} />
+            <Route path="/login" element={<LoginPage />} />
+            <Route path="/register" element={<RegisterPage />} />
+            <Route path="/reset-password" element={<ResetPasswordPage />} />
+            <Route path="/pricing" element={<PricingSection />} />
+            <Route path="/confirm" element={<ConfirmPage />} />
+            <Route path="/email-sent" element={<EmailLinkSentPage />} />
+            <Route path="*" element={<NotFoundPage />} />
+          </Routes>
+        )}
       </Router>
     </AuthProvider>
   )

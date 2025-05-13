@@ -485,7 +485,8 @@ export function useQuestions(): UseQuestionsReturn {
           option_d: q.option_D || '',
           answer: q.answer,
           explanation: q.explanation || '',
-          tag: 'English'
+          tag: 'English',
+          difficulty_level: (q.difficulty || 'Medium') as 'Easy' | 'Medium' | 'Hard'
         }));
 
         const filipinoQuestions = (filipinoResult.data || []).map((q: ReadingCompQuestionData) => ({
@@ -500,7 +501,8 @@ export function useQuestions(): UseQuestionsReturn {
           option_d: q.option_D || '',
           answer: q.answer,
           explanation: q.explanation || '',
-          tag: 'Filipino'
+          tag: 'Filipino',
+          difficulty_level: (q.difficulty || 'Medium') as 'Easy' | 'Medium' | 'Hard'
         }));
 
         // Combine and shuffle the questions
@@ -548,7 +550,8 @@ export function useQuestions(): UseQuestionsReturn {
           option_d: q.option_d || '',
           answer: q.answer,
           explanation: q.explanation || '',
-          tag: 'English'
+          tag: 'English',
+          difficulty_level: (q.difficulty || 'Medium') as 'Easy' | 'Medium' | 'Hard'
         }));
 
         const filipinoQuestions = (filipinoResult.data || []).map((q: LanguageQuestionData) => ({
@@ -563,7 +566,8 @@ export function useQuestions(): UseQuestionsReturn {
           option_d: q.option_D || '',
           answer: q.answer,
           explanation: q.explanation || '',
-          tag: 'Filipino'
+          tag: 'Filipino',
+          difficulty_level: (q.difficulty || 'Medium') as 'Easy' | 'Medium' | 'Hard'
         }));
 
         // Combine and shuffle the questions
@@ -623,7 +627,7 @@ export function useQuestions(): UseQuestionsReturn {
               question_id:     String(mathQ.question_id),
               global_id:       mathQ.global_id,
               category,
-              difficulty_level: mathQ.difficulty,
+              difficulty_level: (mathQ.difficulty || 'Medium') as 'Easy' | 'Medium' | 'Hard',
               question:        mathQ.question || '',
               options:         [mathQ.option_A, mathQ.option_B, mathQ.option_C, mathQ.option_D].filter(Boolean),
               option_a:        mathQ.option_A || '',
@@ -640,7 +644,7 @@ export function useQuestions(): UseQuestionsReturn {
               question_id:     String(otherQ.question_id),
               global_id:       otherQ.global_id,
               category,
-              difficulty_level: otherQ.difficulty,
+              difficulty_level: (otherQ.difficulty || 'Medium') as 'Easy' | 'Medium' | 'Hard',
               question:        otherQ.question || '',
               options:         [otherQ.option_a, otherQ.option_b, otherQ.option_c, otherQ.option_d].filter(Boolean),
               option_a:        otherQ.option_a || '',

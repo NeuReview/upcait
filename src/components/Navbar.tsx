@@ -26,7 +26,6 @@ const Navbar: React.FC = () => {
           { name: 'Dashboard', href: '/dashboard' },
         ]
       : []),
-    { name: 'Subscription', href: '/pricing' },
   ];
 
   const handleSignOut = async () => {
@@ -42,11 +41,13 @@ const Navbar: React.FC = () => {
             <div className="flex justify-between h-16">
               {/* Brand + Desktop Nav */}
               <div className="flex items-center">
-              <img
-                src="/images/logo.png"
-                alt="UPCaiT Logo"
-                className="h-8 w-auto"
-              />
+              <Link to="/" onClick={() => setPracticeOpen(false)}>
+                <img
+                  src="/images/logo.png"
+                  alt="UPCaiT Logo"
+                  className="h-8 w-auto"
+                />
+              </Link>
                 <div className="hidden sm:ml-6 sm:flex sm:space-x-8">
                   {navigation.map((item) =>
                     item.children ? (
@@ -95,6 +96,7 @@ const Navbar: React.FC = () => {
                       <Link
                         key={item.name}
                         to={item.href}
+                        onClick={() => setPracticeOpen(false)}
                         className={`inline-flex items-center px-1 pt-1 text-sm font-medium ${
                           location.pathname === item.href
                             ? 'text-neural-purple border-b-2 border-neural-purple'
