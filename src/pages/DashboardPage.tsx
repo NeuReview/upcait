@@ -1283,39 +1283,48 @@ const updateUserProfile = async (updatedData: Partial<UserData>) => {
   };
 
   const subjectData = {
-    science: {
-      icon: BeakerIcon,
-      color: 'sky',
-      percentage: 75,
-      correct: 112,
-      total: 150,
-      label: 'Science'
-    },
-    mathematics: {
-      icon: CalculatorIcon,
-      color: 'amber',
-      percentage: 68,
-      correct: 82,
-      total: 120,
-      label: 'Mathematics'
-    },
-    language: {
-      icon: LanguageIcon,
-      color: 'emerald',
-      percentage: 82,
-      correct: 131,
-      total: 160,
-      label: 'Language\nProficiency'
-    },
-    reading: {
-      icon: BookOpenIcon,
-      color: 'indigo',
-      percentage: 78,
-      correct: 109,
-      total: 140,
-      label: 'Reading\nComprehension'
-    }
-  };
+  science: {
+    icon: BeakerIcon,
+    color: 'sky',
+    strokeClass: 'stroke-sky-500',
+    textClass: 'text-sky-500',   // ← for the icon
+    percentage: 75,
+    correct: 112,
+    total: 150,
+    label:'Science'
+  },
+  mathematics: {
+    icon: CalculatorIcon,
+    color: 'amber',
+    strokeClass: 'stroke-amber-500',
+    textClass: 'text-amber-500',
+    percentage: 68,
+    correct: 82,
+    total: 120,
+    label: 'Mathematics'
+  },
+  language: {
+    icon: LanguageIcon,
+    color: 'emerald',
+    strokeClass: 'stroke-emerald-500',
+    textClass: 'text-emerald-500',
+    percentage: 82,
+    correct: 131,
+    total: 160,
+    label:'Language\nProficiency'
+  },
+  reading: {
+    icon: BookOpenIcon,
+    color: 'indigo',
+    strokeClass: 'stroke-indigo-500',
+    textClass: 'text-indigo-500',
+    percentage: 78,
+    correct: 109,
+    total: 140,
+    label: 'Reading\nComprehension'
+  }
+};
+
 
   // Merge dynamic quiz‑science stats into the base subject data
   const baseSubject = subjectData[selectedSubject];
@@ -1975,7 +1984,7 @@ const updateUserProfile = async (updatedData: Partial<UserData>) => {
                       <div className="relative w-44 h-44">
                         <svg className="w-full h-full transform -rotate-90" viewBox="0 0 100 100">
                           <circle
-                            className="text-gray-200 stroke-current"
+                            className="stroke-gray-200"
                             strokeWidth="8"
                             cx="50"
                             cy="50"
@@ -1983,7 +1992,7 @@ const updateUserProfile = async (updatedData: Partial<UserData>) => {
                             fill="transparent"
                           />
                           <circle
-                            className={`text-${subj.color}-500 stroke-current`}
+                            className={`stroke-${subj.color}-500`}
                             strokeWidth="8"
                             strokeLinecap="round"
                             cx="50"

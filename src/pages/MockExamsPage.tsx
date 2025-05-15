@@ -15,7 +15,8 @@ import {
   SparklesIcon,
   ChevronUpIcon,
   ChevronDownIcon,
-  EyeIcon
+  EyeIcon,
+  EyeSlashIcon,
 } from '@heroicons/react/24/outline';
 import { useMockExam } from '../hooks/useMockExam';
 import type { Question } from '../types/quiz';
@@ -63,196 +64,6 @@ const mapQuestionToReviewItem = (question: Question, userAnswer: string | null):
   };
 };
 
-const QuestionReviewPanel = ({ reviewData }: { reviewData: ReviewItem[] }) => {
-  const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
-  const [selectedQuestion, setSelectedQuestion] = useState<ReviewItem | null>(null);
-  const [showModal, setShowModal] = useState(false);
-
-  const grouped = reviewData.reduce((acc, q) => {
-    if (!acc[q.category]) acc[q.category] = [];
-    acc[q.category].push(q);
-    return acc;
-  }, {} as { [key: string]: ReviewItem[] });
-
-  const getColor = (q: ReviewItem) => {
-    return q.userAnswer === q.correctAnswer
-      ? 'bg-green-100 text-green-700'
-      : 'bg-red-100 text-red-700';
-  };
-
-  return (
-    <>
-      {/* Floating Sidebar */}
-      <div className="hidden md:block fixed top-24 right-4 w-64 bg-white border rounded-lg shadow p-4 h-[80vh] overflow-y-auto">
-        <h3 className="font-semibold mb-4 text-gray-800">Question Review</h3>
-        {Object.entries(grouped).map(([category, items]) => {
-          if (category === "Language Proficiency" || category === "Reading Comprehension") {
-            // For these categories, the first 50 items are English and the next 50 are Filipino.
-            const englishItems = items.slice(0, 50);
-            const filipinoItems = items.slice(50, 100);
-            return (
-          <div key={category} className="mb-4">
-            <h4 className="text-sm font-medium text-gray-700 mb-2">{category}</h4>
-                <div className="mb-2">
-                  <h5 className="text-xs font-semibold text-gray-600">English</h5>
-            <div className="flex flex-wrap gap-2">
-                {englishItems.map((q, index) => (
-            <button
-            key={q.question_id}
-            onClick={() => {
-              const idx = reviewData.findIndex(item => item.question_id === q.question_id);
-              setSelectedIndex(idx);
-              setSelectedQuestion(q);
-              setShowModal(true);
-            }}
-            className={`w-8 h-8 rounded-full text-sm font-medium flex items-center justify-center ${getColor(q)}`}
-          >
-            {index + 1}
-          </button>
-          ))}
-            </div>
-          </div>
-                <hr className="my-2" />
-                <div>
-                  <h5 className="text-xs font-semibold text-gray-600">Filipino</h5>
-                  <div className="flex flex-wrap gap-2">
-                    {filipinoItems.map((q, index) => (
-                      <button
-                        key={q.question_id}
-                        onClick={() => {
-                          const idx = reviewData.findIndex(item => item.question_id === q.question_id);
-                          setSelectedIndex(idx);
-                          setSelectedQuestion(q);
-                          setShowModal(true);
-                        }}
-                        className={`w-8 h-8 rounded-full text-sm font-medium flex items-center justify-center ${getColor(q)}`}
-                      >
-                        {index + 1}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            );
-          } else {
-            return (
-              <div key={category} className="mb-4">
-                <h4 className="text-sm font-medium text-gray-700 mb-2">{category}</h4>
-                <div className="flex flex-wrap gap-2">
-                  {items.map((q, index) => (
-                    <button
-                      key={q.question_id}
-                      onClick={() => {
-                        const idx = reviewData.findIndex(item => item.question_id === q.question_id);
-                        setSelectedIndex(idx);
-                        setSelectedQuestion(q);
-                        setShowModal(true);
-                      }}
-                      className={`w-8 h-8 rounded-full text-sm font-medium flex items-center justify-center ${getColor(q)}`}
-                    >
-                      {index + 1}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            );
-          }
-        })}
-      </div>
-
-      {/* Modal for question review */}
-      {showModal && selectedQuestion && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 max-w-xl w-full relative">
-            <button
-              className="absolute top-3 right-3 text-gray-500 hover:text-gray-700"
-              onClick={() => {
-                setShowModal(false);
-                setSelectedIndex(null);
-              }}
-            >
-              ✕
-            </button>
-            <h2 className="text-lg font-semibold mb-4">Question</h2>
-            <p className="text-gray-800 mb-4">{selectedQuestion.question}</p>
-            <ul className="space-y-2 mb-4">
-              {(['A', 'B', 'C', 'D'] as const).map((letter) => {
-                const optionKey = `option_${letter.toLowerCase()}` as keyof ReviewItem;
-                const text = selectedQuestion[optionKey] as string;
-                const isUser = selectedQuestion.userAnswer === letter;
-                const isCorrect = selectedQuestion.correctAnswer === letter;
-                return (
-                  <li
-                    key={letter}
-                    className={`p-3 rounded-lg border ${
-                      isCorrect
-                        ? 'bg-green-100 border-green-300'
-                        : isUser
-                        ? 'bg-red-100 border-red-300'
-                        : 'border-gray-200'
-                    }`}
-                  >
-                    <span className="font-semibold">{letter}.</span> {text}
-                    {isCorrect && (
-                      <span className="ml-2 text-green-700 text-sm font-semibold">✓ Correct</span>
-                    )}
-                    {isUser && !isCorrect && (
-                      <span className="ml-2 text-red-700 text-sm font-semibold">✗ Your Answer</span>
-                    )}
-                  </li>
-                );
-              })}
-            </ul>
-            <p className="text-sm text-gray-500 mb-1">Explanation</p>
-            <p className="text-gray-700">{selectedQuestion.explanation}</p>
-            {/* ─── Prev / Next navigation ─────────────────── */}
-            <div className="mt-6 flex justify-between items-center">
-              <button
-                onClick={() => {
-                  if (selectedIndex !== null && selectedIndex > 0) {
-                    const newIdx = selectedIndex - 1;
-                    setSelectedIndex(newIdx);
-                    setSelectedQuestion(reviewData[newIdx]);
-                  }
-                }}
-                disabled={selectedIndex === 0}
-                className={`px-4 py-2 rounded-lg border text-sm font-medium transition
-                  ${selectedIndex === 0
-                    ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                    : 'bg-white text-gray-700 hover:bg-gray-50'}`}
-              >
-                ← Prev
-              </button>
-
-              <span className="text-xs text-gray-500">
-                {selectedIndex !== null ? selectedIndex + 1 : 0} / {reviewData.length}
-              </span>
-
-              <button
-                onClick={() => {
-                  if (selectedIndex !== null && selectedIndex < reviewData.length - 1) {
-                    const newIdx = selectedIndex + 1;
-                    setSelectedIndex(newIdx);
-                    setSelectedQuestion(reviewData[newIdx]);
-                  }
-                }}
-                disabled={selectedIndex === reviewData.length - 1}
-                className={`px-4 py-2 rounded-lg border text-sm font-medium transition
-                  ${selectedIndex === reviewData.length - 1
-                    ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                    : 'bg-white text-gray-700 hover:bg-gray-50'}`}
-              >
-                Next →
-              </button>
-            </div>
-            {/* ───────────────────────────────────────────── */}
-          </div>
-        </div>
-      )}
-    </>
-  );
-};
-
 const getScoreCategory = (percentage: number) => {
   if (percentage >= 90) return { label: 'Outstanding!', color: 'text-growth-green', message: 'Exceptional performance! You\'re well-prepared for the UPCAT.' };
   if (percentage >= 80) return { label: 'Excellent!', color: 'text-neural-purple', message: 'Great work! Keep up this level of performance.' };
@@ -293,10 +104,15 @@ const ExamSummary = ({
   }, {} as { [key: string]: ReviewItem[] });
 
   const getColor = (q: ReviewItem) => {
-    return q.userAnswer === q.correctAnswer
-      ? 'bg-green-100 text-green-700'
-      : 'bg-red-100 text-red-700';
-  };
+  // 1) unanswered?
+  if (q.userAnswer === null) {
+    return 'bg-yellow-100 text-yellow-700';
+  }
+  // 2) correct vs. incorrect
+  return q.userAnswer === q.correctAnswer
+    ? 'bg-green-100 text-green-700'
+    : 'bg-red-100 text-red-700';
+};
 
   return (
     <div className="relative">
@@ -523,39 +339,48 @@ const ExamSummary = ({
           </h2>
             <p className="text-gray-800 mb-4">{selectedQuestion.question}</p>
             <ul className="space-y-2 mb-4">
-              {(['A', 'B', 'C', 'D'] as const).map((letter) => {
+              {(['A','B','C','D'] as const).map(letter => {
                 const optionKey = `option_${letter.toLowerCase()}` as keyof ReviewItem;
-                const text = selectedQuestion[optionKey] as string;
-                const isUser = selectedQuestion.userAnswer === letter;
+                const text      = selectedQuestion[optionKey] as string;
+                const isUser    = selectedQuestion.userAnswer === letter;
                 const isCorrect = selectedQuestion.correctAnswer === letter;
+
+                let label: string | null = null;
+                if      (isUser && isCorrect)  label = '✓ Your Answer';
+                else if (isUser && !isCorrect) label = '✗ Your Answer';
+                else if (isCorrect)            label = '✓ Correct Answer';
+
                 return (
                   <li
                     key={letter}
                     className={`p-3 rounded-lg border ${
-                      isCorrect
-                        ? 'bg-green-100 border-green-300'
-                        : isUser
-                        ? 'bg-red-100 border-red-300'
-                        : 'border-gray-200'
+                      isCorrect ? 'bg-green-100 border-green-300'
+                        : isUser  ? 'bg-red-100   border-red-300'
+                        :             'border-gray-200'
                     }`}
                   >
                     <span className="font-semibold">{letter}.</span> {text}
-                    {isCorrect && (
-                      <span className="ml-2 text-green-700 text-sm font-semibold">
-                        ✓ Correct
-                      </span>
-                    )}
-                    {isUser && !isCorrect && (
-                      <span className="ml-2 text-red-700 text-sm font-semibold">
-                        ✗ Your Answer
+                    {label && (
+                      <span
+                        className={`ml-2 text-sm font-semibold ${
+                          label.startsWith('✓') ? 'text-green-700' : 'text-red-700'
+                        }`}
+                      >
+                        {label}
                       </span>
                     )}
                   </li>
                 );
               })}
             </ul>
+
             <p className="text-sm text-gray-500 mb-1">Explanation</p>
             <p className="text-gray-700">{selectedQuestion.explanation}</p>
+            {selectedQuestion.userAnswer === null && (
+              <p className="mt-4 p-3 border-l-4 border-alert-red bg-alert-red/10 text-alert-red font-medium rounded">
+                You did not select an answer for this question.
+              </p>
+            )}
             {/* ─── Prev / Next navigation ─────────────────── */}
             <div className="mt-6 flex justify-between items-center">
               <button
@@ -672,6 +497,9 @@ const MockExamsPage = () => {
   const [collapsedCategories, setCollapsedCategories] = useState<Set<string>>(new Set());
   const [mockSessionId,   setMockSessionId]   = useState<string | null>(null);
   const [mockStartTime,   setMockStartTime]   = useState<number | null>(null);
+  const [sidebarVisible, setSidebarVisible] = useState(true);
+
+
 
 
   
@@ -749,8 +577,6 @@ const MockExamsPage = () => {
     }
   }, [examStarted, currentSection, currentQuestion, userAnswers, allQuestions, sectionQuestions, score, timeRemaining]);
   
-
-  // Timer effect (updates every second)
   // Timer effect (updates every second)
   useEffect(() => {
     let timer: number | undefined;
@@ -814,47 +640,53 @@ const MockExamsPage = () => {
 }, [ examStarted, isTimeBased, timeRemaining, timerWarning, currentSection, currentQuestion, userAnswers, allQuestions, sectionQuestions,]);
 
   // Effect to force transition when time expires
-  useEffect(() => {
+ useEffect(() => {
     if (examStarted && timeRemaining === 0 && !forcedTransition) {
       setForcedTransition(true);
-    
-      // Save current section questions to the cache
-      const updatedCurrent = questions.map((q) => ({ ...q, sectionIndex: currentSection }));
-      setSectionQuestions((prev) => ({
-        ...prev,
-        [currentSection]: updatedCurrent,
+
+      // 1️⃣ Build your “final section” array
+      const finalSectionQuestions: ExtendedQuestion[] = questions.map(q => ({
+        ...q,
+        sectionIndex: currentSection,
       }));
-      setCompletedSections((prev) => new Set(prev).add(currentSection));
-    
-      setAllQuestions((prev) => {
-        const map = new Map<string, ExtendedQuestion>();
-        [...prev, ...updatedCurrent].forEach((q) => map.set(q.question_id, q));
-        return Array.from(map.values());
-      });
-    
+
+      // 2️⃣ Merge it locally with existing allQuestions
+      const newAllQuestions = Array.from(
+        new Map(
+          [...allQuestions, ...finalSectionQuestions].map(q => [q.question_id, q])
+        ).values()
+      );
+
+      // 3️⃣ Write both into state
+      setSectionQuestions(prev => ({
+        ...prev,
+        [currentSection]: finalSectionQuestions,
+      }));
+      setCompletedSections(prev => new Set(prev).add(currentSection));
+      setAllQuestions(newAllQuestions);
+
+      // 4️⃣ Advance or finish
       if (currentSection < examSections.length - 1) {
         const nextSectionIndex = currentSection + 1;
         const nextSection = examSections[nextSectionIndex];
         const cached = sectionQuestions[nextSectionIndex];
-    
+
         if (cached) {
           setQuestions(cached);
         } else {
-          fetchQuestions(nextSection.category, false).then((fetched) => {
-            const extended = fetched?.map((q) => ({ ...q, sectionIndex: nextSectionIndex })) || [];
+          fetchQuestions(nextSection.category, false).then(fetched => {
+            const extended = (fetched || []).map(q => ({
+              ...q,
+              sectionIndex: nextSectionIndex,
+            }));
             setQuestions(extended);
-            setSectionQuestions((prev) => ({
+            setSectionQuestions(prev => ({
               ...prev,
               [nextSectionIndex]: extended,
             }));
-            setAllQuestions((prev) => {
-              const map = new Map<string, ExtendedQuestion>();
-              [...prev, ...extended].forEach((q) => map.set(q.question_id, q));
-              return Array.from(map.values());
-            });
           });
         }
-    
+
         setCurrentSection(nextSectionIndex);
         setCurrentQuestion(0);
         setSelectedAnswer(null);
@@ -862,132 +694,159 @@ const MockExamsPage = () => {
         setTimerWarning(null);
         setForcedTransition(false);
         if (isTimeBased) setTimeRemaining(nextSection.timeLimit * 60);
+
       } else {
-        calculateScore();
+        // 🏁 We're done—score the merged array
+        (async () => {
+          await calculateScore(newAllQuestions);
+        })();
       }
     }
-    
   }, [timeRemaining, examStarted, forcedTransition, currentSection]);
+
 
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }, [currentSection, currentQuestion]);
 
-  const calculateScore = async () => {
-    // 1) Score calculation
-    const examQuestions: Question[] = [...allQuestions];
+  const calculateScore = async (questionsArray?: (Question & { sectionIndex: number })[]) => {
+  // 1) Decide which list to use
+    const examQuestions = questionsArray ?? allQuestions;
+
+    // 2) Total & correct counters
     const totalQuestions = examQuestions.length;
     let correctCount = 0;
-    const categoryScores: Record<string, { total: number; correct: number; percentage: number }> = {};
+
+    // 3) Prepare per-category scoring buckets
+    const categoryScores: Record<
+      string,
+      { total: number; correct: number; percentage: number }
+    > = {};
     const reviewItems: ReviewItem[] = [];
-  
+
+    // 4) Tally up
     examQuestions.forEach((question) => {
-      const userAnswer = userAnswers[question.question_id] || null;
-      const isCorrect  = userAnswer === question.answer;
-  
+      const userAnswer = userAnswers[question.question_id] ?? null;
+      const isCorrect = userAnswer === question.answer;
+
       if (!categoryScores[question.category]) {
-        categoryScores[question.category] = { total: 0, correct: 0, percentage: 0 };
+        categoryScores[question.category] = {
+          total: 0,
+          correct: 0,
+          percentage: 0,
+        };
       }
-  
       categoryScores[question.category].total++;
       if (isCorrect) {
         categoryScores[question.category].correct++;
         correctCount++;
       }
-  
+
       reviewItems.push(mapQuestionToReviewItem(question, userAnswer));
     });
-  
-    // round each category percentage
-    Object.values(categoryScores).forEach(cs => {
+
+    // 5) Compute category percentages
+    Object.values(categoryScores).forEach((cs) => {
       cs.percentage = Math.round((cs.correct / cs.total) * 100);
     });
-  
-    // 2) Compute elapsed seconds
-    const endMs  = Date.now();
-    const elapsed = mockStartTime ? Math.floor((endMs - mockStartTime) / 1000) : 0;
-  
-    // 3) Build the final score object and update state
+
+    // 6) Compute overall percentage
+    const overallPercentage = Math.round((correctCount / totalQuestions) * 100);
+
+    // 7) Compute elapsed time
+    const endMs = Date.now();
+    const elapsed = mockStartTime
+      ? Math.floor((endMs - mockStartTime) / 1000)
+      : 0;
+
+    // 8) Build the final score object
     const finalScore: ExamScore = {
-      total:        totalQuestions,
-      correct:      correctCount,
-      incorrect:    totalQuestions - correctCount,
-      percentage:   Math.round((correctCount / totalQuestions) * 100),
-      timeSpent:    elapsed,
+      total: totalQuestions,
+      correct: correctCount,
+      incorrect: totalQuestions - correctCount,
+      percentage: overallPercentage,
+      timeSpent: elapsed,
       categoryScores,
-      reviewData:   reviewItems,
+      reviewData: reviewItems,
     };
+
+    // 9) Update React state
     setScore(finalScore);
-  
-    // 4) Persist mock session end & duration
+
+    // 10) Persist session end & duration to Supabase
     if (mockSessionId) {
-      const { error: updErr } = await supabase
-        .from('mock_exams_session')
-        .update({
-          end_time: new Date(endMs).toISOString(),
-          duration: elapsed,
-        })
-        .eq('id', mockSessionId);
-  
-      if (updErr) console.error('Failed to update mock session:', updErr);
+      try {
+        const { error: updErr } = await supabase
+          .from('mock_exams_session')
+          .update({
+            end_time: new Date(endMs).toISOString(),
+            duration: elapsed,
+          })
+          .eq('id', mockSessionId);
+
+        if (updErr) console.error('Failed to update session:', updErr);
+      } catch (err: unknown) {
+        console.error('Unexpected error updating session:', err);
+      }
     }
-  
-    // 5) Upsert into daily_session_time
+
+    // 11) Upsert into daily_session_time
     try {
       const userRes = await supabase.auth.getUser();
-      if (!userRes.data.user) throw new Error('Not authenticated');
-      const userId = userRes.data.user.id;
-      const today  = new Date().toISOString().slice(0, 10); // "YYYY-MM-DD"
-  
-      // fetch existing row
-      const { data: existing, error: fetchErr } = await supabase
-        .from('daily_session_time')
-        .select('total_secs')
-        .eq('user_id', userId)
-        .eq('day', today)
-        .single();
-  
-      // ignore “no rows” error code
-      if (fetchErr && fetchErr.code !== 'PGRST116') {
-        console.error('Error fetching today’s session row', fetchErr);
+      const userId = userRes.data.user?.id;
+      if (userId) {
+        const today = new Date().toISOString().slice(0, 10);
+
+        const { data: existing, error: fetchErr } = await supabase
+          .from('daily_session_time')
+          .select('total_secs')
+          .eq('user_id', userId)
+          .eq('day', today)
+          .single();
+
+        if (fetchErr && fetchErr.code !== 'PGRST116') throw fetchErr;
+
+        const prevSecs = existing?.total_secs ?? 0;
+        const newTotal = prevSecs + elapsed;
+
+        try {
+          const { error: upsertErr } = await supabase
+            .from('daily_session_time')
+            .upsert(
+              {
+                user_id: userId,
+                day: today,
+                total_secs: newTotal,
+              },
+              { onConflict: 'user_id,day' }
+            );
+
+          if (upsertErr) console.error('Upsert daily time failed:', upsertErr);
+        } catch (err: unknown) {
+          console.error('Unexpected error upserting daily time:', err);
+        }
       }
-  
-      const prevSecs    = existing?.total_secs ?? 0;
-      const newTotalSec = prevSecs + elapsed;
-  
-      // **FIX** here: onConflict must be a string, not an array
-      const { error: upsertErr } = await supabase
-        .from('daily_session_time')
-        .upsert(
-          {
-            user_id:    userId,
-            day:        today,
-            total_secs: newTotalSec,
-          },
-          { onConflict: 'user_id,day' }
-        );
-  
-      if (upsertErr) console.error('Error upserting daily_session_time', upsertErr);
-    } catch (err) {
-      console.error('Failed to record daily session time:', err);
+    } catch (err: unknown) {
+      console.error('Error fetching daily_session_time:', err);
     }
-  
-    // 6) Finally, save final state to localStorage
+
+    // 12) Persist final state to localStorage
     localStorage.setItem(
       'mockExamState',
       JSON.stringify({
         currentSection,
         currentQuestion,
         userAnswers,
-        allQuestions,
+        allQuestions: examQuestions,
         sectionQuestions,
         timeRemaining: 0,
-        score:         finalScore,
-        examFinished:  true,
+        score: finalScore,
+        examFinished: true,
       })
     );
   };
-  
+
+
   
   const startExam = async () => {
     // Reset all state variables
@@ -1220,32 +1079,32 @@ const MockExamsPage = () => {
       setForcedTransition(false);
       if (isTimeBased) setTimeRemaining(nextSection.timeLimit * 60);
     } else {
-      const finalSectionQuestions = questions.map((q) => ({ ...q, sectionIndex: currentSection }));
-      setSectionQuestions((prev) => ({
+      const finalSectionQuestions = questions.map(q => ({
+        ...q,
+        sectionIndex: currentSection,
+      }));
+
+      // 2.2 Merge it locally with the existing allQuestions
+      const newAllQuestions = Array.from(
+        new Map(
+          [...allQuestions, ...finalSectionQuestions].map(q => [q.question_id, q])
+        ).values()
+      );
+
+      // 2.3 Write both into state
+      setSectionQuestions(prev => ({
         ...prev,
         [currentSection]: finalSectionQuestions,
       }));
+      setAllQuestions(newAllQuestions);
 
-      setAllQuestions((prev) => {
-        const map = new Map<string, ExtendedQuestion>();
-        [...prev, ...finalSectionQuestions].forEach((q) => map.set(q.question_id, q));
-        return Array.from(map.values());
-      });
-
-      calculateScore();
+      // 2.4 Now *score* that merged list
+      await calculateScore(newAllQuestions);
     }
   };
   
-    useEffect(() => {
-      return () => {
-        if (examStarted && !score && mockSessionId && mockStartTime) {
-          calculateScore();
-        }
-      };
-    }, [examStarted, score, mockSessionId, mockStartTime]);
-  
 
-  if (loading) {
+  if (loading && !examStarted) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
@@ -1453,8 +1312,16 @@ const MockExamsPage = () => {
               </div>
             </div>
             {/* Right-side Floating Sidebar */}
-            <div className="hidden md:block fixed top-24 right-4 w-64 bg-white border rounded-lg shadow p-4 h-[80vh] overflow-y-auto z-40">
-              <h3 className="font-semibold mb-4 text-gray-800">Question Review</h3>
+            <div className={`hidden md:block fixed top-24 right-0 w-64 bg-white border rounded-lg shadow p-4 h-[80vh] overflow-y-auto z-40 transform transition-transform duration-300 ${sidebarVisible ? 'translate-x-0' : 'translate-x-full'}`}>              
+              <div className="flex items-center mb-4 space-x-2">
+                <button
+                  onClick={() => setSidebarVisible(false)}
+                  className="p-1 hover:bg-gray-100 rounded"
+                >
+                  <EyeSlashIcon className="w-5 h-5 text-gray-600" />
+                </button>
+                <h3 className="font-semibold text-gray-800">Question Review</h3>
+             </div>
 
               {Object.entries(groupedSidebarQuestions).map(
                 ([category, items]: [string, ExtendedQuestion[]]) => {
@@ -1543,7 +1410,7 @@ const MockExamsPage = () => {
                                       }`}
                                     >
                                       {idx + 1}
-                  </button>
+                                  </button>
                                   );
                                 })}
                               </div>
@@ -1695,6 +1562,19 @@ const MockExamsPage = () => {
                 }
               )}
             </div>
+
+              {!sidebarVisible && (
+                <button
+                  onClick={() => setSidebarVisible(true)}
+                  className="
+                    fixed top-24 right-0 p-2
+                    bg-white border-l rounded-l-lg shadow z-40
+                  "
+                >
+                  <EyeIcon className="w-6 h-6 text-gray-600" />
+                </button>
+              )}
+              
           </div>
         )}
         {showLeaveConfirmation && (

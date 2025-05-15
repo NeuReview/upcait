@@ -11,7 +11,9 @@ import {
   TrophyIcon,
   ChartBarIcon,
   ArrowPathIcon,
-  SparklesIcon
+  SparklesIcon,
+  EyeSlashIcon,
+  EyeIcon
 } from '@heroicons/react/24/outline';
 import { useQuestions } from '../hooks/useQuestions';
 import type { Question } from '../types/quiz';
@@ -233,7 +235,7 @@ const QuizSummarySidebar = ({ reviewData }: { reviewData: ReviewItem[] }) => {
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
   const [selectedQuestion, setSelectedQuestion] = useState<ReviewItem | null>(null);
   const [showModal, setShowModal] = useState(false);
-
+  const [sidebarVisible, setSidebarVisible] = useState(true);
   // Group items by category
   const grouped = reviewData.reduce((acc, q) => {
     if (!acc[q.category]) acc[q.category] = [];
@@ -243,16 +245,31 @@ const QuizSummarySidebar = ({ reviewData }: { reviewData: ReviewItem[] }) => {
 
   // Color each question button
   const getColor = (item: ReviewItem) => {
-    return item.userAnswer === item.correctAnswer
-      ? 'bg-green-100 text-green-700'
-      : 'bg-red-100 text-red-700';
+  if (item.userAnswer === null) {
+    // unanswered → yellow
+    return 'bg-yellow-100 text-yellow-700';
+  }
+  return item.userAnswer === item.correctAnswer
+    ? 'bg-green-100 text-green-700'
+    : 'bg-red-100 text-red-700';
   };
+
 
   return (
     <>
       {/* Floating Sidebar - Summaries */}
-      <div className="hidden md:block fixed top-24 right-4 w-64 bg-white border rounded-lg shadow p-4 h-[80vh] overflow-y-auto z-40">
-        <h3 className="font-semibold mb-4 text-gray-800">Question Review</h3>
+      <div className={`hidden md:block fixed top-24 right-4 w-64 bg-white border rounded-lg shadow p-4 h-[80vh] overflow-y-auto z-40 transition-transform duration-300 ${sidebarVisible ? 'translate-x-0' : 'translate-x-full'} `}>
+        <div className="flex items-center mb-4 space-x-2">    
+          <button
+            onClick={() => setSidebarVisible(false)}
+            className="p-1 hover:bg-gray-100 rounded"
+          >
+            <EyeSlashIcon className="w-5 h-5 text-gray-600" />
+          </button>
+
+            <h3 className="font-semibold text-gray-800">Question Review</h3>
+        </div>
+       
         {Object.entries(grouped).map(([category, items]) => (
           <div key={`category-${category}`} className="mb-4">
             <h4 className="text-sm font-medium text-gray-700 mb-2">{category}</h4>
@@ -275,7 +292,17 @@ const QuizSummarySidebar = ({ reviewData }: { reviewData: ReviewItem[] }) => {
           </div>
         ))}
       </div>
+
+      {!sidebarVisible && (
+        <button
+          onClick={() => setSidebarVisible(true)}
+          className="fixed top-24 right-0 p-2 bg-white border-l rounded-l-lg shadow z-40"
+        >
+          <EyeIcon className="w-6 h-6 text-gray-600" />
+        </button>
+      )}
       
+
       {/* Modal for detailed question info */}
       {showModal && selectedQuestion && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
@@ -289,40 +316,46 @@ const QuizSummarySidebar = ({ reviewData }: { reviewData: ReviewItem[] }) => {
             >
               ✕
             </button>
-            <h2 className="text-lg font-semibold mb-4">Question</h2>
+            <h2 className="text-lg font-semibold mb-4">
+              Question {selectedIndex !== null ? selectedIndex + 1 : 0} 
+            </h2>
             <p className="text-gray-800 mb-4">{selectedQuestion.question}</p>
             <ul className="space-y-2 mb-4">
-              {(['A', 'B', 'C', 'D'] as const).map((letter) => {
+              {(['A','B','C','D'] as const).map(letter => {
                 const optionKey = `option_${letter.toLowerCase()}` as keyof ReviewItem;
-                const text = selectedQuestion[optionKey] as string;
-                const isUser = selectedQuestion.userAnswer === letter;
+                const text      = selectedQuestion[optionKey] as string;
+                const isUser    = selectedQuestion.userAnswer === letter;
                 const isCorrect = selectedQuestion.correctAnswer === letter;
+                const unanswered = selectedQuestion.userAnswer === null;
+
+                // decide classes
+                const bgClass = isCorrect
+                  ? 'bg-green-100 border-green-300'
+                  : isUser
+                  ? 'bg-red-100 border-red-300'
+                  : 'border-gray-200';
+
+                // decide label
+                let label: string | null = null;
+                if (isUser && isCorrect)      label = '✓ Your Answer';
+                else if (isUser && !isCorrect) label = '✗ Your Answer';
+                else if (isCorrect)            label = '✓ Correct Answer';
 
                 return (
-                  <li
-                    key={letter}
-                    className={`p-3 rounded-lg border ${
-                      isCorrect
-                        ? 'bg-green-100 border-green-300'
-                        : isUser
-                        ? 'bg-red-100 border-red-300'
-                        : 'border-gray-200'
-                    }`}
-                  >
+                  <li key={letter} className={`p-3 rounded-lg border ${bgClass}`}>
                     <span className="font-semibold">{letter}.</span> {text}
-                    {isCorrect && (
-                      <span className="ml-2 text-green-700 text-sm font-semibold">✓ Correct</span>
-                    )}
-                    {isUser && !isCorrect && (
-                      <span className="ml-2 text-red-700 text-sm font-semibold">
-                        ✗ Your Answer
+                    {label && (
+                      <span className={`ml-2 text-sm font-semibold ${
+                        isCorrect ? 'text-green-700' : 'text-red-700'
+                      }`}>
+                        {label}
                       </span>
                     )}
                   </li>
                 );
               })}
             </ul>
-
+            
             <p className="text-sm text-gray-500 mb-1">Explanation</p>
             <p className="text-gray-700">{selectedQuestion.explanation}</p>
             {selectedQuestion.userAnswer === null && (
@@ -370,10 +403,11 @@ const QuizSummarySidebar = ({ reviewData }: { reviewData: ReviewItem[] }) => {
                 Next →
               </button>
             </div>
-            {/* ─────────────────────────────────────────────── */}
           </div>
         </div>
       )}
+
+      
     </>
   );
 };
@@ -389,10 +423,10 @@ const QuizzesPage = () => {
   const [currentQuestion, setCurrentQuestion] = useState(0);
   const [selectedAnswer, setSelectedAnswer] = useState<string | null>(null);
   const [showExplanation, setShowExplanation] = useState(false);
-  const [timeRemaining, setTimeRemaining] = useState(.5 * 60);
+  const [timeRemaining, setTimeRemaining] = useState(0);
   const [showOneMinuteModal, setShowOneMinuteModal] = useState(false);
   const {questions, loading, error, fetchQuestions, updateUserStats, recordScienceProgress, recordMathProgress, recordLanguageProficiencyProgress, recordReadingCompProgress} = useQuestions();
-  
+  const [sidebarVisible, setSidebarVisible] = useState(true);
   const [score, setScore] = useState<QuizScore | null>(null);
   const [correctAnswers, setCorrectAnswers] = useState<Set<number>>(new Set());
   const [userAnswers, setUserAnswers] = useState<Record<string, string>>({});
@@ -424,6 +458,7 @@ const QuizzesPage = () => {
     }
   }, [userAnswers, quizStarted, questions.length, score]);
 
+  //COUNTDOWN EFFECT
   useEffect(() => {
     let timer: number | undefined;
     if (quizStarted && isTimeBased && timeRemaining > 0) {
@@ -442,7 +477,7 @@ const QuizzesPage = () => {
     return () => {
       if (timer) clearInterval(timer);
     };
-  }, [quizStarted, isTimeBased, timeRemaining]);
+  },  [quizStarted, isTimeBased]);
 
   const calculateScore = async () => {
     try {
@@ -521,9 +556,14 @@ const QuizzesPage = () => {
       console.error('calculateScore failed:', e);
     }
   };
-  
 
   const startQuiz = async () => {
+
+     if (isTimeBased) {
+    // always begin at 30 minutes
+    setTimeRemaining(1800);
+    }
+
     if (!selectedTopic || !selectedDifficulty) return;
   
     try {
@@ -570,10 +610,6 @@ const QuizzesPage = () => {
       }
       setSessionId(insertData.id);
   
-      // 5) Kick off timer if needed
-      if (isTimeBased) {
-        setTimeRemaining(30 * 60);
-      }
     } catch (err) {
       console.error('Error starting quiz:', err);
     }
@@ -953,8 +989,20 @@ const QuizzesPage = () => {
               )}
 
               {/* Ongoing "Question Review" sidebar */}
-              <div className="hidden md:block fixed top-24 right-4 w-64 bg-white border rounded-lg shadow p-4 h-[80vh] overflow-y-auto z-40">
-                <h3 className="font-semibold mb-4 text-gray-800">Question Review</h3>
+                <div className={` hidden md:block fixed top-24 right-0 w-64 bg-white border rounded-lg shadow p-4 h-[80vh] overflow-y-auto z-40 transform transition-transform duration-300 ${sidebarVisible ? 'translate-x-0' : 'translate-x-full'}`}>                
+                
+                <div className="flex items-center mb-4 space-x-2">
+               
+                 <button
+                   onClick={() => setSidebarVisible(false)}
+                   className="p-1 hover:bg-gray-100 rounded"
+                 >
+                   <EyeSlashIcon className="w-5 h-5 text-gray-600" />
+                 </button>
+
+                   <h3 className="font-semibold text-gray-800">Question Review</h3>
+               </div>
+
                 <div className="flex flex-wrap gap-2">
                   {allQuestions.map((q, idx) => {
                     const isCurrent = idx === currentQuestion;
@@ -983,6 +1031,19 @@ const QuizzesPage = () => {
                   })}
                 </div>
               </div>
+
+                             {/* ── Open toggle (only when hidden) ── */}
+               {!sidebarVisible && (
+                 <button
+                   onClick={() => setSidebarVisible(true)}
+                   className="
+                     fixed top-24 right-0 p-2
+                     bg-white border-l rounded-l-lg shadow z-40
+                   "
+                 >
+                   <EyeIcon className="w-6 h-6 text-gray-600" />
+                 </button>
+               )}
 
               {/* Footer actions */}
               <div className="flex justify-between items-center">
