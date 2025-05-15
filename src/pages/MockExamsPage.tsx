@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   AcademicCapIcon, 
   ClockIcon, 
@@ -498,7 +498,13 @@ const MockExamsPage = () => {
   const [mockSessionId,   setMockSessionId]   = useState<string | null>(null);
   const [mockStartTime,   setMockStartTime]   = useState<number | null>(null);
   const [sidebarVisible, setSidebarVisible] = useState(true);
+  const [transitioning, setTransitioning] = useState(false);
+  
 
+
+  const pendingRecords = useRef<
+  { category: string; uuid: string; isCorrect: boolean; tag: string }[]
+>([]);
 
 
 
@@ -698,7 +704,9 @@ const MockExamsPage = () => {
       } else {
         // 🏁 We're done—score the merged array
         (async () => {
+          await flushPendingRecords();
           await calculateScore(newAllQuestions);
+          
         })();
       }
     }
@@ -887,7 +895,9 @@ const MockExamsPage = () => {
   
     // ─── SESSION LOGIC ───
     const nowMs = Date.now();
-    setMockStartTime(nowMs);                                         // ← SESSION
+    setMockStartTime(nowMs); // ← SESSION
+    setStartTime(nowMs);
+    setExamStarted(true);                                        
   
     // get current user (Supabase v2)
     const { data: { user }, error: userErr } = await supabase.auth.getUser();
@@ -944,52 +954,60 @@ const MockExamsPage = () => {
     await startExam();
   };
 
-  const handleAnswerSelect = async (answer: string) => {
-    // 1) Pull out the current question
-    const question = questions[currentQuestion] as Question & {
-      global_id: string;
-      tag: string;
-    };
-  
-    // 2) Save locally so UI updates immediately
-    setUserAnswers(prev => ({
-      ...prev,
-      [question.question_id]: answer
-    }));
-    setSelectedAnswer(answer);
-    setShowExplanation(true);
-  
-    // 3) Prepare the values we need for the upsert
-    const isCorrect = answer === question.answer;
-    const questionUuid = question.global_id;  // <-- use the real UUID from your table
-    const tagValue    = question.tag;         // <-- the tag you fetched
-  
-    // 4) Fire off your per-category upsert (all of which use onConflict:user_id,question_uuid)
+  const flushPendingRecords = async () => {
+  for (let rec of pendingRecords.current) {
     try {
-      switch (question.category) {
+      switch (rec.category) {
         case 'Science':
-          await recordScienceMockExam(questionUuid, isCorrect, tagValue);
+          await recordScienceMockExam(rec.uuid, rec.isCorrect, rec.tag);
           break;
-  
         case 'Mathematics':
-          await recordMathMockExam(questionUuid, isCorrect, tagValue);
+          await recordMathMockExam(rec.uuid, rec.isCorrect, rec.tag);
           break;
-  
         case 'Language Proficiency':
-          await recordLangProfMockExam(questionUuid, isCorrect, tagValue);
+          await recordLangProfMockExam(rec.uuid, rec.isCorrect, rec.tag);
           break;
-  
         case 'Reading Comprehension':
-          await recordReadingCompMockExam(questionUuid, isCorrect, tagValue);
+          await recordReadingCompMockExam(rec.uuid, rec.isCorrect, rec.tag);
           break;
-  
         default:
-          console.warn('Unknown category in handleAnswerSelect:', question.category);
+          console.warn('Unknown category in flushPendingRecords:', rec.category);
       }
     } catch (e) {
-      console.error('Error recording mock-exam progress:', e);
+      console.error('Failed to flush record', rec, e);
     }
+  }
+  pendingRecords.current = [];
+};
+
+  const handleAnswerSelect = async (answer: string) => {
+  // 1) Pull out the current question
+  const question = questions[currentQuestion] as Question & {
+    global_id: string;
+    tag: string;
   };
+
+  // 2) Save locally so UI updates immediately
+  setUserAnswers(prev => ({
+    ...prev,
+    [question.question_id]: answer
+  }));
+  setSelectedAnswer(answer);
+  setShowExplanation(true);
+
+  // 3) Prepare the values we need for the upsert
+  const isCorrect = answer === question.answer;
+  const questionUuid = question.global_id;
+  const tagValue    = question.tag;
+
+  // 4) Buffer this record instead of sending it immediately
+  pendingRecords.current.push({
+    category: question.category,
+    uuid: questionUuid,
+    isCorrect,
+    tag: tagValue
+  });
+};
 
   const formatTime = (minutes: number) => {
     const hours = Math.floor(minutes / 60);
@@ -1022,87 +1040,101 @@ const MockExamsPage = () => {
   };
 
   const handleNextQuestion = async () => {
-    if (currentQuestion < questions.length - 1) {
-      const nextQuestion = questions[currentQuestion + 1];
-      const userAnswer = userAnswers[nextQuestion.question_id] || null;
-      setCurrentQuestion(currentQuestion + 1);
-      setSelectedAnswer(userAnswer);
-      setShowExplanation(!!userAnswer);
-    } else if (currentSection < examSections.length - 1) {
-      const nextSectionIndex = currentSection + 1;
-      const nextSection = examSections[nextSectionIndex];
+  // 1) If there’s still another question in this section, just advance locally
+  if (currentQuestion < questions.length - 1) {
+    const nextQuestion = questions[currentQuestion + 1]
+    const userAnswer   = userAnswers[nextQuestion.question_id] || null
+    setCurrentQuestion(currentQuestion + 1)
+    setSelectedAnswer(userAnswer)
+    setShowExplanation(!!userAnswer)
+    return
+  }
 
-      const updatedCurrent = questions.map((q) => ({ ...q, sectionIndex: currentSection }));
-      setSectionQuestions((prev) => ({
-        ...prev,
-        [currentSection]: updatedCurrent,
-      }));
-      setCompletedSections((prev) => new Set(prev).add(currentSection));
+  // 2) Otherwise we’re about to transition sections or finish — show spinner
+  setTransitioning(true)
 
-      setAllQuestions((prev) => {
-        const map = new Map<string, ExtendedQuestion>();
-        [...prev, ...updatedCurrent].forEach((q) => map.set(q.question_id, q));
-        return Array.from(map.values());
-      });
+  // 2a) Move to next section
+  if (currentSection < examSections.length - 1) {
+    const nextSectionIndex = currentSection + 1
+    const nextSection      = examSections[nextSectionIndex]
 
-      const cachedNext = sectionQuestions[nextSectionIndex];
-      if (cachedNext) {
-        setQuestions(cachedNext);
-        setCurrentSection(nextSectionIndex);
-        setCurrentQuestion(0);
-        setSelectedAnswer(null);
-        setShowExplanation(false);
-        setForcedTransition(false);
-        if (isTimeBased) setTimeRemaining(nextSection.timeLimit * 60);
-        return;
-      }
+    // persist current section’s questions
+    const updatedCurrent = questions.map(q => ({ ...q, sectionIndex: currentSection }))
+    setSectionQuestions(prev => ({
+      ...prev,
+      [currentSection]: updatedCurrent
+    }))
+    setCompletedSections(prev => new Set(prev).add(currentSection))
 
-      const fetched = await fetchQuestions(nextSection.category, false);
-      const extended = fetched?.map((q) => ({ ...q, sectionIndex: nextSectionIndex })) || [];
+    // merge into allQuestions
+    setAllQuestions(prev => {
+      const map = new Map<string, ExtendedQuestion>()
+      prev.concat(updatedCurrent).forEach(q => map.set(q.question_id, q))
+      return Array.from(map.values())
+    })
 
-      setQuestions(extended);
-      setSectionQuestions((prev) => ({
-        ...prev,
-        [nextSectionIndex]: extended,
-      }));
-
-      setAllQuestions((prev) => {
-        const map = new Map<string, ExtendedQuestion>();
-        [...prev, ...extended].forEach((q) => map.set(q.question_id, q));
-        return Array.from(map.values());
-      });
-
-      setCurrentSection(nextSectionIndex);
-      setCurrentQuestion(0);
-      setSelectedAnswer(null);
-      setShowExplanation(false);
-      setForcedTransition(false);
-      if (isTimeBased) setTimeRemaining(nextSection.timeLimit * 60);
-    } else {
-      const finalSectionQuestions = questions.map(q => ({
+    try {
+      // fetch next section (or use your cached logic)
+      const fetched  = await fetchQuestions(nextSection.category, false)
+      const extended = (fetched || []).map(q => ({
         ...q,
-        sectionIndex: currentSection,
-      }));
+        sectionIndex: nextSectionIndex
+      }))
 
-      // 2.2 Merge it locally with the existing allQuestions
-      const newAllQuestions = Array.from(
-        new Map(
-          [...allQuestions, ...finalSectionQuestions].map(q => [q.question_id, q])
-        ).values()
-      );
-
-      // 2.3 Write both into state
+      setQuestions(extended)
       setSectionQuestions(prev => ({
         ...prev,
-        [currentSection]: finalSectionQuestions,
-      }));
-      setAllQuestions(newAllQuestions);
+        [nextSectionIndex]: extended
+      }))
+      setAllQuestions(prev => {
+        const map = new Map<string, ExtendedQuestion>()
+        prev.concat(extended).forEach(q => map.set(q.question_id, q))
+        return Array.from(map.values())
+      })
 
-      // 2.4 Now *score* that merged list
-      await calculateScore(newAllQuestions);
+      // reset into the new section
+      setCurrentSection(nextSectionIndex)
+      setCurrentQuestion(0)
+      setSelectedAnswer(null)
+      setShowExplanation(false)
+      setForcedTransition(false)
+      if (isTimeBased) setTimeRemaining(nextSection.timeLimit * 60)
+    } catch (err) {
+      console.error('Error fetching next section:', err)
+    } finally {
+      setTransitioning(false)
     }
-  };
-  
+
+  } else {
+    // 2b) Finish exam: merge final section & score
+    const finalSectionQuestions = questions.map(q => ({
+      ...q,
+      sectionIndex: currentSection
+    }))
+
+    const newAllQuestions = Array.from(
+      new Map(
+        [...allQuestions, ...finalSectionQuestions].map(q => [q.question_id, q])
+      ).values()
+    )
+
+    setSectionQuestions(prev => ({
+      ...prev,
+      [currentSection]: finalSectionQuestions
+    }))
+    setAllQuestions(newAllQuestions)
+
+    try {
+      await flushPendingRecords()
+      await calculateScore(newAllQuestions)
+    } catch (err) {
+      console.error('Error finishing exam:', err)
+    } finally {
+      setTransitioning(false)
+    }
+  }
+}
+
 
   if (loading && !examStarted) {
     return (
@@ -1137,7 +1169,13 @@ const MockExamsPage = () => {
   }, {});
 
   return (
-    <div className="min-h-screen bg-gray-50 py-6">
+    <div className="relative min-h-screen bg-gray-50 py-6">
+      {transitioning && (
+    <div className="absolute inset-0 bg-white flex flex-col items-center justify-center z-50">
+      <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-neural-purple mb-4" />
+      <p className="text-gray-700">Loading...</p>
+    </div>
+  )}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {!examStarted ? (
           <div className="space-y-8">

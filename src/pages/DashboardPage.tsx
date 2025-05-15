@@ -1331,18 +1331,17 @@ const updateUserProfile = async (updatedData: Partial<UserData>) => {
 
   const currentSubject =
     selectedTestType === 'quizzes' && selectedSubject === 'science'
-      ? {
-          ...baseSubject,
-          total: scienceProgress.totalQuestions,
-          correct: scienceProgress.correctAnswers,
-          percentage:
-            scienceProgress.totalQuestions === 0
-              ? 0
-              : Math.round(
-                  (scienceProgress.correctAnswers / scienceProgress.totalQuestions) * 100
-                ),
-          color: baseSubject.color
-        }
+    ? {
+        ...baseSubject,
+        total: quizScienceStats.total,
+        correct: quizScienceStats.correct,
+        percentage:
+          quizScienceStats.total === 0
+            ? 0
+            : Math.round((quizScienceStats.correct / quizScienceStats.total) * 100),
+        color: baseSubject.color
+      }
+
       : selectedTestType === 'quizzes' && selectedSubject === 'mathematics'
       ? {
           ...baseSubject,

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef} from 'react';
 import { 
   AcademicCapIcon, 
   ClockIcon, 
@@ -59,6 +59,14 @@ const difficulties = [
   { id: 'Hard', name: 'Hard', color: 'text-alert-red' },
 ];
 
+  interface ProgressRecord {
+    global_id: string;
+    category: string;
+    isCorrect: boolean;
+    tag: string;
+  }
+
+
 interface QuizScore {
   total: number;
   correct: number;
@@ -73,6 +81,8 @@ interface QuizScore {
     }
   };
 }
+
+
 
 interface ReviewItem extends Omit<Question, 'options' | 'answer'> {
   option_a: string;
@@ -416,6 +426,9 @@ const QuizSummarySidebar = ({ reviewData }: { reviewData: ReviewItem[] }) => {
 type QuestionWithTag = Question & { tag?: string };
 
 const QuizzesPage = () => {
+
+  
+
   const [selectedTopic, setSelectedTopic] = useState('');
   const [selectedDifficulty, setSelectedDifficulty] = useState('');
   const [isTimeBased, setIsTimeBased] = useState(false);
@@ -434,7 +447,12 @@ const QuizzesPage = () => {
 
   const [sessionId,  setSessionId]  = useState<string | null>(null);
   const [startTime,  setStartTime]  = useState<number | null>(null);
- 
+
+  const pendingProgressRef = useRef<ProgressRecord[]>([]); // this ref holds all answers until flush
+
+
+  
+
 
   // Keep a live copy of questions in allQuestions for the in-progress sidebar
   useEffect(() => {
@@ -516,6 +534,25 @@ const QuizzesPage = () => {
   
       // 4) Update local state to show the summary
       setScore(scoreData);
+
+        for (const p of pendingProgressRef.current) {
+          switch (p.category) {
+            case 'Science':
+              await recordScienceProgress(p.global_id, p.isCorrect, p.tag);
+              break;
+            case 'Mathematics':
+              await recordMathProgress(p.global_id, p.isCorrect, p.tag);
+              break;
+            case 'Language Proficiency':
+              await recordLanguageProficiencyProgress(p.global_id, p.isCorrect, p.tag);
+              break;
+            case 'Reading Comprehension':
+              await recordReadingCompProgress(p.global_id, p.isCorrect, p.tag);
+              break;
+          }
+        }
+        // clear buffer for the next quiz
+        pendingProgressRef.current = [];
   
       // 5) Persist session end & duration + bump per-day total
       if (sessionId) {
@@ -558,6 +595,7 @@ const QuizzesPage = () => {
   };
 
   const startQuiz = async () => {
+    pendingProgressRef.current = [];
 
      if (isTimeBased) {
     // always begin at 30 minutes
@@ -617,89 +655,43 @@ const QuizzesPage = () => {
   
   
   const handleAnswerSelect = (answer: string) => {
-    if (!questions[currentQuestion]) return;
+  // 1) Guard against missing question
+  if (!questions[currentQuestion]) return;
 
-    setSelectedAnswer(answer);
-    // Mark this question as answered
-    // new:
-    const q = questions[currentQuestion] as Question & { global_id: string };
-    setUserAnswers(prev => ({
-      ...prev,
-      // use the UUID for every category
-      [q.global_id]: answer
-    }));
+  // 2) Update the “selectedAnswer” state so your UI highlights the button
+  setSelectedAnswer(answer);
 
-    
-    // Track if the answer is correct
-    const isCorrect = answer === questions[currentQuestion].answer;
+  // 3) Record in the user‐answers map (by global_id)
+  const q = questions[currentQuestion] as Question & { global_id: string; tag?: string };
+  setUserAnswers(prev => ({
+    ...prev,
+    [q.global_id]: answer
+  }));
 
-    // Update the score - using correctAnswers Set which is what the original code was using
+  // 4) Determine correctness
+  const isCorrect = answer === q.answer;
+
+  // 5) Toggle this index in your Set of correctAnswers
+  setCorrectAnswers(prev => {
+    const next = new Set(prev);
     if (isCorrect) {
-      setCorrectAnswers(prev => new Set(prev).add(currentQuestion));
+      next.add(currentQuestion);
+    } else {
+      next.delete(currentQuestion);
     }
-    
-    // Get the current question data
-    const currentQuestionData = questions[currentQuestion] as QuestionWithTag;
-    
-    // Track progress in the database based on category
-    // after
-    if (currentQuestionData.category === 'Science' && currentQuestionData.global_id) {
-      const tagValue = currentQuestionData.tag || '';
-      console.log(`Calling recordScienceProgress with global_id=${currentQuestionData.global_id}, isCorrect=${isCorrect}, tag=${tagValue}`);
-      recordScienceProgress(
-        currentQuestionData.global_id,
-        isCorrect,
-        tagValue
-      );
-    }
+    return next;
+  });
 
-    else if (currentQuestionData.category === 'Mathematics' && currentQuestionData.global_id) {
-      const tagValue = currentQuestionData.tag || '';
-      console.log(`Calling recordMathProgress with global_id=${currentQuestionData.global_id}, isCorrect=${isCorrect}, tag=${tagValue}`);
-      recordMathProgress(
-        currentQuestionData.global_id,
-        isCorrect,
-        tagValue
-      );
-    }
-    
-    else if (currentQuestionData.category === 'Language Proficiency' && currentQuestionData.global_id) {
-      // Use the tag from the current question or default to empty string
-      const tagValue = currentQuestionData.tag || '';
-      
-      // More detailed logging of UUID
-      console.log('Language Proficiency Question UUID Details:', {
-        question_id: currentQuestionData.question_id,
-        global_id: currentQuestionData.global_id,
-        global_id_type: typeof currentQuestionData.global_id,
-        length: currentQuestionData.global_id.length,
-        // Log each segment to spot any encoding issues
-        segments: currentQuestionData.global_id.split('-')
-      });
-      
-      console.log(`Calling recordLanguageProficiencyProgress with global_id=${currentQuestionData.global_id}, isCorrect=${isCorrect}, tag=${tagValue}`);
-      
-      // Ensure we're passing the exact UUID string without modifications
-      const uuid = String(currentQuestionData.global_id);
-      recordLanguageProficiencyProgress(
-        uuid, 
-        isCorrect,
-        tagValue
-      );
-    }else if (currentQuestionData.category === 'Reading Comprehension' && currentQuestionData.global_id) {
-      // use the tag ('English' or 'Filipino') from the question
-      const tagValue = currentQuestionData.tag || '';
-      console.log(
-        `Calling recordReadingCompProgress with global_id=${currentQuestionData.global_id}, ` +
-        `isCorrect=${isCorrect}, tag=${tagValue}`
-      );
-      recordReadingCompProgress(
-        currentQuestionData.global_id,
-        isCorrect,
-        tagValue
-      );
-    }
-  };
+  // 6) Buffer for later batch‐write in calculateScore()
+  pendingProgressRef.current.push({
+    global_id: q.global_id,
+    category:  q.category,
+    isCorrect,
+    tag:       q.tag || ''
+  });
+};
+
+
   
   const handleNextQuestion = () => {
     if (currentQuestion < questions.length - 1) {
@@ -965,13 +957,8 @@ const QuizzesPage = () => {
                       return (
                         <button
                           key={letter}
-                          onClick={() => {
-                            if (q.category === 'Science' && q.global_id) {
-                              const isCorrect = letter === q.answer;
-                              recordScienceProgress(q.global_id, isCorrect, q.tag!);
-                            }
-                            handleAnswerSelect(letter);
-                          }}
+                          onClick={() => handleAnswerSelect(letter)}
+
                           className={`w-full p-4 rounded-lg border-2 text-left transition-all duration-200 ${
                             selectedAnswer === letter
                               ? 'border-neural-purple bg-neural-purple/10 text-neural-purple'
