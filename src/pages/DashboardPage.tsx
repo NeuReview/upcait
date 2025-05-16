@@ -262,12 +262,12 @@ const DashboardPage = () => {
     // 2) Round up to the nearest half-hour
     const maxCeil = Math.ceil(rawMax * 2) / 2;
 
-    // 3) Build an array of ticks at 0.5h intervals
-    const ticks: number[] = [];
-    for (let t = 0; t <= maxCeil; t += 0.5) {
-      ticks.push(+t.toFixed(1));  // ensures clean decimals
-    }
-
+    // 3) Build exactly five evenly-spaced ticks between 0 and maxCeil
+    const numTicks = 5;
+    const step = maxCeil / (numTicks - 1);
+    const ticks = Array.from({ length: numTicks }, (_, i) =>
+      +((step * i).toFixed(1))
+    );
 
     return (
       <div className="w-full h-[300px]">
