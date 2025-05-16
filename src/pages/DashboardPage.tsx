@@ -251,9 +251,24 @@ const DashboardPage = () => {
   // Add useQuestions hook to access science progress stats
   const { getScienceProgressStats } = useQuestions();
 
+
   interface StudyHoursData { day: string; hours: number }
 
   function StudyTimeChart({ data }: { data: StudyHoursData[] }) {
+
+        // 1) Find the raw maximum “hours” value
+    const rawMax = Math.max(0, ...data.map(d => d.hours));
+
+    // 2) Round up to the nearest half-hour
+    const maxCeil = Math.ceil(rawMax * 2) / 2;
+
+    // 3) Build an array of ticks at 0.5h intervals
+    const ticks: number[] = [];
+    for (let t = 0; t <= maxCeil; t += 0.5) {
+      ticks.push(+t.toFixed(1));  // ensures clean decimals
+    }
+
+
     return (
       <div className="w-full h-[300px]">
         <ResponsiveContainer width="100%" height="100%">
@@ -278,31 +293,31 @@ const DashboardPage = () => {
             />
   
             <YAxis
-              tick={{ fontSize: 12, fill: '#6B7280' }}
-              domain={[0, 4]}
-              ticks={[4, 3, 2, 1, 0]}
-              tickFormatter={(val: number) => `${val}h`}
+              dataKey="hours"
+              domain={[0, 'dataMax']}
+              ticks={ticks}
               allowDecimals={false}
+              tickFormatter={(val: number) => `${val}h`}
               axisLine={false}
               tickLine={false}
             />
-  
+            
             <CartesianGrid strokeDasharray="3 3" vertical={false} />
   
             <Tooltip
-      contentStyle={{
-        backgroundColor: '#1F2937',
-        border: 'none',
-        borderRadius: 4,
-      }}
-      cursor={false}
-      labelFormatter={() => ''}
-      itemStyle={{ color: '#fff' }}
-      separator=""   
-      formatter={(value: number, _name: string, entry: any) =>
-        [`${value.toFixed(1)}h • ${entry.payload.day}`, '']
-      }
-    />
+          contentStyle={{
+            backgroundColor: '#1F2937',
+            border: 'none',
+            borderRadius: 4,
+          }}
+          cursor={false}
+          labelFormatter={() => ''}
+          itemStyle={{ color: '#fff' }}
+          separator=""   
+          formatter={(value: number, _name: string, entry: any) =>
+            [`${value.toFixed(1)}h • ${entry.payload.day}`, '']
+          }
+        />
   
             <Line
               type="monotone"
