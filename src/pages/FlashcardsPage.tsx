@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import type { Question } from '../types/quiz';
 import { 
   AcademicCapIcon,
   ClockIcon,
@@ -8,13 +9,16 @@ import {
   BeakerIcon,
   BookOpenIcon,
   ExclamationTriangleIcon,
-  ChartBarIcon,
+  ChartBarSquareIcon,
   SparklesIcon,
   ArrowUturnUpIcon,
-  ArrowUturnDownIcon
+  ArrowUturnDownIcon,
+  Square3Stack3DIcon
 } from '@heroicons/react/24/outline';
 import { useFlashcards } from '../hooks/useFlashcards';
 import { supabase, upsertDailyTotal } from '../lib/supabase';
+
+
 
 
 const generalTopic = {
@@ -26,9 +30,23 @@ const generalTopic = {
   time: '60m'
 };
 
+interface FlashcardScore {
+  total: number;
+  correct: number;
+  incorrect: number;
+  percentage: number;
+  timeSpent: number;              // in seconds
+  categoryScores?: Record<       // optional, if your flashcards have a `category` field
+    string,
+    { total: number; correct: number; percentage: number }
+  >;
+  answeredByCategory?: Record<string, Question[]>;
+}
+
 const FlashcardsPage: React.FC = () => {
   // ─── State ───────────────────────────────────────────────────────────────
   const [isStarted, setIsStarted] = useState(false);
+  const [flashScore, setFlashScore] = useState<FlashcardScore | null>(null);
   const [selectedTopic, setSelectedTopic] = useState('');
   const [currentCard, setCurrentCard] = useState(0);
   const [selectedAnswer, setSelectedAnswer] = useState<string | null>(null);
@@ -36,13 +54,22 @@ const FlashcardsPage: React.FC = () => {
   const [showBack, setShowBack] = useState(false);
   const [isTimeBased, setIsTimeBased] = useState(false);
   const [timeRemaining, setTimeRemaining] = useState(15 * 60);
+  const [cardCount, setCardCount] = useState<number>(generalTopic.questions);
   const [correctAnswers, setCorrectAnswers] = useState(0);
   const [incorrectAnswers, setIncorrectAnswers] = useState(0);
   const [showScoreSummary, setShowScoreSummary] = useState(false);
   const [hasReturned, setHasReturned] = useState(false);
+  const [byCategory, setByCategory] = useState<Record<string,{total:number;correct:number}>>({});
+  const [answeredByCategory, setAnsweredByCategory] = useState<Record<string, Question[]>>({});
+
+
 
   // <<< NEW: track flashcards session start timestamp >>>
   const [flashStartTime, setFlashStartTime] = useState<number | null>(null);
+  // how many cards to practice this run
+ 
+
+  
 
   const { flashcards, loading, error, fetchFlashcards } = useFlashcards();
 
@@ -61,11 +88,65 @@ const FlashcardsPage: React.FC = () => {
       }
     };
   }, [isStarted, isTimeBased, timeRemaining]);
+
+  const buildCategoryScores = (store: Record<string, {total:number; correct:number}>) =>
+  Object.fromEntries(
+    Object.entries(store).map(([c, s]) => [
+      c,
+      {
+        ...s,
+        percentage: s.total ? Math.round((s.correct / s.total) * 100) : 0,
+      },
+    ]),
+  );
+
+
+  const handleEndSession = async () => {
+    if (hasReturned) return;
+    setHasReturned(true);
+
+    await recordFlashSession();
+
+    const endMs    = Date.now();
+    const elapsed = flashStartTime
+      ? Math.floor((endMs - flashStartTime) / 1000)
+      : 0;
+
+    const total     = correctAnswers + incorrectAnswers;
+    const correct   = correctAnswers;
+    const incorrect = incorrectAnswers;
+    const percentage =
+      total > 0 ? Math.round((correct / total) * 100) : 0;
+
+    const categoryScores = Object.fromEntries(
+      Object.entries(byCategory).map(([cat, { total, correct }]) => [
+        cat,
+        {
+          total,
+          correct,
+          percentage: Math.round((correct / total) * 100),
+        },
+      ]),
+    );
+
+    setFlashScore({
+      total,
+      correct,
+      incorrect,
+      percentage,
+      timeSpent: elapsed,
+      answeredByCategory,
+      categoryScores,
+    });
+  };
+
+
   
 
   // ─── Handlers ────────────────────────────────────────────────────────────
   const startSession = async () => {
     // Re-enable the “Back to Topics” button on each new run
+    setByCategory({});
     setHasReturned(false);
   
     if (!selectedTopic) return;
@@ -86,7 +167,9 @@ const FlashcardsPage: React.FC = () => {
     setFlashStartTime(Date.now());
   
     // fetch the new batch of flashcards
-    await fetchFlashcards(selectedTopic);
+    await fetchFlashcards(selectedTopic, cardCount);
+       // if the hook stored all cards in `flashcards`, override to first `cardCount`
+
   
     // kick off the session
     setIsStarted(true);
@@ -103,12 +186,37 @@ const FlashcardsPage: React.FC = () => {
   };
 
   const handleAnswerSelect = (letter: string) => {
+    if (selectedAnswer !== null) return;
     setSelectedAnswer(letter);
+
+    // 1️⃣ Update your correct/incorrect totals
     const correct = flashcards[currentCard]?.answer?.toUpperCase();
     if (letter === correct) setCorrectAnswers(n => n + 1);
     else setIncorrectAnswers(n => n + 1);
+
+    // 2️⃣ Flip the card so the user sees the back
     handleFlip();
+
+    // 3️⃣ Compute the category key
+    const cat = flashcards[currentCard].category || 'Ungrouped';
+
+    // 4️⃣ Update your per-category counts
+    setByCategory(prev => ({
+      ...prev,
+      [cat]: {
+        total:   (prev[cat]?.total   ?? 0) + 1,
+        correct: (prev[cat]?.correct ?? 0) +
+                (letter === correct ? 1 : 0),
+      },
+    }));
+
+    // 5️⃣ —— Place your new line here 🤓 ——  
+    setAnsweredByCategory(prev => ({
+      ...prev,
+      [cat]: [...(prev[cat] || []), flashcards[currentCard]],
+    }));
   };
+
 
   const nextCard = () => {
     if (currentCard < flashcards.length - 1) {
@@ -169,13 +277,146 @@ const FlashcardsPage: React.FC = () => {
   };
   
 
+    if (!flashScore) {
+       // we’re not showing results yet, fall through to normal UI below
+     } else {
+       // guard passed: flashScore is definitely non-null
+       const { percentage, total, correct, incorrect, timeSpent, categoryScores } = flashScore;
+
+       return (
+
+      <div className="min-h-screen bg-gray-50 py-6">
+        <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
+          {/* reuse your Mock Exam summary UI, swapping in flashScore */}
+          <div className="bg-white rounded-lg shadow-lg p-8 text-center">
+            <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-neural-purple/10 mb-4">
+              <SparklesIcon className="w-10 h-10 text-neural-purple" />
+            </div>
+            <h2 className={`text-3xl font-bold ${flashScore.percentage >= 70 ? 'text-growth-green' : 'text-alert-red' } mb-2`}>
+              {flashScore.percentage >= 70 ? 'Great Job!' : 'Room to Grow'}
+            </h2>
+            <p className="text-4xl font-bold mb-2">{flashScore!.percentage}%</p>
+            <p className="text-gray-600 mb-8">
+              You answered {flashScore.correct} out of {flashScore.total} correctly in {Math.floor(flashScore.timeSpent/60)}m {flashScore.timeSpent%60}s
+            </p>
+
+            <div className="grid grid-cols-3 gap-4 mb-8">
+              <div className="bg-gray-50 rounded-lg p-4 text-center">
+                <p className="text-sm text-gray-500">Total</p>
+                <p className="text-2xl font-bold text-gray-900">{flashScore.total}</p>
+              </div>
+              <div className="bg-growth-green/5 rounded-lg p-4 text-center">
+                <p className="text-sm text-growth-green">Correct</p>
+                <p className="text-2xl font-bold text-growth-green">{flashScore.correct}</p>
+              </div>
+              <div className="bg-alert-red/5 rounded-lg p-4 text-center">
+                <p className="text-sm text-alert-red">Incorrect</p>
+                <p className="text-2xl font-bold text-alert-red">{flashScore.incorrect}</p>
+              </div>
+            </div>
+
+            {flashScore.categoryScores && (
+              <div className="mb-4">
+                <h3 className="text-lg font-semibold text-gray-900 ">
+                  Performance by Category
+                </h3>
+
+                {Object.entries(flashScore.categoryScores).map(([cat, stats]) => {
+                  const { total, correct, percentage } = stats;
+                  // pick colors based on percentage
+                  const labelColor =
+                    percentage >= 70
+                      ? 'text-growth-green'
+                      : percentage >= 50
+                      ? 'text-energy-orange'
+                      : 'text-alert-red';
+                  const barColor =
+                    percentage >= 70
+                      ? 'bg-growth-green'
+                      : percentage >= 50
+                      ? 'bg-energy-orange'
+                      : 'bg-alert-red';
+
+                  return (
+                    <div key={cat} className="bg-gray-50 rounded-lg mb-4">
+                      <div className="flex justify-between items-center mb-1">
+                        <span className="font-medium text-gray-700">{cat}</span>
+                        <span className={`font-medium ${labelColor}`}>
+                          {percentage}%
+                        </span>
+                      </div>
+
+                      <div className="w-full bg-gray-200 rounded-full h-2 overflow-hidden">
+                        <div
+                          className={`h-2 rounded-full transition-all duration-500 ${barColor}`}
+                          style={{ width: `${percentage}%` }}
+                        />
+                      </div>
+
+                      <div className="mt-2 flex justify-start">
+                      <p className="text-sm text-gray-600">
+                        {correct}/{total}
+                      </p>
+                    </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            <div className="bg-neural-purple/5 rounded-lg p-6 mb-8">
+              <h3 className="flex items-center text-lg font-semibold text-neural-purple mb-4">
+                <ChartBarSquareIcon className="w-5 h-5 mr-2" />
+                Recommendations
+              </h3>
+              <ul className="space-y-2 text-gray-600">
+                {flashScore.percentage < 70 && (
+                  <li className="flex items-start">
+                    <BookOpenIcon className="w-5 h-5 mr-2 mt-0.5 text-neural-purple flex-shrink-0" />
+                    Review the explanations for cards you got wrong
+                  </li>
+                )}
+                <li className="flex items-start">
+                  <AcademicCapIcon className="w-5 h-5 mr-2 mt-0.5 text-neural-purple flex-shrink-0" />
+                  Try another flashcard session to reinforce what you’ve learned
+                </li>
+              </ul>
+            </div>
+
+            <button
+              onClick={() => {
+                setFlashScore(null);
+
+                setShowScoreSummary(false);
+                // reset everything to start a new session
+                setIsStarted(false);          // go back to topic selection
+                 setCardCount(generalTopic.questions);
+                setFlashScore(null);
+                setSelectedAnswer(null);
+                setCurrentCard(0);
+                setCorrectAnswers(0);
+                setIncorrectAnswers(0);
+                setHasReturned(false);
+                setByCategory({});
+              }}
+              className="px-6 py-3 bg-neural-purple text-white rounded-lg hover:bg-tech-lavender transition"
+            >
+              Try Another Flashcard Session
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+
   // ─── Loading State ───────────────────────────────────────────────────────
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-neural-purple mx-auto"></div>
-          <p className="mt-4 text-gray-600">Naglo-load ang mga flashcards...</p>
+          <p className="mt-4 text-gray-600">Loading flashcards...</p>
         </div>
       </div>
     );
@@ -262,6 +503,28 @@ const FlashcardsPage: React.FC = () => {
                           Enable Timer ({generalTopic.time})
                         </label>
                       </div>
+
+                      <div className="flex items-center space-x-2">
+                        <label htmlFor="card-count" className="text-sm text-gray-700">
+                          Cards:
+                        </label>
+                        <input
+                          id="card-count"
+                          type="number"
+                          min={1}
+                          // remove the `max` prop so there’s no enforced upper limit
+                          value={cardCount}
+                          onChange={e =>
+                            setCardCount(
+                              // enforce only a minimum of 1; no maximum
+                              Math.max(1, Number(e.target.value))
+                            )
+                          }
+                          className="w-16 px-2 py-1 border rounded text-sm"
+                        />
+                      </div>
+
+
                       <button
                         onClick={startSession}
                         className="w-full sm:w-auto px-6 py-2 rounded-lg bg-neural-purple text-white hover:bg-neural-purple/90 transition"
@@ -280,32 +543,41 @@ const FlashcardsPage: React.FC = () => {
         ) : (
           // ─── Flashcard Session ─────────────────────────────────────────────
           <>
-            <h1 className="text-3xl font-bold text-gray-900 mb-6 flex items-center justify-between">
-              <span>Flashcards: {selectedTopic}</span>
-              <button onClick={() => setShowScoreSummary(true)} aria-label="Show score summary">
-                <ChartBarIcon className="w-6 h-6 text-neural-purple hover:text-tech-lavender" />
-              </button>
-            </h1>
-            <div className="max-w-3xl mx-auto space-y-6">
-              {/* Progress & Controls */}
+            <div className="max-w-3xl mx-auto space-y-4">
+                            {/* Progress & Controls */}
               <div className="bg-white rounded-lg shadow-md p-4">
                 <div className="flex justify-between items-center">
-                  <div className="text-gray-600">
-                    Card {currentCard + 1} of {flashcards.length}
+                  <div>
+                    <h2 className="font-semibold text-gray-900">
+                      {selectedTopic}
+                    </h2>
+                    <p className="text-sm text-gray-600">
+                      Card {currentCard + 1} of {flashcards.length}
+                    </p>
                   </div>
-                  <div className="flex items-center space-x-4">
+                  <div className="flex flex-col items-end w-20">
                     {isTimeBased && (
-                      <div className="flex items-center space-x-2 text-gray-600">
+                      <div className="flex items-center justify-center  space-x-1 text-gray-600 w-full mt-1">
                         <ClockIcon className="w-5 h-5" />
                         <span>{formatTime(timeRemaining)}</span>
                       </div>
                     )}
-                    <button onClick={shuffleCards} aria-label="Shuffle cards">
-                      <ArrowPathIcon className="w-5 h-5 text-neural-purple hover:text-tech-lavender" />
-                    </button>
+                    <div className="flex items-center space-x-2 pr-2.5">
+                      <button
+                        onClick={() => setShowScoreSummary(true)}
+                        aria-label="Show score summary"
+                      >
+                        <Square3Stack3DIcon className="w-5 h-5 text-neural-purple hover:text-tech-lavender" />
+                      </button>
+                      <button onClick={shuffleCards} aria-label="Shuffle cards">
+                        <ArrowPathIcon className="w-5 h-5 text-neural-purple hover:text-tech-lavender" />
+                      </button>
+                    </div>
                   </div>
                 </div>
-                <div className="mt-4 w-full bg-gray-200 rounded-full h-2">
+
+                {/* ─── Progress Bar ───────────────────────────────────────── */}
+                <div className="mt-2 w-full bg-gray-200 rounded-full h-2">
                   <div
                     className="h-full bg-neural-purple rounded-full transition-all duration-300"
                     style={{
@@ -314,6 +586,7 @@ const FlashcardsPage: React.FC = () => {
                   />
                 </div>
               </div>
+
 
               {/* Flashcard */}
               {flashcards[currentCard] && (
@@ -333,31 +606,31 @@ const FlashcardsPage: React.FC = () => {
   </h2>
   <div className="mt-6 grid grid-cols-2 gap-4 w-full">
     {(['A','B','C','D'] as const).map(letter => {
-      const card = flashcards[currentCard];
-      if (!card) return null;
+    const card = flashcards[currentCard];
+    if (!card) return null;
 
-      // dual-key lookup: try lowercase key, then uppercase
-      const lowerKey = `option_${letter.toLowerCase()}` as 
-        'option_a'|'option_b'|'option_c'|'option_d';
-      const upperKey = `option_${letter}` as 
-        'option_A'|'option_B'|'option_C'|'option_D';
-      const text = (card as any)[lowerKey] ?? (card as any)[upperKey] ?? '';
+    // look up the option text however you already do...
+    const lowerKey = `option_${letter.toLowerCase()}` as any;
+    const upperKey = `option_${letter}` as any;
+    const text = (card as any)[lowerKey] ?? (card as any)[upperKey] ?? '';
 
-      return (
-        <button
-          key={letter}
-          onClick={() => handleAnswerSelect(letter)}
-          disabled={isFlipping}
-          className={`w-full text-left px-4 py-2 border rounded-lg transition ${
-            selectedAnswer === letter
-              ? 'bg-neural-purple text-white border-neural-purple'
-              : 'bg-white text-gray-800 border-gray-300 hover:border-neural-purple'
-          }`}
-        >
-          <span className="font-bold mr-2">{letter}.</span> {text}
-        </button>
-      );
-    })}
+    const isSel = selectedAnswer === letter;
+    return (
+      <button
+        key={letter}
+        onClick={() => handleAnswerSelect(letter)}
+        disabled={isFlipping || selectedAnswer !== null}
+        className={`
+          w-full text-left px-4 py-2 border rounded-lg transition
+          ${isSel
+            ? 'border-neural-purple text-neural-purple bg-white'
+            : 'border-gray-300 text-gray-800 bg-white hover:border-neural-purple'}
+        `}
+      >
+        {text}
+      </button>
+    );
+  })}
   </div>
   <button
     onClick={handleFlip}
@@ -414,12 +687,12 @@ const FlashcardsPage: React.FC = () => {
 
               {/* Navigation */}
               <div className="flex justify-between items-center">
-                <button
-                  onClick={finishSession}
-                  className="px-4 py-2 rounded-lg border border-neural-purple text-neural-purple hover:bg-neural-purple hover:text-white transition"
-                >
-                  Finish
-                </button>
+                  <button
+                    onClick={() => setShowScoreSummary(true)}
+                    className="transition-colors hover:text-red-500"
+                  >
+                    End Session
+                  </button>
                 <div className="flex space-x-4">
                   <button
                     onClick={previousCard}
@@ -447,7 +720,7 @@ const FlashcardsPage: React.FC = () => {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-md">
             <h2 className="text-2xl font-bold text-gray-900 mb-6 flex items-center">
-              <ChartBarIcon className="w-7 h-7 text-neural-purple mr-2" />
+              <Square3Stack3DIcon className="w-7 h-7 text-neural-purple mr-2" />
               Score Summary
             </h2>
             <div className="mb-6">
@@ -464,12 +737,6 @@ const FlashcardsPage: React.FC = () => {
                 />
               </div>
               <div className="mt-2 text-right">
-                <span className="font-bold text-lg">
-                  {correctAnswers + incorrectAnswers > 0
-                    ? Math.round((correctAnswers / (correctAnswers + incorrectAnswers)) * 100)
-                    : 0}
-                  %
-                </span>
               </div>
             </div>
             <div className="grid grid-cols-3 gap-4 mb-6">
@@ -491,29 +758,19 @@ const FlashcardsPage: React.FC = () => {
             <div className="flex justify-between">
               {/* <<< NEW: record and then exit >>> */}
               <button
-  onClick={async () => {
-    // guard: only run on first click
-    if (hasReturned) return;
-
-    setHasReturned(true);
-    await recordFlashSession();
-    setIsStarted(false);
-    setShowScoreSummary(false);
-  }}
-  disabled={hasReturned}
-  className="
-    px-4 py-2
-    border border-gray-300
-    rounded-lg text-gray-700
-    hover:bg-gray-50
-    disabled:opacity-50
-    disabled:cursor-not-allowed
-  "
->
-  Back to Topics
-</button>
-
-
+                onClick={handleEndSession}
+                disabled={hasReturned}
+                className="
+                  px-4 py-2
+                  bg-red-500 text-white
+                  rounded-lg
+                  hover:bg-red-600
+                  disabled:opacity-50 disabled:cursor-not-allowed
+                  transition-colors
+                "
+              >
+                End Session
+              </button>
 
               <button
                 onClick={() => setShowScoreSummary(false)}
