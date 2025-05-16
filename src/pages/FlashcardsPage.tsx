@@ -621,10 +621,10 @@ const FlashcardsPage: React.FC = () => {
         onClick={() => handleAnswerSelect(letter)}
         disabled={isFlipping || selectedAnswer !== null}
         className={`
-          w-full text-left px-4 py-2 border rounded-lg transition
+          w-full text-left px-4 py-2 border rounded-lg transition-all duration-200
           ${isSel
-            ? 'border-neural-purple text-neural-purple bg-white'
-            : 'border-gray-300 text-gray-800 bg-white hover:border-neural-purple'}
+            ? 'border-neural-purple bg-neural-purple/10 text-neural-purple'
+            : 'border-gray-300 bg-white text-gray-800 hover:border-neural-purple'}
         `}
       >
         {text}
