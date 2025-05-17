@@ -9,26 +9,66 @@ import {
   BeakerIcon,
   BookOpenIcon,
   ExclamationTriangleIcon,
+  CalculatorIcon,
   ChartBarSquareIcon,
   SparklesIcon,
   ArrowUturnUpIcon,
   ArrowUturnDownIcon,
-  Square3Stack3DIcon
+  Square3Stack3DIcon,
+  LanguageIcon
 } from '@heroicons/react/24/outline';
 import { useFlashcards } from '../hooks/useFlashcards';
 import { supabase, upsertDailyTotal } from '../lib/supabase';
 
-
-
-
 const generalTopic = {
   id: 'General',
   name: 'General',
+  badgeText: 'Comprehensive Review',  // ← new
   icon: SparklesIcon,
   description: 'Random questions from all categories',
   questions: 50,
   time: '60m'
 };
+
+const topics = [
+  {
+    id: 'Science',
+    name: 'Science',
+    badgeText: 'Biology & physics',    // ← custom per topic
+    icon: BeakerIcon,
+    description: 'Biology, physics, chemistry, anatomy',
+    questions: 50,
+    time: '60m'
+  },
+  {
+    id: 'Math',
+    name: 'Math',
+    badgeText: 'Algebra, trigonometry, calculus, geometry',
+    icon: CalculatorIcon,
+    description: 'Algebra, geometry, calculus problems',
+    questions: 50,
+    time: '60m'
+  },
+  {
+    id: 'Reading Comprehension',
+    name: 'Reading Comprehension',
+    badgeText: 'Wellness, community, environment, habit',
+    icon: BookOpenIcon,
+    description: 'Critical reading and analysis',
+    questions: 50,
+    time: '60m'
+  },
+  {
+    id: 'Language Proficiency',
+    name: 'Language Proficiency',
+    badgeText: 'Vocabulary, grammar, & composition',
+    icon: LanguageIcon,
+    description: 'English and Filipino language skills',
+    questions: 50,
+    time: '60m'
+  }
+];
+
 
 interface FlashcardScore {
   total: number;
@@ -66,12 +106,13 @@ const FlashcardsPage: React.FC = () => {
 
   // <<< NEW: track flashcards session start timestamp >>>
   const [flashStartTime, setFlashStartTime] = useState<number | null>(null);
-  // how many cards to practice this run
- 
-
-  
-
   const { flashcards, loading, error, fetchFlashcards } = useFlashcards();
+
+  // initialize each topic to its default question count
+  const [cardCounts, setCardCounts] = useState<Record<string, number>>(
+    () => topics.reduce((acc, t) => ({ ...acc, [t.id]: t.questions }), {})
+  );
+
 
   // ─── Effects ─────────────────────────────────────────────────────────────
   // Timer ticking every second
@@ -88,6 +129,12 @@ const FlashcardsPage: React.FC = () => {
       }
     };
   }, [isStarted, isTimeBased, timeRemaining]);
+
+  useEffect(() => {
+    const t = topics.find(t => t.id === selectedTopic);
+    if (t) setCardCount(t.questions);
+  }, [selectedTopic]);
+
 
   const buildCategoryScores = (store: Record<string, {total:number; correct:number}>) =>
   Object.fromEntries(
@@ -409,7 +456,6 @@ const FlashcardsPage: React.FC = () => {
     );
   }
 
-
   // ─── Loading State ───────────────────────────────────────────────────────
   if (loading) {
     return (
@@ -427,120 +473,153 @@ const FlashcardsPage: React.FC = () => {
     <div className="min-h-screen bg-gray-50 py-6">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {!isStarted ? (
-          // ─── Topic Selection ────────────────────────────────────────────────
-          <>
-            <h1 className="text-3xl font-bold text-gray-900 mb-2 text-center">Flashcards</h1>
-            <p className="text-gray-600 mb-6 text-center">
-              Practice with flashcards covering all UPCAT subjects
-            </p>
-            {error && (
-              <div className="mb-6 p-4 bg-alert-red/10 border border-alert-red rounded-lg flex items-center space-x-2">
-                <ExclamationTriangleIcon className="w-5 h-5 text-alert-red" />
-                <p className="text-alert-red">{error}</p>
+  <>
+    <div className="text-center">
+      <h1 className="text-3xl font-bold text-gray-900">Flashcards</h1>
+      <p className="mt-2 text-gray-600">
+        Choose your topic 
+      </p>
+      <p className="mt-1 text-sm text-gray-500">
+        50 questions per session (default)
+      </p>
+    </div>
+           <h2 className="text-xl font-semibold text-gray-900 mb-4">Select Topic</h2>
+  
+
+  {error && (
+    <div className="mb-6 p-4 bg-alert-red/10 border border-alert-red rounded-lg flex items-center space-x-2">
+      <ExclamationTriangleIcon className="w-5 h-5 text-alert-red" />
+      <p className="text-alert-red">{error}</p>
+    </div>
+  )}
+
+  {/* Grid of 4 + General */}
+  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 w-full">
+    {topics
+      .filter(t => t.id !== 'General')
+      .map(topic => {
+        const Icon = topic.icon;
+        const isSelected = selectedTopic === topic.id;
+        return (
+          <div
+            key={topic.id}
+            onClick={() => setSelectedTopic(topic.id)}
+            className={`
+              bg-gradient-to-br from-neural-purple/20 to-neural-purple/10
+              rounded-lg p-4 shadow-md hover:shadow-lg transition
+              cursor-pointer border-2 max-w-2xl w-full
+              ${isSelected ? 'border-neural-purple' : 'border-transparent'}
+            `}
+          >
+            {/* icon + title + badge */}
+            <div className="flex flex-col md:flex-row items-center">
+              <div className={`
+                rounded-full p-2 mb-3 md:mb-0 md:mr-5
+                ${isSelected
+                  ? 'bg-neural-purple text-white'
+                  : 'bg-white text-neural-purple'}
+              `}>
+                <Icon className="w-6 h-6" />
               </div>
-            )}
-            <div className="flex justify-center">
-              <div
-                onClick={() => setSelectedTopic(generalTopic.id)}
-                className={`
-                  bg-gradient-to-br from-neural-purple/40 to-neural-purple/10
-                  rounded-lg p-6 mb-8 shadow-md hover:shadow-lg transition
-                  cursor-pointer border-2 max-w-2xl w-full
-                  ${ selectedTopic === generalTopic.id
-                    ? 'border-neural-purple'
-                    : 'border-transparent' }
-                `}
-              >
-                <div className="flex flex-col md:flex-row items-center">
-                  <div className={`
-                    rounded-full p-3 mb-4 md:mb-0 md:mr-5
-                    ${ selectedTopic === generalTopic.id
-                      ? 'bg-neural-purple text-white'
-                      : 'bg-white text-neural-purple'}
-                  `}>
-                    <SparklesIcon className="w-10 h-10" />
-                  </div>
-                  <div className="flex-1 text-center md:text-left">
-                    <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-2">
-                      <h3 className="text-xl font-bold text-gray-900">
-                        {generalTopic.name} Topic
-                      </h3>
-                      <div className="bg-neural-purple/20 text-neural-purple px-3 py-1 rounded-full text-sm font-medium mt-2 md:mt-0">
-                        Comprehensive Review
-                      </div>
-                    </div>
-                    <p className="text-gray-700 my-2">{generalTopic.description}</p>
-                    <div className="mt-4 flex flex-wrap items-center justify-center md:justify-start gap-3">
-                      <div className="bg-white/80 rounded-full px-3 py-1.5 flex items-center">
-                        <AcademicCapIcon className="w-4 h-4 mr-1.5 text-neural-purple" />
-                        <span className="text-xs font-medium">
-                          {generalTopic.questions} questions
-                        </span>
-                      </div>
-                      <div className="bg-white/80 rounded-full px-3 py-1.5 flex items-center">
-                        <ClockIcon className="w-4 h-4 mr-1.5 text-neural-purple" />
-                        <span className="text-xs font-medium">
-                          {generalTopic.time} estimated time
-                        </span>
-                      </div>
-                      <div className="bg-white/80 rounded-full px-3 py-1.5 flex items-center">
-                        <SparklesIcon className="w-4 h-4 mr-1.5 text-neural-purple" />
-                        <span className="text-xs font-medium">
-                          Mixed difficulty levels
-                        </span>
-                      </div>
-                    </div>
-                    <div className="mt-6 flex flex-col sm:flex-row items-center justify-between gap-4">
-                      <div className="flex items-center space-x-2">
-                        <input
-                          id="timer-toggle"
-                          type="checkbox"
-                          checked={isTimeBased}
-                          onChange={() => setIsTimeBased(b => !b)}
-                          className="h-4 w-4 text-neural-purple rounded border-gray-300 focus:ring-neural-purple"
-                        />
-                        <label htmlFor="timer-toggle" className="text-sm text-gray-700">
-                          Enable Timer ({generalTopic.time})
-                        </label>
-                      </div>
-
-                      <div className="flex items-center space-x-2">
-                        <label htmlFor="card-count" className="text-sm text-gray-700">
-                          Cards:
-                        </label>
-                        <input
-                          id="card-count"
-                          type="number"
-                          min={1}
-                          // remove the `max` prop so there’s no enforced upper limit
-                          value={cardCount}
-                          onChange={e =>
-                            setCardCount(
-                              // enforce only a minimum of 1; no maximum
-                              Math.max(1, Number(e.target.value))
-                            )
-                          }
-                          className="w-16 px-2 py-1 border rounded text-sm"
-                        />
-                      </div>
-
-
-                      <button
-                        onClick={startSession}
-                        className="w-full sm:w-auto px-6 py-2 rounded-lg bg-neural-purple text-white hover:bg-neural-purple/90 transition"
-                      >
-                        Start Flashcards
-                      </button>
-                    </div>
-                  </div>
+              <div className="flex-1 text-center md:text-left">
+                <div className="flex flex-col md:flex-row md:items-center justify-between">
+                  <h3 className="text-m font-bold text-gray-900">
+                    {topic.name}
+                  </h3>
+                   <span className="bg-neural-purple/20 text-neural-purple px-3 py-1 rounded-full text-sm font-medium">
+                     {topic.badgeText}
+                   </span>
                 </div>
+                <p className="text-sm text-gray-700">{topic.description}</p>
               </div>
             </div>
-            <p className="text-sm text-gray-500 text-center mt-6">
-              Questions will be randomly selected with varying difficulty levels
-            </p>
-          </>
-        ) : (
+          </div>
+        );
+      })}
+
+    {/* ─── General spans two cols, centered ───────────────────────────── */}
+    <div className="md:col-span-2 flex justify-center">
+      <div
+        onClick={() => setSelectedTopic(generalTopic.id)}
+        className={`
+          bg-gradient-to-br from-neural-purple/20 to-neural-purple/10
+          rounded-lg p-4 shadow-md hover:shadow-lg transition
+          cursor-pointer border-2 w-full max-w-2xl mx-auto
+          ${selectedTopic === generalTopic.id
+            ? 'border-neural-purple'
+            : 'border-transparent'}
+        `}
+      >
+        {/* icon + title + badge */}
+        <div className="flex flex-col md:flex-row items-center">
+          <div className={`
+            rounded-full p-2 mb-3 md:mb-0 md:mr-5
+            ${selectedTopic === generalTopic.id
+              ? 'bg-neural-purple text-white'
+              : 'bg-white text-neural-purple'}
+          `}>
+            <generalTopic.icon className="w-6 h-6" />
+          </div>
+          <div className="flex-1 text-center md:text-left">
+            <div className="flex flex-col md:flex-row md:items-center justify-between">
+              <h3 className="text-m font-bold text-gray-900">
+                {generalTopic.name}
+              </h3>
+              <span className="bg-neural-purple/20 text-neural-purple px-3 py-1 rounded-full text-sm font-medium">
+                Comprehensive Review
+              </span>
+            </div>
+            <p className="text-sm text-gray-700">{generalTopic.description}</p>
+          </div>
+        </div>
+
+        {/* top-row tags */}
+        
+      </div>
+    </div>
+  </div>
+
+
+  {/* ─── Global Controls ─────────────────────────────────────────────────── */}
+  <div className="mt-8 flex items-center justify-center space-x-4">
+    <label className="flex items-center space-x-2">
+      <input
+        type="checkbox"
+        checked={isTimeBased}
+        onChange={() => setIsTimeBased(b => !b)}
+        className="h-4 w-4 text-neural-purple rounded border-gray-300 focus:ring-neural-purple"
+      />
+      <span className="text-gray-700">Enable Timers</span>
+    </label>
+
+    <label className="flex items-center space-x-2">
+      <span className="text-gray-700">Cards:</span>
+      <input
+        type="number"
+        min={1}
+        value={cardCount}
+        onChange={e => setCardCount(Math.max(1, Number(e.target.value)))}
+        className="w-16 px-2 py-1 border rounded text-sm focus:outline-none focus:ring-2 focus:ring-neural-purple"
+      />
+    </label>
+  </div>
+
+  <div className="mt-6 flex justify-center">
+    <button
+      onClick={startSession}
+      className="px-6 py-3 bg-neural-purple text-white rounded-lg hover:bg-neural-purple/90 transition"
+    >
+      Start Flashcards
+    </button>
+  </div>
+      
+   <p className="mt-2 text-sm text-gray-500 text-center">
+      Questions will be randomly selected with varying difficulty levels
+    </p>
+  
+
+  </>
+) : (
           // ─── Flashcard Session ─────────────────────────────────────────────
           <>
             <div className="max-w-3xl mx-auto space-y-4">

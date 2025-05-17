@@ -17,6 +17,7 @@ import {
   ChevronDownIcon,
   EyeIcon,
   EyeSlashIcon,
+  CalculatorIcon,
 } from '@heroicons/react/24/outline';
 import { useMockExam } from '../hooks/useMockExam';
 import type { Question } from '../types/quiz';
@@ -434,6 +435,7 @@ const examSections = [
   {
     id: 'language',
     name: 'Language Proficiency',
+    badgeText: 'Vocabulary, grammar and composition',   // ← add this
     category: 'Language Proficiency',
     icon: LanguageIcon,
     questions: 100,
@@ -446,6 +448,7 @@ const examSections = [
   {
     id: 'science',
     name: 'Science',
+    badgeText: 'Biology, physics, chemistry, anatomy',   // ← add this
     category: 'Science',
     icon: BeakerIcon,
     questions: 60,
@@ -454,14 +457,16 @@ const examSections = [
   {
     id: 'math',
     name: 'Mathematics',
+    badgeText: 'Algebra, trigonometry, calculus, geometry',   // ← add this
     category: 'Mathematics',
-    icon: AcademicCapIcon,
+    icon: CalculatorIcon,
     questions: 60,
     timeLimit: 75,
   },
   {
     id: 'reading',
     name: 'Reading Comprehension',
+    badgeText:'Wellness, community, environment, habit',   // ← add this
     category: 'Reading Comprehension',
     icon: BookOpenIcon,
     questions: 100,
@@ -1198,35 +1203,43 @@ const MockExamsPage = () => {
                 </div>
               </div>
             )}
-            <div className="grid md:grid-cols-2 gap-4">
-              {examSections.map((section) => (
-                <div
-                  key={section.id}
-                  className="bg-white rounded-lg shadow-md p-6 border border-gray-200"
-                >
-                  <div className="flex items-center space-x-4">
-                    <div className="w-12 h-12 bg-neural-purple/10 rounded-lg flex items-center justify-center">
-                      <section.icon className="w-6 h-6 text-neural-purple" />
-                    </div>
-                    <div>
-                      <h3 className="font-semibold text-gray-900">{section.name}</h3>
-                      <p className="text-sm text-gray-500">
-                        {section.questions} questions | {formatTime(section.timeLimit)}
-                      </p>
-                      {section.subsections && (
-                        <div className="mt-2 text-sm text-gray-500">
-                          {section.subsections.map((sub) => (
-                            <span key={sub.name} className="mr-4">
-                              {sub.name}: {sub.questions} questions
-                            </span>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              ))}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 w-full">
+  {examSections.map(section => {
+    const Icon = section.icon;
+    return (
+      <div
+        key={section.id}
+        className="
+          bg-gradient-to-br from-neural-purple/20 to-neural-purple/10
+          rounded-lg p-4 shadow-md hover:shadow-lg transition
+          border-2 border-transparent max-w-2xl w-full
+        "
+      >
+        <div className="flex flex-col md:flex-row items-center">
+          <div className="rounded-full p-2 mb-3 md:mb-0 md:mr-5
+                          bg-white text-neural-purple">
+            <Icon className="w-6 h-6" />
+          </div>
+          <div className="flex-1 text-center md:text-left">
+            <div className="flex flex-col md:flex-row md:items-center justify-between">
+              <h3 className="text-m font-bold text-gray-900">
+                {section.name}
+              </h3>
+              <span className="bg-neural-purple/20 text-neural-purple
+                               px-3 py-1 rounded-full text-sm font-medium">
+                {section.badgeText}
+              </span>
             </div>
+            <p className="text-sm text-gray-700">
+              {section.questions} questions • {section.timeLimit}m
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  })}
+</div>
+
             <div className="flex items-center justify-center space-x-4">
               <label className="flex items-center space-x-2">
                 <input

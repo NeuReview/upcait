@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef} from 'react';
 import { 
   AcademicCapIcon, 
   ClockIcon, 
-  CheckCircleIcon,
+  CalculatorIcon,
   XCircleIcon,
   BeakerIcon,
   BookOpenIcon,
@@ -29,36 +29,76 @@ const LETTERS = ['A','B','C','D'] as const;
 
 const topics = [
   {
-    id: 'Reading Comprehension',
-    name: 'Reading Comprehension',
-    icon: BookOpenIcon,
-    description: 'Critical reading and analysis'
-  },
-  {
     id: 'Science',
     name: 'Science',
+    badgeText: 'Biology & Physics',
     icon: BeakerIcon,
-    description: 'Physics, Chemistry, and Biology concepts'
+    description: 'Physics, Chemistry, and Biology concepts',
   },
   {
     id: 'Mathematics',
-    name: 'Mathematics',
-    icon: AcademicCapIcon,
-    description: 'Algebra, Geometry, Trigonometry, and more'
+    name: 'Math',
+    badgeText: 'Algebra Focus',
+    icon: CalculatorIcon,
+    description: 'Algebra, geometry, calculus problems',
   },
+  {
+    id: 'Reading Comprehension',
+    name: 'Reading Comprehension',
+    badgeText: 'Passage Practice',
+    icon: BookOpenIcon,
+    description: 'Critical reading and analysis',
+  },
+  
+
   {
     id: 'Language Proficiency',
     name: 'Language Proficiency',
+    badgeText: 'Vocab & Grammar',
     icon: LanguageIcon,
-    description: 'English and Filipino language skills'
+    description: 'English and Filipino language skills',
   }
 ];
 
-const difficulties = [
-  { id: 'Easy', name: 'Easy', color: 'text-growth-green' },
+
+type DifficultyId = 'Easy' | 'Medium' | 'Hard';
+
+// 1b) The shape of each gradient setting
+interface GradientConfig {
+  on: string;
+  off: string;
+  border: string;
+  hover: string;
+}
+
+const difficulties: { id: DifficultyId; name: string; color: string }[] = [
+  { id: 'Easy',   name: 'Easy',   color: 'text-growth-green'  },
   { id: 'Medium', name: 'Medium', color: 'text-energy-orange' },
-  { id: 'Hard', name: 'Hard', color: 'text-alert-red' },
+  { id: 'Hard',   name: 'Hard',   color: 'text-alert-red'     },
 ];
+
+
+// 1c) A map whose keys are exactly DifficultyId
+const gradientMap: Record<DifficultyId, GradientConfig> = {
+  Easy: {
+    on:     'from-growth-green/20 to-growth-green/10',
+    off:    'from-growth-green/10 to-growth-green/5',
+    border: 'border-growth-green',
+    hover:  'hover:border-growth-green',
+  },
+  Medium: {
+    on:     'from-energy-orange/20 to-energy-orange/10',
+    off:    'from-energy-orange/10 to-energy-orange/5',
+    border: 'border-energy-orange',
+    hover:  'hover:border-energy-orange',
+  },
+  Hard: {
+    on:     'from-alert-red/20 to-alert-red/10',
+    off:    'from-alert-red/10 to-alert-red/5',
+    border: 'border-alert-red',
+    hover:  'hover:border-alert-red',
+  },
+};
 
   interface ProgressRecord {
     global_id: string;
@@ -462,6 +502,9 @@ const QuizzesPage = () => {
     setShowLeaveConfirmation(false);
   };
 
+  
+
+
   // Keep a live copy of questions in allQuestions for the in-progress sidebar
   useEffect(() => {
     if (questions.length > 0) {
@@ -783,7 +826,7 @@ const QuizzesPage = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           {/* If quiz not started, show the intro screen */}
           {!quizStarted ? (
-            <div className="space-y-8">
+            <div className="space-y-4">
               <div className="text-center">
                 <h1 className="text-3xl font-bold text-gray-900">Practice Quizzes</h1>
                 <p className="mt-2 text-gray-600">
@@ -804,93 +847,102 @@ const QuizzesPage = () => {
                 </div>
               )}
 
-              {/* Topic selection */}
               <div>
                 <h2 className="text-xl font-semibold text-gray-900 mb-4">Select Topic</h2>
-                <div className="grid md:grid-cols-2 gap-4">
-                  {topics.map((topic) => (
-                    <button
-                      key={topic.id}
-                      onClick={() => setSelectedTopic(topic.id)}
-                      className={`
-                               p-6 rounded-lg border-2 transition-all duration-200 shadow-md
-                               ${
-                                 selectedTopic === topic.id
-                                   ? topic.id === 'Reading Comprehension'
-                                     // selected RC: purple border, white fill
-                                     ? 'border-neural-purple bg-white'
-                                     // selected other: purple tint
-                                     : 'border-neural-purple bg-neural-purple/5'
-                                   // unselected *all* cards: white fill, gray border
-                                   : 'border-gray-200 bg-white hover:border-neural-purple'
-                               }
-                             `}
-                    >
-                      <div className="flex items-center space-x-4">
-                        <div className={`w-12 h-12 rounded-lg flex items-center justify-center ${
-                          selectedTopic === topic.id 
-                            ? 'bg-neural-purple text-white' 
-                            : 'bg-neural-purple/10 text-neural-purple'
-                        }`}>
-                          <topic.icon className="w-6 h-6" />
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {topics.map(topic => {
+                    const Icon = topic.icon;
+                    const isSelected = selectedTopic === topic.id;
+
+                    return (
+                      <button
+                        key={topic.id}
+                        onClick={() => setSelectedTopic(topic.id)}
+                        className={`
+                          relative overflow-hidden rounded-lg p-4 shadow-md transition
+                          bg-gradient-to-br from-neural-purple/20 to-neural-purple/10
+                          cursor-pointer border-2
+                          ${isSelected ? 'border-neural-purple' : 'border-transparent'}
+                        `}
+                      >
+                        {/* badge */}
+                        <span className="absolute top-4 right-4  bg-neural-purple/20 bg-neural-purple bg-opacity-50 text-neural-purple text-sm font-medium px-2 py-1 rounded-full">
+                          {topic.badgeText}
+                        </span>
+
+                        {/* icon + title + desc */}
+                        <div className="flex items-center space-x-4">
+                          <div className={`
+                            flex items-center justify-center w-12 h-12 rounded-full
+                            ${isSelected ? 'bg-neural-purple text-white' : 'bg-white text-neural-purple'}
+                          `}>
+                            <Icon className="w-6 h-6" />
+                          </div>
+                          <div className="text-left">
+                            <h3 className="text-lg font-semibold text-gray-900">{topic.name}</h3>
+                            <p className="text-sm text-gray-700">{topic.description}</p>
+                          </div>
                         </div>
-                        <div className="text-left">
-                          <h3 className="font-semibold text-gray-900">{topic.name}</h3>
-                          <p className="text-sm text-gray-500">{topic.description}</p>
-                        </div>
-                      </div>
-                    </button>
-                  ))}
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
 
               {/* Difficulty selection */}
-              <div>
-                <h2 className="text-xl font-semibold text-gray-900 mb-4">Select Difficulty</h2>
-                <div className="grid md:grid-cols-3 gap-4">
-                {difficulties.map((difficulty) => {
-                  const isSelected = selectedDifficulty === difficulty.id;
+              {/* ─── Select Difficulty (Flashcards-style) ─── */}
+                {/* ─── Select Difficulty (always gradient) ─── */}
+<div className="mt-8">
+  <h2 className="text-xl font-semibold text-gray-900 mb-4">
+    Select Difficulty
+  </h2>
+  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+    {difficulties.map(diff => {
+      const isSelected = selectedDifficulty === diff.id;
 
-                  // pick the correct Tailwind color keys
-                  const borderColor = difficulty.id === 'Easy'
-                    ? 'border-growth-green'
-                    : difficulty.id === 'Medium'
-                      ? 'border-energy-orange'
-                      : 'border-alert-red';
+      // static map of gradients for selected / unselected
+      const gradients = {
+        Easy: {
+          on:  'from-growth-green/20 to-growth-green/10',
+          off: 'from-growth-green/10 to-growth-green/5',
+          border: 'border-growth-green',
+          hover:  'hover:border-growth-green',
+        },
+        Medium: {
+          on:  'from-energy-orange/20 to-energy-orange/10',
+          off: 'from-energy-orange/10 to-energy-orange/5',
+          border: 'border-energy-orange',
+          hover:  'hover:border-energy-orange',
+        },
+        Hard: {
+          on:  'from-alert-red/20 to-alert-red/10',
+          off: 'from-alert-red/10 to-alert-red/5',
+          border: 'border-alert-red',
+          hover:  'hover:border-alert-red',
+        }
+      }[diff.id];
 
-                  const bgTint = difficulty.id === 'Easy'
-                    ? 'bg-growth-green/5'
-                    : difficulty.id === 'Medium'
-                      ? 'bg-energy-orange/5'
-                      : 'bg-alert-red/5';
+      return (
+        <button
+          key={diff.id}
+          onClick={() => setSelectedDifficulty(diff.id)}
+          className={`
+            p-6 rounded-lg shadow-md transition
+            bg-gradient-to-br ${isSelected ? gradients.on : gradients.off}
+            border-2 ${isSelected ? gradients.border : 'border-transparent'} ${gradients.hover}
+            cursor-pointer
+          `}
+        >
+          <h3 className={`text-center font-semibold ${diff.color}`}>
+            {diff.name}
+          </h3>
+        </button>
+      );
+    })}
+  </div>
+</div>
 
-                  const hoverBorder = difficulty.id === 'Easy'
-                    ? 'hover:border-growth-green'
-                    : difficulty.id === 'Medium'
-                      ? 'hover:border-energy-orange'
-                      : 'hover:border-alert-red';
 
-                  return (
-                    <button
-                      key={difficulty.id}
-                      onClick={() => setSelectedDifficulty(difficulty.id)}
-                      className={`
-                        p-6 rounded-lg shadow-md border-2 transition-all duration-200
-                        ${
-                          isSelected
-                            // selected: colored border + tint
-                            ? `${borderColor} ${bgTint}`
-                            // unselected: gray border, white bg, color-on-hover
-                            : `border-gray-200 bg-white ${hoverBorder}`
-                        }
-                      `}
-                    >
-                      <h3 className={`font-semibold ${difficulty.color}`}>{difficulty.name}</h3>
-                    </button>
-                  );
-                })}
-                </div>
-              </div>
 
               {/* Timer toggle */}
               <div className="flex items-center justify-center space-x-4">
