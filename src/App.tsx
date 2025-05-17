@@ -48,9 +48,11 @@ function App() {
   // 2. After OTP/email confirmation (i.e. otpPending flips false), fetch the TOS flag
   useEffect(() => {
     if (user && !otpPending) {
+      fetchTOS() }
+    if (user && !otpPending) {
       fetchTOS()
     }
-  }, [user, otpPending, fetchTOS]);
+  }, [user, otpPending, fetchTOS])
 
   // 3. Show spinner while:
   //    – we’re initially loading the session, OR
