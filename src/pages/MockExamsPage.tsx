@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   AcademicCapIcon, 
   ClockIcon, 
@@ -15,7 +15,9 @@ import {
   SparklesIcon,
   ChevronUpIcon,
   ChevronDownIcon,
-  EyeIcon
+  EyeIcon,
+  EyeSlashIcon,
+  CalculatorIcon,
 } from '@heroicons/react/24/outline';
 import { useMockExam } from '../hooks/useMockExam';
 import type { Question } from '../types/quiz';
@@ -63,196 +65,6 @@ const mapQuestionToReviewItem = (question: Question, userAnswer: string | null):
   };
 };
 
-const QuestionReviewPanel = ({ reviewData }: { reviewData: ReviewItem[] }) => {
-  const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
-  const [selectedQuestion, setSelectedQuestion] = useState<ReviewItem | null>(null);
-  const [showModal, setShowModal] = useState(false);
-
-  const grouped = reviewData.reduce((acc, q) => {
-    if (!acc[q.category]) acc[q.category] = [];
-    acc[q.category].push(q);
-    return acc;
-  }, {} as { [key: string]: ReviewItem[] });
-
-  const getColor = (q: ReviewItem) => {
-    return q.userAnswer === q.correctAnswer
-      ? 'bg-green-100 text-green-700'
-      : 'bg-red-100 text-red-700';
-  };
-
-  return (
-    <>
-      {/* Floating Sidebar */}
-      <div className="hidden md:block fixed top-24 right-4 w-64 bg-white border rounded-lg shadow p-4 h-[80vh] overflow-y-auto">
-        <h3 className="font-semibold mb-4 text-gray-800">Question Review</h3>
-        {Object.entries(grouped).map(([category, items]) => {
-          if (category === "Language Proficiency" || category === "Reading Comprehension") {
-            // For these categories, the first 50 items are English and the next 50 are Filipino.
-            const englishItems = items.slice(0, 50);
-            const filipinoItems = items.slice(50, 100);
-            return (
-          <div key={category} className="mb-4">
-            <h4 className="text-sm font-medium text-gray-700 mb-2">{category}</h4>
-                <div className="mb-2">
-                  <h5 className="text-xs font-semibold text-gray-600">English</h5>
-            <div className="flex flex-wrap gap-2">
-                {englishItems.map((q, index) => (
-            <button
-            key={q.question_id}
-            onClick={() => {
-              const idx = reviewData.findIndex(item => item.question_id === q.question_id);
-              setSelectedIndex(idx);
-              setSelectedQuestion(q);
-              setShowModal(true);
-            }}
-            className={`w-8 h-8 rounded-full text-sm font-medium flex items-center justify-center ${getColor(q)}`}
-          >
-            {index + 1}
-          </button>
-          ))}
-            </div>
-          </div>
-                <hr className="my-2" />
-                <div>
-                  <h5 className="text-xs font-semibold text-gray-600">Filipino</h5>
-                  <div className="flex flex-wrap gap-2">
-                    {filipinoItems.map((q, index) => (
-                      <button
-                        key={q.question_id}
-                        onClick={() => {
-                          const idx = reviewData.findIndex(item => item.question_id === q.question_id);
-                          setSelectedIndex(idx);
-                          setSelectedQuestion(q);
-                          setShowModal(true);
-                        }}
-                        className={`w-8 h-8 rounded-full text-sm font-medium flex items-center justify-center ${getColor(q)}`}
-                      >
-                        {index + 1}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            );
-          } else {
-            return (
-              <div key={category} className="mb-4">
-                <h4 className="text-sm font-medium text-gray-700 mb-2">{category}</h4>
-                <div className="flex flex-wrap gap-2">
-                  {items.map((q, index) => (
-                    <button
-                      key={q.question_id}
-                      onClick={() => {
-                        const idx = reviewData.findIndex(item => item.question_id === q.question_id);
-                        setSelectedIndex(idx);
-                        setSelectedQuestion(q);
-                        setShowModal(true);
-                      }}
-                      className={`w-8 h-8 rounded-full text-sm font-medium flex items-center justify-center ${getColor(q)}`}
-                    >
-                      {index + 1}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            );
-          }
-        })}
-      </div>
-
-      {/* Modal for question review */}
-      {showModal && selectedQuestion && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 max-w-xl w-full relative">
-            <button
-              className="absolute top-3 right-3 text-gray-500 hover:text-gray-700"
-              onClick={() => {
-                setShowModal(false);
-                setSelectedIndex(null);
-              }}
-            >
-              ✕
-            </button>
-            <h2 className="text-lg font-semibold mb-4">Question</h2>
-            <p className="text-gray-800 mb-4">{selectedQuestion.question}</p>
-            <ul className="space-y-2 mb-4">
-              {(['A', 'B', 'C', 'D'] as const).map((letter) => {
-                const optionKey = `option_${letter.toLowerCase()}` as keyof ReviewItem;
-                const text = selectedQuestion[optionKey] as string;
-                const isUser = selectedQuestion.userAnswer === letter;
-                const isCorrect = selectedQuestion.correctAnswer === letter;
-                return (
-                  <li
-                    key={letter}
-                    className={`p-3 rounded-lg border ${
-                      isCorrect
-                        ? 'bg-green-100 border-green-300'
-                        : isUser
-                        ? 'bg-red-100 border-red-300'
-                        : 'border-gray-200'
-                    }`}
-                  >
-                    <span className="font-semibold">{letter}.</span> {text}
-                    {isCorrect && (
-                      <span className="ml-2 text-green-700 text-sm font-semibold">✓ Correct</span>
-                    )}
-                    {isUser && !isCorrect && (
-                      <span className="ml-2 text-red-700 text-sm font-semibold">✗ Your Answer</span>
-                    )}
-                  </li>
-                );
-              })}
-            </ul>
-            <p className="text-sm text-gray-500 mb-1">Explanation</p>
-            <p className="text-gray-700">{selectedQuestion.explanation}</p>
-            {/* ─── Prev / Next navigation ─────────────────── */}
-            <div className="mt-6 flex justify-between items-center">
-              <button
-                onClick={() => {
-                  if (selectedIndex !== null && selectedIndex > 0) {
-                    const newIdx = selectedIndex - 1;
-                    setSelectedIndex(newIdx);
-                    setSelectedQuestion(reviewData[newIdx]);
-                  }
-                }}
-                disabled={selectedIndex === 0}
-                className={`px-4 py-2 rounded-lg border text-sm font-medium transition
-                  ${selectedIndex === 0
-                    ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                    : 'bg-white text-gray-700 hover:bg-gray-50'}`}
-              >
-                ← Prev
-              </button>
-
-              <span className="text-xs text-gray-500">
-                {selectedIndex !== null ? selectedIndex + 1 : 0} / {reviewData.length}
-              </span>
-
-              <button
-                onClick={() => {
-                  if (selectedIndex !== null && selectedIndex < reviewData.length - 1) {
-                    const newIdx = selectedIndex + 1;
-                    setSelectedIndex(newIdx);
-                    setSelectedQuestion(reviewData[newIdx]);
-                  }
-                }}
-                disabled={selectedIndex === reviewData.length - 1}
-                className={`px-4 py-2 rounded-lg border text-sm font-medium transition
-                  ${selectedIndex === reviewData.length - 1
-                    ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                    : 'bg-white text-gray-700 hover:bg-gray-50'}`}
-              >
-                Next →
-              </button>
-            </div>
-            {/* ───────────────────────────────────────────── */}
-          </div>
-        </div>
-      )}
-    </>
-  );
-};
-
 const getScoreCategory = (percentage: number) => {
   if (percentage >= 90) return { label: 'Outstanding!', color: 'text-growth-green', message: 'Exceptional performance! You\'re well-prepared for the UPCAT.' };
   if (percentage >= 80) return { label: 'Excellent!', color: 'text-neural-purple', message: 'Great work! Keep up this level of performance.' };
@@ -293,10 +105,15 @@ const ExamSummary = ({
   }, {} as { [key: string]: ReviewItem[] });
 
   const getColor = (q: ReviewItem) => {
-    return q.userAnswer === q.correctAnswer
-      ? 'bg-green-100 text-green-700'
-      : 'bg-red-100 text-red-700';
-  };
+  // 1) unanswered?
+  if (q.userAnswer === null) {
+    return 'bg-yellow-100 text-yellow-700';
+  }
+  // 2) correct vs. incorrect
+  return q.userAnswer === q.correctAnswer
+    ? 'bg-green-100 text-green-700'
+    : 'bg-red-100 text-red-700';
+};
 
   return (
     <div className="relative">
@@ -523,39 +340,48 @@ const ExamSummary = ({
           </h2>
             <p className="text-gray-800 mb-4">{selectedQuestion.question}</p>
             <ul className="space-y-2 mb-4">
-              {(['A', 'B', 'C', 'D'] as const).map((letter) => {
+              {(['A','B','C','D'] as const).map(letter => {
                 const optionKey = `option_${letter.toLowerCase()}` as keyof ReviewItem;
-                const text = selectedQuestion[optionKey] as string;
-                const isUser = selectedQuestion.userAnswer === letter;
+                const text      = selectedQuestion[optionKey] as string;
+                const isUser    = selectedQuestion.userAnswer === letter;
                 const isCorrect = selectedQuestion.correctAnswer === letter;
+
+                let label: string | null = null;
+                if      (isUser && isCorrect)  label = '✓ Your Answer';
+                else if (isUser && !isCorrect) label = '✗ Your Answer';
+                else if (isCorrect)            label = '✓ Correct Answer';
+
                 return (
                   <li
                     key={letter}
                     className={`p-3 rounded-lg border ${
-                      isCorrect
-                        ? 'bg-green-100 border-green-300'
-                        : isUser
-                        ? 'bg-red-100 border-red-300'
-                        : 'border-gray-200'
+                      isCorrect ? 'bg-green-100 border-green-300'
+                        : isUser  ? 'bg-red-100   border-red-300'
+                        :             'border-gray-200'
                     }`}
                   >
                     <span className="font-semibold">{letter}.</span> {text}
-                    {isCorrect && (
-                      <span className="ml-2 text-green-700 text-sm font-semibold">
-                        ✓ Correct
-                      </span>
-                    )}
-                    {isUser && !isCorrect && (
-                      <span className="ml-2 text-red-700 text-sm font-semibold">
-                        ✗ Your Answer
+                    {label && (
+                      <span
+                        className={`ml-2 text-sm font-semibold ${
+                          label.startsWith('✓') ? 'text-green-700' : 'text-red-700'
+                        }`}
+                      >
+                        {label}
                       </span>
                     )}
                   </li>
                 );
               })}
             </ul>
+
             <p className="text-sm text-gray-500 mb-1">Explanation</p>
             <p className="text-gray-700">{selectedQuestion.explanation}</p>
+            {selectedQuestion.userAnswer === null && (
+              <p className="mt-4 p-3 border-l-4 border-alert-red bg-alert-red/10 text-alert-red font-medium rounded">
+                You did not select an answer for this question.
+              </p>
+            )}
             {/* ─── Prev / Next navigation ─────────────────── */}
             <div className="mt-6 flex justify-between items-center">
               <button
@@ -609,6 +435,7 @@ const examSections = [
   {
     id: 'language',
     name: 'Language Proficiency',
+    badgeText: 'Vocabulary, grammar and composition',   // ← add this
     category: 'Language Proficiency',
     icon: LanguageIcon,
     questions: 100,
@@ -621,6 +448,7 @@ const examSections = [
   {
     id: 'science',
     name: 'Science',
+    badgeText: 'Biology, physics, chemistry, anatomy',   // ← add this
     category: 'Science',
     icon: BeakerIcon,
     questions: 60,
@@ -629,14 +457,16 @@ const examSections = [
   {
     id: 'math',
     name: 'Mathematics',
+    badgeText: 'Algebra, trigonometry, calculus, geometry',   // ← add this
     category: 'Mathematics',
-    icon: AcademicCapIcon,
+    icon: CalculatorIcon,
     questions: 60,
     timeLimit: 75,
   },
   {
     id: 'reading',
     name: 'Reading Comprehension',
+    badgeText:'Wellness, community, environment, habit',   // ← add this
     category: 'Reading Comprehension',
     icon: BookOpenIcon,
     questions: 100,
@@ -672,6 +502,15 @@ const MockExamsPage = () => {
   const [collapsedCategories, setCollapsedCategories] = useState<Set<string>>(new Set());
   const [mockSessionId,   setMockSessionId]   = useState<string | null>(null);
   const [mockStartTime,   setMockStartTime]   = useState<number | null>(null);
+  const [sidebarVisible, setSidebarVisible] = useState(true);
+  const [transitioning, setTransitioning] = useState(false);
+  
+
+
+  const pendingRecords = useRef<
+  { category: string; uuid: string; isCorrect: boolean; tag: string }[]
+>([]);
+
 
 
   
@@ -749,8 +588,6 @@ const MockExamsPage = () => {
     }
   }, [examStarted, currentSection, currentQuestion, userAnswers, allQuestions, sectionQuestions, score, timeRemaining]);
   
-
-  // Timer effect (updates every second)
   // Timer effect (updates every second)
   useEffect(() => {
     let timer: number | undefined;
@@ -814,47 +651,53 @@ const MockExamsPage = () => {
 }, [ examStarted, isTimeBased, timeRemaining, timerWarning, currentSection, currentQuestion, userAnswers, allQuestions, sectionQuestions,]);
 
   // Effect to force transition when time expires
-  useEffect(() => {
+ useEffect(() => {
     if (examStarted && timeRemaining === 0 && !forcedTransition) {
       setForcedTransition(true);
-    
-      // Save current section questions to the cache
-      const updatedCurrent = questions.map((q) => ({ ...q, sectionIndex: currentSection }));
-      setSectionQuestions((prev) => ({
-        ...prev,
-        [currentSection]: updatedCurrent,
+
+      // 1️⃣ Build your “final section” array
+      const finalSectionQuestions: ExtendedQuestion[] = questions.map(q => ({
+        ...q,
+        sectionIndex: currentSection,
       }));
-      setCompletedSections((prev) => new Set(prev).add(currentSection));
-    
-      setAllQuestions((prev) => {
-        const map = new Map<string, ExtendedQuestion>();
-        [...prev, ...updatedCurrent].forEach((q) => map.set(q.question_id, q));
-        return Array.from(map.values());
-      });
-    
+
+      // 2️⃣ Merge it locally with existing allQuestions
+      const newAllQuestions = Array.from(
+        new Map(
+          [...allQuestions, ...finalSectionQuestions].map(q => [q.question_id, q])
+        ).values()
+      );
+
+      // 3️⃣ Write both into state
+      setSectionQuestions(prev => ({
+        ...prev,
+        [currentSection]: finalSectionQuestions,
+      }));
+      setCompletedSections(prev => new Set(prev).add(currentSection));
+      setAllQuestions(newAllQuestions);
+
+      // 4️⃣ Advance or finish
       if (currentSection < examSections.length - 1) {
         const nextSectionIndex = currentSection + 1;
         const nextSection = examSections[nextSectionIndex];
         const cached = sectionQuestions[nextSectionIndex];
-    
+
         if (cached) {
           setQuestions(cached);
         } else {
-          fetchQuestions(nextSection.category, false).then((fetched) => {
-            const extended = fetched?.map((q) => ({ ...q, sectionIndex: nextSectionIndex })) || [];
+          fetchQuestions(nextSection.category, false).then(fetched => {
+            const extended = (fetched || []).map(q => ({
+              ...q,
+              sectionIndex: nextSectionIndex,
+            }));
             setQuestions(extended);
-            setSectionQuestions((prev) => ({
+            setSectionQuestions(prev => ({
               ...prev,
               [nextSectionIndex]: extended,
             }));
-            setAllQuestions((prev) => {
-              const map = new Map<string, ExtendedQuestion>();
-              [...prev, ...extended].forEach((q) => map.set(q.question_id, q));
-              return Array.from(map.values());
-            });
           });
         }
-    
+
         setCurrentSection(nextSectionIndex);
         setCurrentQuestion(0);
         setSelectedAnswer(null);
@@ -862,132 +705,161 @@ const MockExamsPage = () => {
         setTimerWarning(null);
         setForcedTransition(false);
         if (isTimeBased) setTimeRemaining(nextSection.timeLimit * 60);
+
       } else {
-        calculateScore();
+        // 🏁 We're done—score the merged array
+        (async () => {
+          await flushPendingRecords();
+          await calculateScore(newAllQuestions);
+          
+        })();
       }
     }
-    
   }, [timeRemaining, examStarted, forcedTransition, currentSection]);
+
 
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }, [currentSection, currentQuestion]);
 
-  const calculateScore = async () => {
-    // 1) Score calculation
-    const examQuestions: Question[] = [...allQuestions];
+  const calculateScore = async (questionsArray?: (Question & { sectionIndex: number })[]) => {
+  // 1) Decide which list to use
+    const examQuestions = questionsArray ?? allQuestions;
+
+    // 2) Total & correct counters
     const totalQuestions = examQuestions.length;
     let correctCount = 0;
-    const categoryScores: Record<string, { total: number; correct: number; percentage: number }> = {};
+
+    // 3) Prepare per-category scoring buckets
+    const categoryScores: Record<
+      string,
+      { total: number; correct: number; percentage: number }
+    > = {};
     const reviewItems: ReviewItem[] = [];
-  
+
+    // 4) Tally up
     examQuestions.forEach((question) => {
-      const userAnswer = userAnswers[question.question_id] || null;
-      const isCorrect  = userAnswer === question.answer;
-  
+      const userAnswer = userAnswers[question.question_id] ?? null;
+      const isCorrect = userAnswer === question.answer;
+
       if (!categoryScores[question.category]) {
-        categoryScores[question.category] = { total: 0, correct: 0, percentage: 0 };
+        categoryScores[question.category] = {
+          total: 0,
+          correct: 0,
+          percentage: 0,
+        };
       }
-  
       categoryScores[question.category].total++;
       if (isCorrect) {
         categoryScores[question.category].correct++;
         correctCount++;
       }
-  
+
       reviewItems.push(mapQuestionToReviewItem(question, userAnswer));
     });
-  
-    // round each category percentage
-    Object.values(categoryScores).forEach(cs => {
+
+    // 5) Compute category percentages
+    Object.values(categoryScores).forEach((cs) => {
       cs.percentage = Math.round((cs.correct / cs.total) * 100);
     });
-  
-    // 2) Compute elapsed seconds
-    const endMs  = Date.now();
-    const elapsed = mockStartTime ? Math.floor((endMs - mockStartTime) / 1000) : 0;
-  
-    // 3) Build the final score object and update state
+
+    // 6) Compute overall percentage
+    const overallPercentage = Math.round((correctCount / totalQuestions) * 100);
+
+    // 7) Compute elapsed time
+    const endMs = Date.now();
+    const elapsed = mockStartTime
+      ? Math.floor((endMs - mockStartTime) / 1000)
+      : 0;
+
+    // 8) Build the final score object
     const finalScore: ExamScore = {
-      total:        totalQuestions,
-      correct:      correctCount,
-      incorrect:    totalQuestions - correctCount,
-      percentage:   Math.round((correctCount / totalQuestions) * 100),
-      timeSpent:    elapsed,
+      total: totalQuestions,
+      correct: correctCount,
+      incorrect: totalQuestions - correctCount,
+      percentage: overallPercentage,
+      timeSpent: elapsed,
       categoryScores,
-      reviewData:   reviewItems,
+      reviewData: reviewItems,
     };
+
+    // 9) Update React state
     setScore(finalScore);
-  
-    // 4) Persist mock session end & duration
+
+    // 10) Persist session end & duration to Supabase
     if (mockSessionId) {
-      const { error: updErr } = await supabase
-        .from('mock_exams_session')
-        .update({
-          end_time: new Date(endMs).toISOString(),
-          duration: elapsed,
-        })
-        .eq('id', mockSessionId);
-  
-      if (updErr) console.error('Failed to update mock session:', updErr);
+      try {
+        const { error: updErr } = await supabase
+          .from('mock_exams_session')
+          .update({
+            end_time: new Date(endMs).toISOString(),
+            duration: elapsed,
+          })
+          .eq('id', mockSessionId);
+
+        if (updErr) console.error('Failed to update session:', updErr);
+      } catch (err: unknown) {
+        console.error('Unexpected error updating session:', err);
+      }
     }
-  
-    // 5) Upsert into daily_session_time
+
+    // 11) Upsert into daily_session_time
     try {
       const userRes = await supabase.auth.getUser();
-      if (!userRes.data.user) throw new Error('Not authenticated');
-      const userId = userRes.data.user.id;
-      const today  = new Date().toISOString().slice(0, 10); // "YYYY-MM-DD"
-  
-      // fetch existing row
-      const { data: existing, error: fetchErr } = await supabase
-        .from('daily_session_time')
-        .select('total_secs')
-        .eq('user_id', userId)
-        .eq('day', today)
-        .single();
-  
-      // ignore “no rows” error code
-      if (fetchErr && fetchErr.code !== 'PGRST116') {
-        console.error('Error fetching today’s session row', fetchErr);
+      const userId = userRes.data.user?.id;
+      if (userId) {
+        const today = new Date().toISOString().slice(0, 10);
+
+        const { data: existing, error: fetchErr } = await supabase
+          .from('daily_session_time')
+          .select('total_secs')
+          .eq('user_id', userId)
+          .eq('day', today)
+          .single();
+
+        if (fetchErr && fetchErr.code !== 'PGRST116') throw fetchErr;
+
+        const prevSecs = existing?.total_secs ?? 0;
+        const newTotal = prevSecs + elapsed;
+
+        try {
+          const { error: upsertErr } = await supabase
+            .from('daily_session_time')
+            .upsert(
+              {
+                user_id: userId,
+                day: today,
+                total_secs: newTotal,
+              },
+              { onConflict: 'user_id,day' }
+            );
+
+          if (upsertErr) console.error('Upsert daily time failed:', upsertErr);
+        } catch (err: unknown) {
+          console.error('Unexpected error upserting daily time:', err);
+        }
       }
-  
-      const prevSecs    = existing?.total_secs ?? 0;
-      const newTotalSec = prevSecs + elapsed;
-  
-      // **FIX** here: onConflict must be a string, not an array
-      const { error: upsertErr } = await supabase
-        .from('daily_session_time')
-        .upsert(
-          {
-            user_id:    userId,
-            day:        today,
-            total_secs: newTotalSec,
-          },
-          { onConflict: 'user_id,day' }
-        );
-  
-      if (upsertErr) console.error('Error upserting daily_session_time', upsertErr);
-    } catch (err) {
-      console.error('Failed to record daily session time:', err);
+    } catch (err: unknown) {
+      console.error('Error fetching daily_session_time:', err);
     }
-  
-    // 6) Finally, save final state to localStorage
+
+    // 12) Persist final state to localStorage
     localStorage.setItem(
       'mockExamState',
       JSON.stringify({
         currentSection,
         currentQuestion,
         userAnswers,
-        allQuestions,
+        allQuestions: examQuestions,
         sectionQuestions,
         timeRemaining: 0,
-        score:         finalScore,
-        examFinished:  true,
+        score: finalScore,
+        examFinished: true,
       })
     );
   };
-  
+
+
   
   const startExam = async () => {
     // Reset all state variables
@@ -1028,7 +900,9 @@ const MockExamsPage = () => {
   
     // ─── SESSION LOGIC ───
     const nowMs = Date.now();
-    setMockStartTime(nowMs);                                         // ← SESSION
+    setMockStartTime(nowMs); // ← SESSION
+    setStartTime(nowMs);
+    setExamStarted(true);                                        
   
     // get current user (Supabase v2)
     const { data: { user }, error: userErr } = await supabase.auth.getUser();
@@ -1085,52 +959,60 @@ const MockExamsPage = () => {
     await startExam();
   };
 
-  const handleAnswerSelect = async (answer: string) => {
-    // 1) Pull out the current question
-    const question = questions[currentQuestion] as Question & {
-      global_id: string;
-      tag: string;
-    };
-  
-    // 2) Save locally so UI updates immediately
-    setUserAnswers(prev => ({
-      ...prev,
-      [question.question_id]: answer
-    }));
-    setSelectedAnswer(answer);
-    setShowExplanation(true);
-  
-    // 3) Prepare the values we need for the upsert
-    const isCorrect = answer === question.answer;
-    const questionUuid = question.global_id;  // <-- use the real UUID from your table
-    const tagValue    = question.tag;         // <-- the tag you fetched
-  
-    // 4) Fire off your per-category upsert (all of which use onConflict:user_id,question_uuid)
+  const flushPendingRecords = async () => {
+  for (let rec of pendingRecords.current) {
     try {
-      switch (question.category) {
+      switch (rec.category) {
         case 'Science':
-          await recordScienceMockExam(questionUuid, isCorrect, tagValue);
+          await recordScienceMockExam(rec.uuid, rec.isCorrect, rec.tag);
           break;
-  
         case 'Mathematics':
-          await recordMathMockExam(questionUuid, isCorrect, tagValue);
+          await recordMathMockExam(rec.uuid, rec.isCorrect, rec.tag);
           break;
-  
         case 'Language Proficiency':
-          await recordLangProfMockExam(questionUuid, isCorrect, tagValue);
+          await recordLangProfMockExam(rec.uuid, rec.isCorrect, rec.tag);
           break;
-  
         case 'Reading Comprehension':
-          await recordReadingCompMockExam(questionUuid, isCorrect, tagValue);
+          await recordReadingCompMockExam(rec.uuid, rec.isCorrect, rec.tag);
           break;
-  
         default:
-          console.warn('Unknown category in handleAnswerSelect:', question.category);
+          console.warn('Unknown category in flushPendingRecords:', rec.category);
       }
     } catch (e) {
-      console.error('Error recording mock-exam progress:', e);
+      console.error('Failed to flush record', rec, e);
     }
+  }
+  pendingRecords.current = [];
+};
+
+  const handleAnswerSelect = async (answer: string) => {
+  // 1) Pull out the current question
+  const question = questions[currentQuestion] as Question & {
+    global_id: string;
+    tag: string;
   };
+
+  // 2) Save locally so UI updates immediately
+  setUserAnswers(prev => ({
+    ...prev,
+    [question.question_id]: answer
+  }));
+  setSelectedAnswer(answer);
+  setShowExplanation(true);
+
+  // 3) Prepare the values we need for the upsert
+  const isCorrect = answer === question.answer;
+  const questionUuid = question.global_id;
+  const tagValue    = question.tag;
+
+  // 4) Buffer this record instead of sending it immediately
+  pendingRecords.current.push({
+    category: question.category,
+    uuid: questionUuid,
+    isCorrect,
+    tag: tagValue
+  });
+};
 
   const formatTime = (minutes: number) => {
     const hours = Math.floor(minutes / 60);
@@ -1163,89 +1045,103 @@ const MockExamsPage = () => {
   };
 
   const handleNextQuestion = async () => {
-    if (currentQuestion < questions.length - 1) {
-      const nextQuestion = questions[currentQuestion + 1];
-      const userAnswer = userAnswers[nextQuestion.question_id] || null;
-      setCurrentQuestion(currentQuestion + 1);
-      setSelectedAnswer(userAnswer);
-      setShowExplanation(!!userAnswer);
-    } else if (currentSection < examSections.length - 1) {
-      const nextSectionIndex = currentSection + 1;
-      const nextSection = examSections[nextSectionIndex];
+  // 1) If there’s still another question in this section, just advance locally
+  if (currentQuestion < questions.length - 1) {
+    const nextQuestion = questions[currentQuestion + 1]
+    const userAnswer   = userAnswers[nextQuestion.question_id] || null
+    setCurrentQuestion(currentQuestion + 1)
+    setSelectedAnswer(userAnswer)
+    setShowExplanation(!!userAnswer)
+    return
+  }
 
-      const updatedCurrent = questions.map((q) => ({ ...q, sectionIndex: currentSection }));
-      setSectionQuestions((prev) => ({
+  // 2) Otherwise we’re about to transition sections or finish — show spinner
+  setTransitioning(true)
+
+  // 2a) Move to next section
+  if (currentSection < examSections.length - 1) {
+    const nextSectionIndex = currentSection + 1
+    const nextSection      = examSections[nextSectionIndex]
+
+    // persist current section’s questions
+    const updatedCurrent = questions.map(q => ({ ...q, sectionIndex: currentSection }))
+    setSectionQuestions(prev => ({
+      ...prev,
+      [currentSection]: updatedCurrent
+    }))
+    setCompletedSections(prev => new Set(prev).add(currentSection))
+
+    // merge into allQuestions
+    setAllQuestions(prev => {
+      const map = new Map<string, ExtendedQuestion>()
+      prev.concat(updatedCurrent).forEach(q => map.set(q.question_id, q))
+      return Array.from(map.values())
+    })
+
+    try {
+      // fetch next section (or use your cached logic)
+      const fetched  = await fetchQuestions(nextSection.category, false)
+      const extended = (fetched || []).map(q => ({
+        ...q,
+        sectionIndex: nextSectionIndex
+      }))
+
+      setQuestions(extended)
+      setSectionQuestions(prev => ({
         ...prev,
-        [currentSection]: updatedCurrent,
-      }));
-      setCompletedSections((prev) => new Set(prev).add(currentSection));
+        [nextSectionIndex]: extended
+      }))
+      setAllQuestions(prev => {
+        const map = new Map<string, ExtendedQuestion>()
+        prev.concat(extended).forEach(q => map.set(q.question_id, q))
+        return Array.from(map.values())
+      })
 
-      setAllQuestions((prev) => {
-        const map = new Map<string, ExtendedQuestion>();
-        [...prev, ...updatedCurrent].forEach((q) => map.set(q.question_id, q));
-        return Array.from(map.values());
-      });
-
-      const cachedNext = sectionQuestions[nextSectionIndex];
-      if (cachedNext) {
-        setQuestions(cachedNext);
-        setCurrentSection(nextSectionIndex);
-        setCurrentQuestion(0);
-        setSelectedAnswer(null);
-        setShowExplanation(false);
-        setForcedTransition(false);
-        if (isTimeBased) setTimeRemaining(nextSection.timeLimit * 60);
-        return;
-      }
-
-      const fetched = await fetchQuestions(nextSection.category, false);
-      const extended = fetched?.map((q) => ({ ...q, sectionIndex: nextSectionIndex })) || [];
-
-      setQuestions(extended);
-      setSectionQuestions((prev) => ({
-        ...prev,
-        [nextSectionIndex]: extended,
-      }));
-
-      setAllQuestions((prev) => {
-        const map = new Map<string, ExtendedQuestion>();
-        [...prev, ...extended].forEach((q) => map.set(q.question_id, q));
-        return Array.from(map.values());
-      });
-
-      setCurrentSection(nextSectionIndex);
-      setCurrentQuestion(0);
-      setSelectedAnswer(null);
-      setShowExplanation(false);
-      setForcedTransition(false);
-      if (isTimeBased) setTimeRemaining(nextSection.timeLimit * 60);
-    } else {
-      const finalSectionQuestions = questions.map((q) => ({ ...q, sectionIndex: currentSection }));
-      setSectionQuestions((prev) => ({
-        ...prev,
-        [currentSection]: finalSectionQuestions,
-      }));
-
-      setAllQuestions((prev) => {
-        const map = new Map<string, ExtendedQuestion>();
-        [...prev, ...finalSectionQuestions].forEach((q) => map.set(q.question_id, q));
-        return Array.from(map.values());
-      });
-
-      calculateScore();
+      // reset into the new section
+      setCurrentSection(nextSectionIndex)
+      setCurrentQuestion(0)
+      setSelectedAnswer(null)
+      setShowExplanation(false)
+      setForcedTransition(false)
+      if (isTimeBased) setTimeRemaining(nextSection.timeLimit * 60)
+    } catch (err) {
+      console.error('Error fetching next section:', err)
+    } finally {
+      setTransitioning(false)
     }
-  };
-  
-    useEffect(() => {
-      return () => {
-        if (examStarted && !score && mockSessionId && mockStartTime) {
-          calculateScore();
-        }
-      };
-    }, [examStarted, score, mockSessionId, mockStartTime]);
-  
 
-  if (loading) {
+  } else {
+    // 2b) Finish exam: merge final section & score
+    const finalSectionQuestions = questions.map(q => ({
+      ...q,
+      sectionIndex: currentSection
+    }))
+
+    const newAllQuestions = Array.from(
+      new Map(
+        [...allQuestions, ...finalSectionQuestions].map(q => [q.question_id, q])
+      ).values()
+    )
+
+    setSectionQuestions(prev => ({
+      ...prev,
+      [currentSection]: finalSectionQuestions
+    }))
+    setAllQuestions(newAllQuestions)
+
+    try {
+      await flushPendingRecords()
+      await calculateScore(newAllQuestions)
+    } catch (err) {
+      console.error('Error finishing exam:', err)
+    } finally {
+      setTransitioning(false)
+    }
+  }
+}
+
+
+  if (loading && !examStarted) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
@@ -1278,7 +1174,13 @@ const MockExamsPage = () => {
   }, {});
 
   return (
-    <div className="min-h-screen bg-gray-50 py-6">
+    <div className="relative min-h-screen bg-gray-50 py-6">
+      {transitioning && (
+    <div className="absolute inset-0 bg-white flex flex-col items-center justify-center z-50">
+      <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-neural-purple mb-4" />
+      <p className="text-gray-700">Loading...</p>
+    </div>
+  )}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {!examStarted ? (
           <div className="space-y-8">
@@ -1301,35 +1203,43 @@ const MockExamsPage = () => {
                 </div>
               </div>
             )}
-            <div className="grid md:grid-cols-2 gap-4">
-              {examSections.map((section) => (
-                <div
-                  key={section.id}
-                  className="bg-white rounded-lg shadow-md p-6 border border-gray-200"
-                >
-                  <div className="flex items-center space-x-4">
-                    <div className="w-12 h-12 bg-neural-purple/10 rounded-lg flex items-center justify-center">
-                      <section.icon className="w-6 h-6 text-neural-purple" />
-                    </div>
-                    <div>
-                      <h3 className="font-semibold text-gray-900">{section.name}</h3>
-                      <p className="text-sm text-gray-500">
-                        {section.questions} questions | {formatTime(section.timeLimit)}
-                      </p>
-                      {section.subsections && (
-                        <div className="mt-2 text-sm text-gray-500">
-                          {section.subsections.map((sub) => (
-                            <span key={sub.name} className="mr-4">
-                              {sub.name}: {sub.questions} questions
-                            </span>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              ))}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 w-full">
+  {examSections.map(section => {
+    const Icon = section.icon;
+    return (
+      <div
+        key={section.id}
+        className="
+          bg-gradient-to-br from-neural-purple/20 to-neural-purple/10
+          rounded-lg p-4 shadow-md hover:shadow-lg transition
+          border-2 border-transparent max-w-2xl w-full
+        "
+      >
+        <div className="flex flex-col md:flex-row items-center">
+          <div className="rounded-full p-2 mb-3 md:mb-0 md:mr-5
+                          bg-white text-neural-purple">
+            <Icon className="w-6 h-6" />
+          </div>
+          <div className="flex-1 text-center md:text-left">
+            <div className="flex flex-col md:flex-row md:items-center justify-between">
+              <h3 className="text-m font-bold text-gray-900">
+                {section.name}
+              </h3>
+              <span className="bg-neural-purple/20 text-neural-purple
+                               px-3 py-1 rounded-full text-sm font-medium">
+                {section.badgeText}
+              </span>
             </div>
+            <p className="text-sm text-gray-700">
+              {section.questions} questions • {section.timeLimit}m
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  })}
+</div>
+
             <div className="flex items-center justify-center space-x-4">
               <label className="flex items-center space-x-2">
                 <input
@@ -1409,9 +1319,6 @@ const MockExamsPage = () => {
                     >
                       <div className="flex items-center justify-between">
                         <span>{option.value}</span>
-                            {isSelected && (
-                              <span className="w-3 h-3 rounded-full bg-neural-purple inline-block ml-2" />
-                        )}
                       </div>
                     </button>
                       );
@@ -1422,8 +1329,7 @@ const MockExamsPage = () => {
               <div className="flex justify-between items-center mt-6">
               <button
                 onClick={handleLeaveExam}
-                className="flex items-center px-4 py-2 text-gray-600 hover:text-neural-purple transition-colors duration-200"
-              >
+                className="flex items-center px-4 py-2 text-gray-600 hover:text-red-600 transition-colors duration-200"              >
                 <ArrowLeftIcon className="w-5 h-5 mr-2" />
                 Leave Exam
               </button>
@@ -1453,8 +1359,16 @@ const MockExamsPage = () => {
               </div>
             </div>
             {/* Right-side Floating Sidebar */}
-            <div className="hidden md:block fixed top-24 right-4 w-64 bg-white border rounded-lg shadow p-4 h-[80vh] overflow-y-auto z-40">
-              <h3 className="font-semibold mb-4 text-gray-800">Question Review</h3>
+            <div className={`hidden md:block fixed top-24 right-0 w-64 bg-white border rounded-lg shadow p-4 h-[80vh] overflow-y-auto z-40 transform transition-transform duration-300 ${sidebarVisible ? 'translate-x-0' : 'translate-x-full'}`}>              
+              <div className="flex items-center mb-4 space-x-2">
+                <button
+                  onClick={() => setSidebarVisible(false)}
+                  className="p-1 hover:bg-gray-100 rounded"
+                >
+                  <EyeSlashIcon className="w-5 h-5 text-gray-600" />
+                </button>
+                <h3 className="font-semibold text-gray-800">Question Review</h3>
+             </div>
 
               {Object.entries(groupedSidebarQuestions).map(
                 ([category, items]: [string, ExtendedQuestion[]]) => {
@@ -1543,7 +1457,7 @@ const MockExamsPage = () => {
                                       }`}
                                     >
                                       {idx + 1}
-                  </button>
+                                  </button>
                                   );
                                 })}
                               </div>
@@ -1695,16 +1609,29 @@ const MockExamsPage = () => {
                 }
               )}
             </div>
+
+              {!sidebarVisible && (
+                <button
+                  onClick={() => setSidebarVisible(true)}
+                  className="
+                    fixed top-24 right-0 p-2
+                    bg-white border-l rounded-l-lg shadow z-40
+                  "
+                >
+                  <EyeIcon className="w-6 h-6 text-gray-600" />
+                </button>
+              )}
+              
           </div>
         )}
         {showLeaveConfirmation && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
             <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">
-                Leave Exam?
+              <h3 className="text-lg font-medium text-gray-900">
+                  Are you sure you want to leave the exam?
               </h3>
-              <p className="text-gray-600 mb-6">
-                Are you sure you want to leave the exam? Your progress will be lost.
+              <p className="text-gray-600 mb-2 text-justify">
+                Your progress will be lost.
               </p>
               <div className="flex justify-end space-x-4">
                 <button

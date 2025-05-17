@@ -41,7 +41,7 @@ const Navbar: React.FC = () => {
             <div className="flex justify-between h-16">
               {/* Brand + Desktop Nav */}
               <div className="flex items-center">
-              <Link to="/" onClick={() => setPracticeOpen(false)}>
+              <Link to="/home" onClick={() => setPracticeOpen(false)}>
                 <img
                   src="/images/logo.png"
                   alt="UPCaiT Logo"

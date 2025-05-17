@@ -1,8 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef} from 'react';
 import { 
   AcademicCapIcon, 
   ClockIcon, 
-  CheckCircleIcon,
+  CalculatorIcon,
   XCircleIcon,
   BeakerIcon,
   BookOpenIcon,
@@ -11,7 +11,10 @@ import {
   TrophyIcon,
   ChartBarIcon,
   ArrowPathIcon,
-  SparklesIcon
+  SparklesIcon,
+  EyeSlashIcon,
+  EyeIcon,
+  ArrowLeftIcon
 } from '@heroicons/react/24/outline';
 import { useQuestions } from '../hooks/useQuestions';
 import type { Question } from '../types/quiz';
@@ -26,36 +29,84 @@ const LETTERS = ['A','B','C','D'] as const;
 
 const topics = [
   {
-    id: 'Reading Comprehension',
-    name: 'Reading Comprehension',
-    icon: BookOpenIcon,
-    description: 'Critical reading and analysis'
-  },
-  {
     id: 'Science',
     name: 'Science',
+    badgeText: 'Biology & Physics',
     icon: BeakerIcon,
-    description: 'Physics, Chemistry, and Biology concepts'
+    description: 'Physics, Chemistry, and Biology concepts',
   },
   {
     id: 'Mathematics',
-    name: 'Mathematics',
-    icon: AcademicCapIcon,
-    description: 'Algebra, Geometry, Trigonometry, and more'
+    name: 'Math',
+    badgeText: 'Algebra Focus',
+    icon: CalculatorIcon,
+    description: 'Algebra, geometry, calculus problems',
   },
+  {
+    id: 'Reading Comprehension',
+    name: 'Reading Comprehension',
+    badgeText: 'Passage Practice',
+    icon: BookOpenIcon,
+    description: 'Critical reading and analysis',
+  },
+  
+
   {
     id: 'Language Proficiency',
     name: 'Language Proficiency',
+    badgeText: 'Vocab & Grammar',
     icon: LanguageIcon,
-    description: 'English and Filipino language skills'
+    description: 'English and Filipino language skills',
   }
 ];
 
-const difficulties = [
-  { id: 'Easy', name: 'Easy', color: 'text-growth-green' },
+
+type DifficultyId = 'Easy' | 'Medium' | 'Hard';
+
+// 1b) The shape of each gradient setting
+interface GradientConfig {
+  on: string;
+  off: string;
+  border: string;
+  hover: string;
+}
+
+const difficulties: { id: DifficultyId; name: string; color: string }[] = [
+  { id: 'Easy',   name: 'Easy',   color: 'text-growth-green'  },
   { id: 'Medium', name: 'Medium', color: 'text-energy-orange' },
-  { id: 'Hard', name: 'Hard', color: 'text-alert-red' },
+  { id: 'Hard',   name: 'Hard',   color: 'text-alert-red'     },
 ];
+
+
+// 1c) A map whose keys are exactly DifficultyId
+const gradientMap: Record<DifficultyId, GradientConfig> = {
+  Easy: {
+    on:     'from-growth-green/20 to-growth-green/10',
+    off:    'from-growth-green/10 to-growth-green/5',
+    border: 'border-growth-green',
+    hover:  'hover:border-growth-green',
+  },
+  Medium: {
+    on:     'from-energy-orange/20 to-energy-orange/10',
+    off:    'from-energy-orange/10 to-energy-orange/5',
+    border: 'border-energy-orange',
+    hover:  'hover:border-energy-orange',
+  },
+  Hard: {
+    on:     'from-alert-red/20 to-alert-red/10',
+    off:    'from-alert-red/10 to-alert-red/5',
+    border: 'border-alert-red',
+    hover:  'hover:border-alert-red',
+  },
+};
+
+  interface ProgressRecord {
+    global_id: string;
+    category: string;
+    isCorrect: boolean;
+    tag: string;
+  }
+
 
 interface QuizScore {
   total: number;
@@ -71,6 +122,8 @@ interface QuizScore {
     }
   };
 }
+
+
 
 interface ReviewItem extends Omit<Question, 'options' | 'answer'> {
   option_a: string;
@@ -233,7 +286,7 @@ const QuizSummarySidebar = ({ reviewData }: { reviewData: ReviewItem[] }) => {
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
   const [selectedQuestion, setSelectedQuestion] = useState<ReviewItem | null>(null);
   const [showModal, setShowModal] = useState(false);
-
+  const [sidebarVisible, setSidebarVisible] = useState(true);
   // Group items by category
   const grouped = reviewData.reduce((acc, q) => {
     if (!acc[q.category]) acc[q.category] = [];
@@ -243,16 +296,31 @@ const QuizSummarySidebar = ({ reviewData }: { reviewData: ReviewItem[] }) => {
 
   // Color each question button
   const getColor = (item: ReviewItem) => {
-    return item.userAnswer === item.correctAnswer
-      ? 'bg-green-100 text-green-700'
-      : 'bg-red-100 text-red-700';
+  if (item.userAnswer === null) {
+    // unanswered → yellow
+    return 'bg-yellow-100 text-yellow-700';
+  }
+  return item.userAnswer === item.correctAnswer
+    ? 'bg-green-100 text-green-700'
+    : 'bg-red-100 text-red-700';
   };
+
 
   return (
     <>
       {/* Floating Sidebar - Summaries */}
-      <div className="hidden md:block fixed top-24 right-4 w-64 bg-white border rounded-lg shadow p-4 h-[80vh] overflow-y-auto z-40">
-        <h3 className="font-semibold mb-4 text-gray-800">Question Review</h3>
+      <div className={`hidden md:block fixed top-24 right-4 w-64 bg-white border rounded-lg shadow p-4 h-[80vh] overflow-y-auto z-40 transition-transform duration-300 ${sidebarVisible ? 'translate-x-0' : 'translate-x-full'} `}>
+        <div className="flex items-center mb-4 space-x-2">    
+          <button
+            onClick={() => setSidebarVisible(false)}
+            className="p-1 hover:bg-gray-100 rounded"
+          >
+            <EyeSlashIcon className="w-5 h-5 text-gray-600" />
+          </button>
+
+            <h3 className="font-semibold text-gray-800">Question Review</h3>
+        </div>
+       
         {Object.entries(grouped).map(([category, items]) => (
           <div key={`category-${category}`} className="mb-4">
             <h4 className="text-sm font-medium text-gray-700 mb-2">{category}</h4>
@@ -275,7 +343,17 @@ const QuizSummarySidebar = ({ reviewData }: { reviewData: ReviewItem[] }) => {
           </div>
         ))}
       </div>
+
+      {!sidebarVisible && (
+        <button
+          onClick={() => setSidebarVisible(true)}
+          className="fixed top-24 right-0 p-2 bg-white border-l rounded-l-lg shadow z-40"
+        >
+          <EyeIcon className="w-6 h-6 text-gray-600" />
+        </button>
+      )}
       
+
       {/* Modal for detailed question info */}
       {showModal && selectedQuestion && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
@@ -289,40 +367,46 @@ const QuizSummarySidebar = ({ reviewData }: { reviewData: ReviewItem[] }) => {
             >
               ✕
             </button>
-            <h2 className="text-lg font-semibold mb-4">Question</h2>
+            <h2 className="text-lg font-semibold mb-4">
+              Question {selectedIndex !== null ? selectedIndex + 1 : 0} 
+            </h2>
             <p className="text-gray-800 mb-4">{selectedQuestion.question}</p>
             <ul className="space-y-2 mb-4">
-              {(['A', 'B', 'C', 'D'] as const).map((letter) => {
+              {(['A','B','C','D'] as const).map(letter => {
                 const optionKey = `option_${letter.toLowerCase()}` as keyof ReviewItem;
-                const text = selectedQuestion[optionKey] as string;
-                const isUser = selectedQuestion.userAnswer === letter;
+                const text      = selectedQuestion[optionKey] as string;
+                const isUser    = selectedQuestion.userAnswer === letter;
                 const isCorrect = selectedQuestion.correctAnswer === letter;
+                const unanswered = selectedQuestion.userAnswer === null;
+
+                // decide classes
+                const bgClass = isCorrect
+                  ? 'bg-green-100 border-green-300'
+                  : isUser
+                  ? 'bg-red-100 border-red-300'
+                  : 'border-gray-200';
+
+                // decide label
+                let label: string | null = null;
+                if (isUser && isCorrect)      label = '✓ Your Answer';
+                else if (isUser && !isCorrect) label = '✗ Your Answer';
+                else if (isCorrect)            label = '✓ Correct Answer';
 
                 return (
-                  <li
-                    key={letter}
-                    className={`p-3 rounded-lg border ${
-                      isCorrect
-                        ? 'bg-green-100 border-green-300'
-                        : isUser
-                        ? 'bg-red-100 border-red-300'
-                        : 'border-gray-200'
-                    }`}
-                  >
+                  <li key={letter} className={`p-3 rounded-lg border ${bgClass}`}>
                     <span className="font-semibold">{letter}.</span> {text}
-                    {isCorrect && (
-                      <span className="ml-2 text-green-700 text-sm font-semibold">✓ Correct</span>
-                    )}
-                    {isUser && !isCorrect && (
-                      <span className="ml-2 text-red-700 text-sm font-semibold">
-                        ✗ Your Answer
+                    {label && (
+                      <span className={`ml-2 text-sm font-semibold ${
+                        isCorrect ? 'text-green-700' : 'text-red-700'
+                      }`}>
+                        {label}
                       </span>
                     )}
                   </li>
                 );
               })}
             </ul>
-
+            
             <p className="text-sm text-gray-500 mb-1">Explanation</p>
             <p className="text-gray-700">{selectedQuestion.explanation}</p>
             {selectedQuestion.userAnswer === null && (
@@ -370,7 +454,6 @@ const QuizSummarySidebar = ({ reviewData }: { reviewData: ReviewItem[] }) => {
                 Next →
               </button>
             </div>
-            {/* ─────────────────────────────────────────────── */}
           </div>
         </div>
       )}
@@ -378,10 +461,12 @@ const QuizSummarySidebar = ({ reviewData }: { reviewData: ReviewItem[] }) => {
   );
 };
 
+
 // Type for extending Question to ensure tag is recognized
 type QuestionWithTag = Question & { tag?: string };
 
 const QuizzesPage = () => {
+  const [showLeaveConfirmation, setShowLeaveConfirmation] = useState(false);
   const [selectedTopic, setSelectedTopic] = useState('');
   const [selectedDifficulty, setSelectedDifficulty] = useState('');
   const [isTimeBased, setIsTimeBased] = useState(false);
@@ -389,18 +474,36 @@ const QuizzesPage = () => {
   const [currentQuestion, setCurrentQuestion] = useState(0);
   const [selectedAnswer, setSelectedAnswer] = useState<string | null>(null);
   const [showExplanation, setShowExplanation] = useState(false);
-  const [timeRemaining, setTimeRemaining] = useState(.5 * 60);
+  const [timeRemaining, setTimeRemaining] = useState(0);
   const [showOneMinuteModal, setShowOneMinuteModal] = useState(false);
   const {questions, loading, error, fetchQuestions, updateUserStats, recordScienceProgress, recordMathProgress, recordLanguageProficiencyProgress, recordReadingCompProgress} = useQuestions();
-  
+  const [sidebarVisible, setSidebarVisible] = useState(true);
   const [score, setScore] = useState<QuizScore | null>(null);
   const [correctAnswers, setCorrectAnswers] = useState<Set<number>>(new Set());
   const [userAnswers, setUserAnswers] = useState<Record<string, string>>({});
   const [allQuestions, setAllQuestions] = useState<Question[]>([]);
-
   const [sessionId,  setSessionId]  = useState<string | null>(null);
   const [startTime,  setStartTime]  = useState<number | null>(null);
- 
+  const pendingProgressRef = useRef<ProgressRecord[]>([]); // this ref holds all answers until flush
+
+  const confirmLeaveQuiz = () => {
+    setQuizStarted(false);
+    setScore(null);
+    setSelectedTopic('');
+    setSelectedDifficulty('');
+    setSelectedAnswer(null);
+    setShowExplanation(false);
+    setCurrentQuestion(0);
+    setUserAnswers({});
+    setCorrectAnswers(new Set());
+    setSidebarVisible(true);
+    setShowOneMinuteModal(false);
+    setTimeRemaining(0);
+    setShowLeaveConfirmation(false);
+  };
+
+  
+
 
   // Keep a live copy of questions in allQuestions for the in-progress sidebar
   useEffect(() => {
@@ -424,6 +527,7 @@ const QuizzesPage = () => {
     }
   }, [userAnswers, quizStarted, questions.length, score]);
 
+  //COUNTDOWN EFFECT
   useEffect(() => {
     let timer: number | undefined;
     if (quizStarted && isTimeBased && timeRemaining > 0) {
@@ -442,7 +546,7 @@ const QuizzesPage = () => {
     return () => {
       if (timer) clearInterval(timer);
     };
-  }, [quizStarted, isTimeBased, timeRemaining]);
+  },  [quizStarted, isTimeBased]);
 
   const calculateScore = async () => {
     try {
@@ -481,6 +585,25 @@ const QuizzesPage = () => {
   
       // 4) Update local state to show the summary
       setScore(scoreData);
+
+        for (const p of pendingProgressRef.current) {
+          switch (p.category) {
+            case 'Science':
+              await recordScienceProgress(p.global_id, p.isCorrect, p.tag);
+              break;
+            case 'Mathematics':
+              await recordMathProgress(p.global_id, p.isCorrect, p.tag);
+              break;
+            case 'Language Proficiency':
+              await recordLanguageProficiencyProgress(p.global_id, p.isCorrect, p.tag);
+              break;
+            case 'Reading Comprehension':
+              await recordReadingCompProgress(p.global_id, p.isCorrect, p.tag);
+              break;
+          }
+        }
+        // clear buffer for the next quiz
+        pendingProgressRef.current = [];
   
       // 5) Persist session end & duration + bump per-day total
       if (sessionId) {
@@ -521,9 +644,15 @@ const QuizzesPage = () => {
       console.error('calculateScore failed:', e);
     }
   };
-  
 
   const startQuiz = async () => {
+    pendingProgressRef.current = [];
+
+     if (isTimeBased) {
+    // always begin at 30 minutes
+    setTimeRemaining(1800);
+    }
+
     if (!selectedTopic || !selectedDifficulty) return;
   
     try {
@@ -570,10 +699,6 @@ const QuizzesPage = () => {
       }
       setSessionId(insertData.id);
   
-      // 5) Kick off timer if needed
-      if (isTimeBased) {
-        setTimeRemaining(30 * 60);
-      }
     } catch (err) {
       console.error('Error starting quiz:', err);
     }
@@ -581,89 +706,43 @@ const QuizzesPage = () => {
   
   
   const handleAnswerSelect = (answer: string) => {
-    if (!questions[currentQuestion]) return;
+  // 1) Guard against missing question
+  if (!questions[currentQuestion]) return;
 
-    setSelectedAnswer(answer);
-    // Mark this question as answered
-    // new:
-    const q = questions[currentQuestion] as Question & { global_id: string };
-    setUserAnswers(prev => ({
-      ...prev,
-      // use the UUID for every category
-      [q.global_id]: answer
-    }));
+  // 2) Update the “selectedAnswer” state so your UI highlights the button
+  setSelectedAnswer(answer);
 
-    
-    // Track if the answer is correct
-    const isCorrect = answer === questions[currentQuestion].answer;
+  // 3) Record in the user‐answers map (by global_id)
+  const q = questions[currentQuestion] as Question & { global_id: string; tag?: string };
+  setUserAnswers(prev => ({
+    ...prev,
+    [q.global_id]: answer
+  }));
 
-    // Update the score - using correctAnswers Set which is what the original code was using
+  // 4) Determine correctness
+  const isCorrect = answer === q.answer;
+
+  // 5) Toggle this index in your Set of correctAnswers
+  setCorrectAnswers(prev => {
+    const next = new Set(prev);
     if (isCorrect) {
-      setCorrectAnswers(prev => new Set(prev).add(currentQuestion));
+      next.add(currentQuestion);
+    } else {
+      next.delete(currentQuestion);
     }
-    
-    // Get the current question data
-    const currentQuestionData = questions[currentQuestion] as QuestionWithTag;
-    
-    // Track progress in the database based on category
-    // after
-    if (currentQuestionData.category === 'Science' && currentQuestionData.global_id) {
-      const tagValue = currentQuestionData.tag || '';
-      console.log(`Calling recordScienceProgress with global_id=${currentQuestionData.global_id}, isCorrect=${isCorrect}, tag=${tagValue}`);
-      recordScienceProgress(
-        currentQuestionData.global_id,
-        isCorrect,
-        tagValue
-      );
-    }
+    return next;
+  });
 
-    else if (currentQuestionData.category === 'Mathematics' && currentQuestionData.global_id) {
-      const tagValue = currentQuestionData.tag || '';
-      console.log(`Calling recordMathProgress with global_id=${currentQuestionData.global_id}, isCorrect=${isCorrect}, tag=${tagValue}`);
-      recordMathProgress(
-        currentQuestionData.global_id,
-        isCorrect,
-        tagValue
-      );
-    }
-    
-    else if (currentQuestionData.category === 'Language Proficiency' && currentQuestionData.global_id) {
-      // Use the tag from the current question or default to empty string
-      const tagValue = currentQuestionData.tag || '';
-      
-      // More detailed logging of UUID
-      console.log('Language Proficiency Question UUID Details:', {
-        question_id: currentQuestionData.question_id,
-        global_id: currentQuestionData.global_id,
-        global_id_type: typeof currentQuestionData.global_id,
-        length: currentQuestionData.global_id.length,
-        // Log each segment to spot any encoding issues
-        segments: currentQuestionData.global_id.split('-')
-      });
-      
-      console.log(`Calling recordLanguageProficiencyProgress with global_id=${currentQuestionData.global_id}, isCorrect=${isCorrect}, tag=${tagValue}`);
-      
-      // Ensure we're passing the exact UUID string without modifications
-      const uuid = String(currentQuestionData.global_id);
-      recordLanguageProficiencyProgress(
-        uuid, 
-        isCorrect,
-        tagValue
-      );
-    }else if (currentQuestionData.category === 'Reading Comprehension' && currentQuestionData.global_id) {
-      // use the tag ('English' or 'Filipino') from the question
-      const tagValue = currentQuestionData.tag || '';
-      console.log(
-        `Calling recordReadingCompProgress with global_id=${currentQuestionData.global_id}, ` +
-        `isCorrect=${isCorrect}, tag=${tagValue}`
-      );
-      recordReadingCompProgress(
-        currentQuestionData.global_id,
-        isCorrect,
-        tagValue
-      );
-    }
-  };
+  // 6) Buffer for later batch‐write in calculateScore()
+  pendingProgressRef.current.push({
+    global_id: q.global_id,
+    category:  q.category,
+    isCorrect,
+    tag:       q.tag || ''
+  });
+};
+
+
   
   const handleNextQuestion = () => {
     if (currentQuestion < questions.length - 1) {
@@ -747,7 +826,7 @@ const QuizzesPage = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           {/* If quiz not started, show the intro screen */}
           {!quizStarted ? (
-            <div className="space-y-8">
+            <div className="space-y-4">
               <div className="text-center">
                 <h1 className="text-3xl font-bold text-gray-900">Practice Quizzes</h1>
                 <p className="mt-2 text-gray-600">
@@ -768,93 +847,102 @@ const QuizzesPage = () => {
                 </div>
               )}
 
-              {/* Topic selection */}
               <div>
                 <h2 className="text-xl font-semibold text-gray-900 mb-4">Select Topic</h2>
-                <div className="grid md:grid-cols-2 gap-4">
-                  {topics.map((topic) => (
-                    <button
-                      key={topic.id}
-                      onClick={() => setSelectedTopic(topic.id)}
-                      className={`
-                               p-6 rounded-lg border-2 transition-all duration-200 shadow-md
-                               ${
-                                 selectedTopic === topic.id
-                                   ? topic.id === 'Reading Comprehension'
-                                     // selected RC: purple border, white fill
-                                     ? 'border-neural-purple bg-white'
-                                     // selected other: purple tint
-                                     : 'border-neural-purple bg-neural-purple/5'
-                                   // unselected *all* cards: white fill, gray border
-                                   : 'border-gray-200 bg-white hover:border-neural-purple'
-                               }
-                             `}
-                    >
-                      <div className="flex items-center space-x-4">
-                        <div className={`w-12 h-12 rounded-lg flex items-center justify-center ${
-                          selectedTopic === topic.id 
-                            ? 'bg-neural-purple text-white' 
-                            : 'bg-neural-purple/10 text-neural-purple'
-                        }`}>
-                          <topic.icon className="w-6 h-6" />
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {topics.map(topic => {
+                    const Icon = topic.icon;
+                    const isSelected = selectedTopic === topic.id;
+
+                    return (
+                      <button
+                        key={topic.id}
+                        onClick={() => setSelectedTopic(topic.id)}
+                        className={`
+                          relative overflow-hidden rounded-lg p-4 shadow-md transition
+                          bg-gradient-to-br from-neural-purple/20 to-neural-purple/10
+                          cursor-pointer border-2
+                          ${isSelected ? 'border-neural-purple' : 'border-transparent'}
+                        `}
+                      >
+                        {/* badge */}
+                        <span className="absolute top-4 right-4  bg-neural-purple/20 bg-neural-purple bg-opacity-50 text-neural-purple text-sm font-medium px-2 py-1 rounded-full">
+                          {topic.badgeText}
+                        </span>
+
+                        {/* icon + title + desc */}
+                        <div className="flex items-center space-x-4">
+                          <div className={`
+                            flex items-center justify-center w-12 h-12 rounded-full
+                            ${isSelected ? 'bg-neural-purple text-white' : 'bg-white text-neural-purple'}
+                          `}>
+                            <Icon className="w-6 h-6" />
+                          </div>
+                          <div className="text-left">
+                            <h3 className="text-lg font-semibold text-gray-900">{topic.name}</h3>
+                            <p className="text-sm text-gray-700">{topic.description}</p>
+                          </div>
                         </div>
-                        <div className="text-left">
-                          <h3 className="font-semibold text-gray-900">{topic.name}</h3>
-                          <p className="text-sm text-gray-500">{topic.description}</p>
-                        </div>
-                      </div>
-                    </button>
-                  ))}
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
 
               {/* Difficulty selection */}
-              <div>
-                <h2 className="text-xl font-semibold text-gray-900 mb-4">Select Difficulty</h2>
-                <div className="grid md:grid-cols-3 gap-4">
-                {difficulties.map((difficulty) => {
-                  const isSelected = selectedDifficulty === difficulty.id;
+              {/* ─── Select Difficulty (Flashcards-style) ─── */}
+                {/* ─── Select Difficulty (always gradient) ─── */}
+<div className="mt-8">
+  <h2 className="text-xl font-semibold text-gray-900 mb-4">
+    Select Difficulty
+  </h2>
+  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+    {difficulties.map(diff => {
+      const isSelected = selectedDifficulty === diff.id;
 
-                  // pick the correct Tailwind color keys
-                  const borderColor = difficulty.id === 'Easy'
-                    ? 'border-growth-green'
-                    : difficulty.id === 'Medium'
-                      ? 'border-energy-orange'
-                      : 'border-alert-red';
+      // static map of gradients for selected / unselected
+      const gradients = {
+        Easy: {
+          on:  'from-growth-green/20 to-growth-green/10',
+          off: 'from-growth-green/10 to-growth-green/5',
+          border: 'border-growth-green',
+          hover:  'hover:border-growth-green',
+        },
+        Medium: {
+          on:  'from-energy-orange/20 to-energy-orange/10',
+          off: 'from-energy-orange/10 to-energy-orange/5',
+          border: 'border-energy-orange',
+          hover:  'hover:border-energy-orange',
+        },
+        Hard: {
+          on:  'from-alert-red/20 to-alert-red/10',
+          off: 'from-alert-red/10 to-alert-red/5',
+          border: 'border-alert-red',
+          hover:  'hover:border-alert-red',
+        }
+      }[diff.id];
 
-                  const bgTint = difficulty.id === 'Easy'
-                    ? 'bg-growth-green/5'
-                    : difficulty.id === 'Medium'
-                      ? 'bg-energy-orange/5'
-                      : 'bg-alert-red/5';
+      return (
+        <button
+          key={diff.id}
+          onClick={() => setSelectedDifficulty(diff.id)}
+          className={`
+            p-6 rounded-lg shadow-md transition
+            bg-gradient-to-br ${isSelected ? gradients.on : gradients.off}
+            border-2 ${isSelected ? gradients.border : 'border-transparent'} ${gradients.hover}
+            cursor-pointer
+          `}
+        >
+          <h3 className={`text-center font-semibold ${diff.color}`}>
+            {diff.name}
+          </h3>
+        </button>
+      );
+    })}
+  </div>
+</div>
 
-                  const hoverBorder = difficulty.id === 'Easy'
-                    ? 'hover:border-growth-green'
-                    : difficulty.id === 'Medium'
-                      ? 'hover:border-energy-orange'
-                      : 'hover:border-alert-red';
 
-                  return (
-                    <button
-                      key={difficulty.id}
-                      onClick={() => setSelectedDifficulty(difficulty.id)}
-                      className={`
-                        p-6 rounded-lg shadow-md border-2 transition-all duration-200
-                        ${
-                          isSelected
-                            // selected: colored border + tint
-                            ? `${borderColor} ${bgTint}`
-                            // unselected: gray border, white bg, color-on-hover
-                            : `border-gray-200 bg-white ${hoverBorder}`
-                        }
-                      `}
-                    >
-                      <h3 className={`font-semibold ${difficulty.color}`}>{difficulty.name}</h3>
-                    </button>
-                  );
-                })}
-                </div>
-              </div>
 
               {/* Timer toggle */}
               <div className="flex items-center justify-center space-x-4">
@@ -929,13 +1017,8 @@ const QuizzesPage = () => {
                       return (
                         <button
                           key={letter}
-                          onClick={() => {
-                            if (q.category === 'Science' && q.global_id) {
-                              const isCorrect = letter === q.answer;
-                              recordScienceProgress(q.global_id, isCorrect, q.tag!);
-                            }
-                            handleAnswerSelect(letter);
-                          }}
+                          onClick={() => handleAnswerSelect(letter)}
+
                           className={`w-full p-4 rounded-lg border-2 text-left transition-all duration-200 ${
                             selectedAnswer === letter
                               ? 'border-neural-purple bg-neural-purple/10 text-neural-purple'
@@ -953,8 +1036,20 @@ const QuizzesPage = () => {
               )}
 
               {/* Ongoing "Question Review" sidebar */}
-              <div className="hidden md:block fixed top-24 right-4 w-64 bg-white border rounded-lg shadow p-4 h-[80vh] overflow-y-auto z-40">
-                <h3 className="font-semibold mb-4 text-gray-800">Question Review</h3>
+                <div className={` hidden md:block fixed top-24 right-0 w-64 bg-white border rounded-lg shadow p-4 h-[80vh] overflow-y-auto z-40 transform transition-transform duration-300 ${sidebarVisible ? 'translate-x-0' : 'translate-x-full'}`}>                
+                
+                <div className="flex items-center mb-4 space-x-2">
+               
+                 <button
+                   onClick={() => setSidebarVisible(false)}
+                   className="p-1 hover:bg-gray-100 rounded"
+                 >
+                   <EyeSlashIcon className="w-5 h-5 text-gray-600" />
+                 </button>
+
+                   <h3 className="font-semibold text-gray-800">Question Review</h3>
+               </div>
+
                 <div className="flex flex-wrap gap-2">
                   {allQuestions.map((q, idx) => {
                     const isCurrent = idx === currentQuestion;
@@ -984,20 +1079,57 @@ const QuizzesPage = () => {
                 </div>
               </div>
 
+                             {/* ── Open toggle (only when hidden) ── */}
+               {!sidebarVisible && (
+                 <button
+                   onClick={() => setSidebarVisible(true)}
+                   className="
+                     fixed top-24 right-0 p-2
+                     bg-white border-l rounded-l-lg shadow z-40
+                   "
+                 >
+                   <EyeIcon className="w-6 h-6 text-gray-600" />
+                 </button>
+               )}
+
+                 {/* Leave‐Quiz Confirmation Modal */}
+                 {showLeaveConfirmation && (
+                   <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+                     <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+                      <h3 className="text-lg font-medium text-gray-900">
+                        Are you sure you want to leave the quiz?
+                      </h3>
+                       <p className="text-gray-600 mb-2 text-justify">
+                          Your progress will be lost.
+                       </p>
+                       <div className="flex justify-end space-x-4">
+                         <button
+                           onClick={() => setShowLeaveConfirmation(false)}
+                           className="px-4 py-2 text-gray-600 hover:text-neural-purple"
+                         >
+                           Cancel
+                         </button>
+                         <button
+                           onClick={() => {
+                             confirmLeaveQuiz();
+                           }}
+                           className="px-4 py-2 bg-alert-red text-white rounded-lg hover:bg-alert-red/90"
+                         >
+                           Leave Quiz
+                         </button>
+                       </div>
+                     </div>
+                   </div>
+                 )}
+
+
+
               {/* Footer actions */}
               <div className="flex justify-between items-center">
                 <button
-                  onClick={() => {
-                    setQuizStarted(false);
-                    setScore(null);
-                    setSelectedTopic('');
-                    setSelectedDifficulty('');
-                    setSelectedAnswer(null);
-                    setShowExplanation(false);
-                    setCurrentQuestion(0);
-                  }}
-                  className="px-4 py-2 rounded-lg text-alert-red border border-alert-red hover:bg-alert-red/10"
-                >
+                 onClick={() => setShowLeaveConfirmation(true)}
+                  className="flex items-center px-4 py-2 text-gray-600 hover:text-red-600 transition-colors duration-200"              >
+                <ArrowLeftIcon className="w-5 h-5 mr-2" />
                   Leave Quiz
                 </button>
 
@@ -1025,6 +1157,9 @@ const QuizzesPage = () => {
           )}
         </div>
       </div>
+
+          
+
     </>
   );
 

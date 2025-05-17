@@ -251,9 +251,24 @@ const DashboardPage = () => {
   // Add useQuestions hook to access science progress stats
   const { getScienceProgressStats } = useQuestions();
 
+
   interface StudyHoursData { day: string; hours: number }
 
   function StudyTimeChart({ data }: { data: StudyHoursData[] }) {
+
+        // 1) Find the raw maximum “hours” value
+    const rawMax = Math.max(0, ...data.map(d => d.hours));
+
+    // 2) Round up to the nearest half-hour
+    const maxCeil = Math.ceil(rawMax * 2) / 2;
+
+    // 3) Build exactly five evenly-spaced ticks between 0 and maxCeil
+    const numTicks = 5;
+    const step = maxCeil / (numTicks - 1);
+    const ticks = Array.from({ length: numTicks }, (_, i) =>
+      +((step * i).toFixed(1))
+    );
+
     return (
       <div className="w-full h-[300px]">
         <ResponsiveContainer width="100%" height="100%">
@@ -278,31 +293,31 @@ const DashboardPage = () => {
             />
   
             <YAxis
-              tick={{ fontSize: 12, fill: '#6B7280' }}
-              domain={[0, 4]}
-              ticks={[4, 3, 2, 1, 0]}
-              tickFormatter={(val: number) => `${val}h`}
+              dataKey="hours"
+              domain={[0, 'dataMax']}
+              ticks={ticks}
               allowDecimals={false}
+              tickFormatter={(val: number) => `${val}h`}
               axisLine={false}
               tickLine={false}
             />
-  
+            
             <CartesianGrid strokeDasharray="3 3" vertical={false} />
   
             <Tooltip
-      contentStyle={{
-        backgroundColor: '#1F2937',
-        border: 'none',
-        borderRadius: 4,
-      }}
-      cursor={false}
-      labelFormatter={() => ''}
-      itemStyle={{ color: '#fff' }}
-      separator=""   
-      formatter={(value: number, _name: string, entry: any) =>
-        [`${value.toFixed(1)}h • ${entry.payload.day}`, '']
-      }
-    />
+          contentStyle={{
+            backgroundColor: '#1F2937',
+            border: 'none',
+            borderRadius: 4,
+          }}
+          cursor={false}
+          labelFormatter={() => ''}
+          itemStyle={{ color: '#fff' }}
+          separator=""   
+          formatter={(value: number, _name: string, entry: any) =>
+            [`${value.toFixed(1)}h • ${entry.payload.day}`, '']
+          }
+        />
   
             <Line
               type="monotone"
@@ -1283,57 +1298,65 @@ const updateUserProfile = async (updatedData: Partial<UserData>) => {
   };
 
   const subjectData = {
-    science: {
-      icon: BeakerIcon,
-      color: 'sky',
-      percentage: 75,
-      correct: 112,
-      total: 150,
-      label: 'Science'
-    },
-    mathematics: {
-      icon: CalculatorIcon,
-      color: 'amber',
-      percentage: 68,
-      correct: 82,
-      total: 120,
-      label: 'Mathematics'
-    },
-    language: {
-      icon: LanguageIcon,
-      color: 'emerald',
-      percentage: 82,
-      correct: 131,
-      total: 160,
-      label: 'Language\nProficiency'
-    },
-    reading: {
-      icon: BookOpenIcon,
-      color: 'indigo',
-      percentage: 78,
-      correct: 109,
-      total: 140,
-      label: 'Reading\nComprehension'
-    }
-  };
+  science: {
+    icon: BeakerIcon,
+    color: 'sky',
+    strokeClass: 'stroke-sky-500',
+    textClass: 'text-sky-500',   // ← for the icon
+    percentage: 75,
+    correct: 112,
+    total: 150,
+    label:'Science'
+  },
+  mathematics: {
+    icon: CalculatorIcon,
+    color: 'amber',
+    strokeClass: 'stroke-amber-500',
+    textClass: 'text-amber-500',
+    percentage: 68,
+    correct: 82,
+    total: 120,
+    label: 'Mathematics'
+  },
+  language: {
+    icon: LanguageIcon,
+    color: 'emerald',
+    strokeClass: 'stroke-emerald-500',
+    textClass: 'text-emerald-500',
+    percentage: 82,
+    correct: 131,
+    total: 160,
+    label:'Language\nProficiency'
+  },
+  reading: {
+    icon: BookOpenIcon,
+    color: 'indigo',
+    strokeClass: 'stroke-indigo-500',
+    textClass: 'text-indigo-500',
+    percentage: 78,
+    correct: 109,
+    total: 140,
+    label: 'Reading\nComprehension'
+  }
+};
+
 
   // Merge dynamic quiz‑science stats into the base subject data
   const baseSubject = subjectData[selectedSubject];
 
   const currentSubject =
     selectedTestType === 'quizzes' && selectedSubject === 'science'
-      ? {
-          ...baseSubject,
-          total: scienceProgress.totalQuestions,
-          correct: scienceProgress.correctAnswers,
-          percentage:
-            scienceProgress.totalQuestions === 0
-              ? 0
-              : Math.round(
-                  (scienceProgress.correctAnswers / scienceProgress.totalQuestions) * 100
-                ),
-          color: baseSubject.color
-        }
+    ? {
+        ...baseSubject,
+        total: quizScienceStats.total,
+        correct: quizScienceStats.correct,
+        percentage:
+          quizScienceStats.total === 0
+            ? 0
+            : Math.round((quizScienceStats.correct / quizScienceStats.total) * 100),
+        color: baseSubject.color
+      }
+
       : selectedTestType === 'quizzes' && selectedSubject === 'mathematics'
       ? {
           ...baseSubject,
@@ -1975,7 +1998,7 @@ const updateUserProfile = async (updatedData: Partial<UserData>) => {
                       <div className="relative w-44 h-44">
                         <svg className="w-full h-full transform -rotate-90" viewBox="0 0 100 100">
                           <circle
-                            className="text-gray-200 stroke-current"
+                            className="stroke-gray-200"
                             strokeWidth="8"
                             cx="50"
                             cy="50"
@@ -1983,7 +2006,7 @@ const updateUserProfile = async (updatedData: Partial<UserData>) => {
                             fill="transparent"
                           />
                           <circle
-                            className={`text-${subj.color}-500 stroke-current`}
+                            className={`stroke-${subj.color}-500`}
                             strokeWidth="8"
                             strokeLinecap="round"
                             cx="50"
