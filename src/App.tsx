@@ -89,7 +89,7 @@ function App() {
             <Navbar />
             <main className="pt-16 flex-grow">
               <Routes>
-                <Route path="/" element={<DashboardPage />} />
+                <Route path="/dashboard" element={<DashboardPage />} />
                 <Route path="/home" element={<HomePage />} />
                 <Route
                   path="/otp"
