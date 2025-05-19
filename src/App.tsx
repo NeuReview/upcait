@@ -71,10 +71,20 @@ function App() {
     return <TermsAndConditionsModal onAgree={markTOSAccepted} />
   }
 
+  if (user && otpPending) {
   return (
     <AuthProvider>
       <Router>
-        {user ? (
+        <OtpPage onOtpVerified={() => setOtpPending(false)} />
+      </Router>
+    </AuthProvider>
+  );
+}
+
+  return (
+    <AuthProvider>
+      <Router>
+        {user && !otpPending ?(
           <div className="min-h-screen flex flex-col bg-gray-50">
             <Navbar />
             <main className="pt-16 flex-grow">
@@ -88,16 +98,6 @@ function App() {
                       <OtpPage onOtpVerified={() => setOtpPending(false)} />
                     ) : (
                       <Navigate to="/dashboard" replace />
-                    )
-                  }
-                />
-                <Route
-                  path="/dashboard"
-                  element={
-                    otpPending ? (
-                      <Navigate to="/otp" replace />
-                    ) : (
-                      <DashboardPage />
                     )
                   }
                 />
