@@ -1,9 +1,11 @@
-// store/authStore.ts
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { supabase } from '../lib/supabase';
 import { User, AuthError } from '@supabase/supabase-js';
 import { validatePassword } from '../utils/passwordValidation';
+
+// Deployment base path – '' (root) in production, '/upcait' in preview if needed
+const BASE_PATH = import.meta.env.VITE_BASE_PATH ?? '';
 
 interface AuthState {
   user: User | null;
@@ -100,7 +102,7 @@ signUp: async (email, password) => {
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
-      options: { emailRedirectTo: `${window.location.origin}/confirm` },
+      options: { emailRedirectTo: `${window.location.origin}${BASE_PATH}/confirm` },
     });
 
     /* 3. Duplicate‑e‑mail guard
@@ -145,7 +147,7 @@ signUp: async (email, password) => {
         try {
           set({ loading: true });
           const { error } = await supabase.auth.resetPasswordForEmail(email, {
-            redirectTo: `${window.location.origin}/reset-password`,
+            redirectTo: `${window.location.origin}${BASE_PATH}/reset-password`,
           });
           if (error) throw error;
         } catch (err) {
@@ -161,7 +163,7 @@ signUp: async (email, password) => {
           set({ loading: true });
           const { error } = await supabase.auth.signInWithOAuth({
             provider: 'google',
-            options: { redirectTo: `${window.location.origin}/dashboard` },
+            options: { redirectTo: `${window.location.origin}${BASE_PATH}/dashboard` },
           });
           if (error) throw error;
         } catch (err) {

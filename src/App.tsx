@@ -78,7 +78,7 @@ function App() {
       <Router>
         {user ? (
           <div className="min-h-screen flex flex-col bg-gray-50">
-            <Navbar />
+            {!otpPending && <Navbar />}
             <main className="pt-16 flex-grow">
               <Routes>
                 <Route path="/" element={<DashboardPage />} />
@@ -153,6 +153,8 @@ function App() {
                     )
                   }
                 />
+                {/* Password‑reset (hash tokens land here even when session is already set) */}
+                <Route path="/reset-password" element={<ResetPasswordPage />} />
                 {/* Auth flow pages */}
                 <Route path="/confirm" element={<ConfirmPage />} />
                 <Route path="/email-sent" element={<EmailLinkSentPage />} />
@@ -161,8 +163,8 @@ function App() {
                 <Route path="*" element={<NotFoundPage />} />
               </Routes>
             </main>
-            <Chatbot />
-            <Footer />
+            {!otpPending && <Chatbot />}
+            {!otpPending && <Footer />}
           </div>
         ) : (
           <Routes>

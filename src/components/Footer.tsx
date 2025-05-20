@@ -56,10 +56,10 @@ const Footer = () => {
             </h3>
             <ul className="mt-4 space-y-4">
               <li className="text-gray-500">
-                Email: support@upcait.com
+                Email: examgenieph@gmail.com
               </li>
               <li className="text-gray-500">
-                Phone: +63 (2) 8981-8500
+                Phone: +63 927 474 9276
               </li>
               <li className="text-gray-500">
                 Address: Quezon City, Philippines
