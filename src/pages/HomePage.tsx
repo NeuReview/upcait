@@ -139,7 +139,8 @@ const HomePage = () => {
               </div>
             </div>
             <div className="mt-12 lg:mt-0">
-              <div className="bg-white/90 backdrop-blur-sm rounded-2xl shadow-neural p-8 transform hover:-translate-y-1 transition-all duration-300">
+
+<div className="bg-white/90 backdrop-blur-sm rounded-2xl shadow-neural p-8">
                 <div className="space-y-6">
                   <div className="flex items-center space-x-4">
                     <div className="w-12 h-12 bg-neural-purple bg-opacity-10 rounded-xl flex items-center justify-center">
@@ -202,7 +203,7 @@ const HomePage = () => {
           </div>
           <div className="grid md:grid-cols-2 gap-8">
             {features.map((feature) => (
-              <div key={feature.name} className="card hover:shadow-2xl hover:-translate-y-1 transition-all duration-300 bg-gradient-to-br from-white to-gray-50">
+                <div key={feature.name} className="relative bg-white rounded-xl p-6 shadow-md border border-gray-200">
                 <div className="flex items-center space-x-4 mb-4">
                   <div className="w-12 h-12 bg-gradient-to-br from-neural-purple to-tech-lavender rounded-xl flex items-center justify-center">
                     <feature.icon className="w-6 h-6 text-white" />
@@ -225,8 +226,8 @@ const HomePage = () => {
           </div>
           <div className="grid md:grid-cols-2 gap-8">
             {testimonials.map((testimonial, index) => (
-              <div key={index} className="card bg-white/80 backdrop-blur-sm hover:shadow-2xl hover:-translate-y-1 transition-all duration-300">
-                <div className="absolute -top-4 -left-4 w-8 h-8 bg-neural-purple rounded-full flex items-center justify-center">
+            <div className="relative bg-white rounded-xl p-6 shadow-md border border-gray-200">
+            <div className="absolute -top-4 -left-4 w-8 h-8 bg-neural-purple rounded-full flex items-center justify-center">
                   <UserGroupIcon className="w-4 h-4 text-white" />
                 </div>
                 <p className="text-gray-600 mb-4">{testimonial.content}</p>

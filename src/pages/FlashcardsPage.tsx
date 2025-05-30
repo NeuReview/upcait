@@ -85,6 +85,7 @@ interface FlashcardScore {
 
 const FlashcardsPage: React.FC = () => {
   // ─── State ───────────────────────────────────────────────────────────────
+  const [loadingResults, setLoadingResults] = useState(false);
   const [isStarted, setIsStarted] = useState(false);
   const [flashScore, setFlashScore] = useState<FlashcardScore | null>(null);
   const [selectedTopic, setSelectedTopic] = useState('');
@@ -101,7 +102,8 @@ const FlashcardsPage: React.FC = () => {
   const [hasReturned, setHasReturned] = useState(false);
   const [byCategory, setByCategory] = useState<Record<string,{total:number;correct:number}>>({});
   const [answeredByCategory, setAnsweredByCategory] = useState<Record<string, Question[]>>({});
-
+  const [isCorrectAnswer, setIsCorrectAnswer] = useState<boolean | null>(null);
+  const [showExitConfirm, setShowExitConfirm] = useState(false);
 
 
   // <<< NEW: track flashcards session start timestamp >>>
@@ -148,47 +150,47 @@ const FlashcardsPage: React.FC = () => {
   );
 
 
-  const handleEndSession = async () => {
-    if (hasReturned) return;
-    setHasReturned(true);
+ const handleEndSession = async () => {
+  if (hasReturned) return;
+  setHasReturned(true);
+  setLoadingResults(true); // Start spinner
 
-    await recordFlashSession();
+  await recordFlashSession();
 
-    const endMs    = Date.now();
-    const elapsed = flashStartTime
-      ? Math.floor((endMs - flashStartTime) / 1000)
-      : 0;
+  const endMs = Date.now();
+  const elapsed = flashStartTime
+    ? Math.floor((endMs - flashStartTime) / 1000)
+    : 0;
 
-    const total     = correctAnswers + incorrectAnswers;
-    const correct   = correctAnswers;
-    const incorrect = incorrectAnswers;
-    const percentage =
-      total > 0 ? Math.round((correct / total) * 100) : 0;
+  const total = correctAnswers + incorrectAnswers;
+  const correct = correctAnswers;
+  const incorrect = incorrectAnswers;
+  const percentage = total > 0 ? Math.round((correct / total) * 100) : 0;
 
-    const categoryScores = Object.fromEntries(
-      Object.entries(byCategory).map(([cat, { total, correct }]) => [
-        cat,
-        {
-          total,
-          correct,
-          percentage: Math.round((correct / total) * 100),
-        },
-      ]),
-    );
+  const categoryScores = Object.fromEntries(
+    Object.entries(byCategory).map(([cat, { total, correct }]) => [
+      cat,
+      {
+        total,
+        correct,
+        percentage: Math.round((correct / total) * 100),
+      },
+    ])
+  );
 
-    setFlashScore({
-      total,
-      correct,
-      incorrect,
-      percentage,
-      timeSpent: elapsed,
-      answeredByCategory,
-      categoryScores,
-    });
-  };
+  setFlashScore({
+    total,
+    correct,
+    incorrect,
+    percentage,
+    timeSpent: elapsed,
+    answeredByCategory,
+    categoryScores,
+  });
 
+  setLoadingResults(false); // Hide spinner once results are ready
+};
 
-  
 
   // ─── Handlers ────────────────────────────────────────────────────────────
   const startSession = async () => {
@@ -233,42 +235,45 @@ const FlashcardsPage: React.FC = () => {
   };
 
   const handleAnswerSelect = (letter: string) => {
-    if (selectedAnswer !== null) return;
-    setSelectedAnswer(letter);
+  if (selectedAnswer !== null) return;
+  setSelectedAnswer(letter);
 
-    // 1️⃣ Update your correct/incorrect totals
-    const correct = flashcards[currentCard]?.answer?.toUpperCase();
-    if (letter === correct) setCorrectAnswers(n => n + 1);
-    else setIncorrectAnswers(n => n + 1);
+  const correct = flashcards[currentCard]?.answer?.toUpperCase();
+  const isCorrect = letter === correct;
+  setIsCorrectAnswer(isCorrect);
 
-    // 2️⃣ Flip the card so the user sees the back
-    handleFlip();
+  if (isCorrect) {
+    setCorrectAnswers(n => n + 1);
+  } else {
+    setIncorrectAnswers(n => n + 1);
+  }
 
-    // 3️⃣ Compute the category key
-    const cat = flashcards[currentCard].category || 'Ungrouped';
+  // 🟢 Only delay flip — this shows color highlight first
+  setTimeout(() => handleFlip(), 500);
 
-    // 4️⃣ Update your per-category counts
-    setByCategory(prev => ({
-      ...prev,
-      [cat]: {
-        total:   (prev[cat]?.total   ?? 0) + 1,
-        correct: (prev[cat]?.correct ?? 0) +
-                (letter === correct ? 1 : 0),
-      },
-    }));
+  const cat = flashcards[currentCard].category || 'Ungrouped';
 
-    // 5️⃣ —— Place your new line here 🤓 ——  
-    setAnsweredByCategory(prev => ({
-      ...prev,
-      [cat]: [...(prev[cat] || []), flashcards[currentCard]],
-    }));
-  };
+  setByCategory(prev => ({
+    ...prev,
+    [cat]: {
+      total:   (prev[cat]?.total   ?? 0) + 1,
+      correct: (prev[cat]?.correct ?? 0) + (letter === correct ? 1 : 0),
+    },
+  }));
+
+  setAnsweredByCategory(prev => ({
+    ...prev,
+    [cat]: [...(prev[cat] || []), flashcards[currentCard]],
+  }));
+};
+
 
 
   const nextCard = () => {
     if (currentCard < flashcards.length - 1) {
       setCurrentCard(i => i + 1);
       setSelectedAnswer(null);
+      setIsCorrectAnswer(null);
       setShowBack(false);
     }
   };
@@ -277,6 +282,7 @@ const FlashcardsPage: React.FC = () => {
     if (currentCard > 0) {
       setCurrentCard(i => i - 1);
       setSelectedAnswer(null);
+      setIsCorrectAnswer(null);
       setShowBack(false);
     }
   };
@@ -323,7 +329,18 @@ const FlashcardsPage: React.FC = () => {
     //    (quizzes + mock exams + flashcards)
     await upsertDailyTotal(user.id, startISO.slice(0,10));
   };
-  
+
+    if (loadingResults) {
+      return (
+        <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-neural-purple mx-auto"></div>
+            <p className="mt-4 text-gray-600">Loading results...</p>
+          </div>
+        </div>
+      );
+    }
+
 
     if (!flashScore) {
        // we’re not showing results yet, fall through to normal UI below
@@ -446,6 +463,7 @@ const FlashcardsPage: React.FC = () => {
                 setIncorrectAnswers(0);
                 setHasReturned(false);
                 setByCategory({});
+                setShowExitConfirm(false);
               }}
               className="px-6 py-3 bg-neural-purple text-white rounded-lg hover:bg-tech-lavender transition"
             >
@@ -702,9 +720,15 @@ const FlashcardsPage: React.FC = () => {
         disabled={isFlipping || selectedAnswer !== null}
         className={`
           w-full text-left px-4 py-2 border rounded-lg transition-all duration-200
-          ${isSel
-            ? 'border-neural-purple bg-neural-purple/10 text-neural-purple'
-            : 'border-gray-300 bg-white text-gray-800 hover:border-neural-purple'}
+          ${
+            isSel
+              ? isCorrectAnswer === null
+                ? 'border-neural-purple bg-neural-purple/10 text-neural-purple'
+                : isCorrectAnswer
+                  ? 'border-growth-green bg-growth-green/10 text-growth-green'
+                  : 'border-alert-red bg-alert-red/10 text-alert-red'
+              : 'border-gray-300 bg-white text-gray-800 hover:border-neural-purple'
+          }
         `}
       >
         {text}
@@ -768,13 +792,14 @@ const FlashcardsPage: React.FC = () => {
               {/* Navigation */}
               <div className="flex justify-between items-center">
                   <button
-                    onClick={handleEndSession}
+                    onClick={() => setShowExitConfirm(true)}
                     disabled={hasReturned}
                     className="hover:text-red-600 disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-1"
                   >
                     <ArrowLeftIcon className="w-5 h-5" />
-                    <span>End Session</span>
+                    <span>Leave Session</span>
                   </button>
+
 
                 <div className="flex space-x-4">
                   <button
@@ -803,6 +828,29 @@ const FlashcardsPage: React.FC = () => {
         )}
       </div>
 
+      {showExitConfirm && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-sm">
+            <h2 className="text-lg font-semibold text-gray-900 mb-2">
+              Are you sure you want to leave the session?
+            </h2>
+            <div className="flex justify-end space-x-4">
+              <button
+                onClick={() => setShowExitConfirm(false)}
+                className="text-sm text-gray-600 hover:text-gray-800"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleEndSession}
+                className="text-sm text-white bg-red-500 hover:bg-red-600 px-4 py-2 rounded-lg"
+              >
+                End Session
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       {/* Score Summary Modal */}
       {showScoreSummary && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
@@ -857,7 +905,8 @@ const FlashcardsPage: React.FC = () => {
                   transition-colors
                 "
               >
-                End Session
+                <ArrowLeftIcon className="w-5 h-5" />
+                Leave Session
               </button>
 
               <button
@@ -866,11 +915,14 @@ const FlashcardsPage: React.FC = () => {
               >
                 Continue
               </button>
+              
             </div>
           </div>
         </div>
+        
       )}
     </div>
+    
   );
 };
 

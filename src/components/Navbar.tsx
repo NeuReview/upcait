@@ -3,6 +3,8 @@ import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { Disclosure } from '@headlessui/react';
 import { Bars3Icon, XMarkIcon } from '@heroicons/react/24/outline';
 import { useAuthStore } from '../store/authStore';
+import { PencilSquareIcon } from '@heroicons/react/24/outline';
+
 
 const Navbar: React.FC = () => {
   const [openDropdown, setOpenDropdown] = useState<string | null>(null);
@@ -17,7 +19,8 @@ const Navbar: React.FC = () => {
     { name: 'Mock Exams', href: '/mock-exams' },
     { name: 'Flashcards', href: '/flashcards' },
   ];
-  
+
+
 
   // Top-level navbar items
   const navigation = [
@@ -129,7 +132,14 @@ const Navbar: React.FC = () => {
               <div className="hidden sm:ml-6 sm:flex sm:items-center space-x-4">
                 {user ? (
                   <>
-                    <span className="text-sm text-gray-500">{user.email}</span>
+                    <span
+                      onClick={() => window.dispatchEvent(new Event('open-edit-profile-modal'))}
+                      className="flex items-center text-sm text-gray-500 hover:text-purple-600 hover:underline cursor-pointer transition"
+                    >
+                      <PencilSquareIcon className="w-4 h-4 ml-1" />
+                      {user.email} 
+                    </span>
+
                     <button
                       onClick={handleSignOut}
                       className="text-sm font-medium text-gray-500 hover:text-neural-purple"
@@ -208,9 +218,13 @@ const Navbar: React.FC = () => {
             {/* Mobile auth */}
             {user ? (
               <div className="pt-4 pb-3 border-t border-gray-200">
-                <span className="block pl-3 pr-4 py-2 text-base font-medium text-gray-500">
-                  {user.email}
-                </span>
+                 <span
+                      onClick={() => window.dispatchEvent(new Event('open-edit-profile-modal'))}
+                      className="flex items-center text-sm text-gray-500 hover:text-purple-600 hover:underline cursor-pointer transition"
+                    >
+                      <PencilSquareIcon className="w-4 h-4 ml-1" />
+                      {user.email} 
+                    </span>
                 <button
                   onClick={handleSignOut}
                   className="block w-full text-left pl-3 pr-4 py-2 text-base font-medium text-gray-500 hover:text-neural-purple hover:bg-gray-50"

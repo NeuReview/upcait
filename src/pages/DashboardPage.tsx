@@ -86,8 +86,6 @@ interface EditProfileModalProps {
   userData: UserData;
 }
 
-
-
 function TermsAndConditionsModal({
   userData,
   setShowTOSModal,
@@ -473,6 +471,12 @@ const DashboardPage = () => {
     totalCap: 0,
     percentage: 0
   });
+
+  useEffect(() => {
+  const openModal = () => setIsEditProfileOpen(true);
+  window.addEventListener('open-edit-profile-modal', openModal);
+  return () => window.removeEventListener('open-edit-profile-modal', openModal);
+}, []);
 
   
 
