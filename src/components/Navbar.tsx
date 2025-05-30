@@ -17,11 +17,6 @@ const Navbar: React.FC = () => {
     { name: 'Mock Exams', href: '/mock-exams' },
     { name: 'Flashcards', href: '/flashcards' },
   ];
-
-  const feedbackItems = [
-    { name: 'Request Feature', href: '/#'    },
-    { name: 'Bug Report', href: '/#' },
-  ];
   
 
   // Top-level navbar items
@@ -31,7 +26,6 @@ const Navbar: React.FC = () => {
           // grouped under Practice
           { name: 'Practice', children: practiceItems },
           { name: 'Dashboard', href: '/dashboard' },
-          { name: 'Feedback', children: feedbackItems},
         ]
       : []),
   ];

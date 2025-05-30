@@ -1,7 +1,8 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { ChatBubbleLeftIcon, XMarkIcon, PaperAirplaneIcon } from '@heroicons/react/24/outline';
 import { generateResponse } from '../lib/openai';
-import { BugAntIcon } from '@heroicons/react/24/outline';
+import FeedbackTriggerButton from './Feedback';
+
 
 
 interface Message {
@@ -98,6 +99,10 @@ const Chatbot = () => {
   };
 
   return (
+
+    <>
+    <FeedbackTriggerButton isVisible={!isOpen} />
+    
     <div className="fixed bottom-4 right-4 z-50">
       {/* Chat Button */}
       <button
@@ -195,6 +200,7 @@ const Chatbot = () => {
         </div>
       )}
     </div>
+    </>
   );
 };
 

@@ -31,6 +31,12 @@ const BugReportModal: React.FC<BugReportModalProps> = ({
     e.preventDefault();
     setLoading(true);
 
+    if (!userId || userId.trim() === '') {
+      alert('You must be logged in to submit a bug report.');
+      setLoading(false);
+      return;
+    }
+
     try {
       let screenshotUrl = '';
       let videoUrl = '';
@@ -127,6 +133,10 @@ const BugReportModal: React.FC<BugReportModalProps> = ({
             </p>
             <button
               onClick={() => {
+                setScreenshotFile(null);
+                setVideoFile(null);
+                setTitle('');
+                setDescription('');
                 setShowSuccessModal(false);
                 onClose();
               }}
@@ -143,7 +153,13 @@ const BugReportModal: React.FC<BugReportModalProps> = ({
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
           <div className="bg-white w-full max-w-lg p-6 rounded-xl shadow-lg relative">
             <button
-              onClick={onClose}
+              onClick={() => {
+                setScreenshotFile(null);
+                setVideoFile(null);
+                setTitle('');
+                setDescription('');
+                onClose();
+              }}
               className="absolute top-4 right-4 text-gray-400 hover:text-black"
             >
               <XMarkIcon className="w-5 h-5" />
@@ -158,30 +174,46 @@ const BugReportModal: React.FC<BugReportModalProps> = ({
               <div>
                 <label className="block text-sm font-medium">Screenshot (optional)</label>
                 <div className="mt-1 flex items-center space-x-2">
-                  <PaperClipIcon className="w-5 h-5 text-gray-400" />
-                  <input
-                    type="file"
-                    accept="image/*"
-                    onChange={(e) =>
-                      setScreenshotFile(e.target.files?.[0] || null)
-                    }
-                  />
+                  <label className="cursor-pointer flex items-center space-x-1 text-purple-600 hover:text-purple-800">
+                    <PaperClipIcon className="w-5 h-5" />
+                    <span className="text-sm">Upload</span>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={(e) => setScreenshotFile(e.target.files?.[0] || null)}
+                      className="hidden"
+                    />
+                  </label>
+                  {screenshotFile && (
+                    <span className="text-sm text-gray-600 truncate max-w-[200px]">
+                      {screenshotFile.name}
+                    </span>
+                  )}
                 </div>
               </div>
+
 
               <div>
                 <label className="block text-sm font-medium">Video (optional)</label>
                 <div className="mt-1 flex items-center space-x-2">
-                  <VideoCameraIcon className="w-5 h-5 text-gray-400" />
-                  <input
-                    type="file"
-                    accept="video/*"
-                    onChange={(e) =>
-                      setVideoFile(e.target.files?.[0] || null)
-                    }
-                  />
+                  <label className="cursor-pointer flex items-center space-x-1 text-purple-600 hover:text-purple-800">
+                    <VideoCameraIcon className="w-5 h-5" />
+                    <span className="text-sm">Upload</span>
+                    <input
+                      type="file"
+                      accept="video/*"
+                      onChange={(e) => setVideoFile(e.target.files?.[0] || null)}
+                      className="hidden"
+                    />
+                  </label>
+                  {videoFile && (
+                    <span className="text-sm text-gray-600 truncate max-w-[200px]">
+                      {videoFile.name}
+                    </span>
+                  )}
                 </div>
               </div>
+
 
               <div>
                 <label className="block text-sm font-medium">Bug Title</label>
