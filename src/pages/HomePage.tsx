@@ -95,11 +95,11 @@ const HomePage = () => {
   return (
     <div className="min-h-screen">
       {/* Hero Section with Neural Network Background */}
-      <div className="relative overflow-hidden min-h-screen bg-gradient-to-br from-neural-purple via-tech-lavender to-white">
+<div className="relative overflow-hidden min-h-[100vh] bg-gradient-to-br from-neural-purple via-tech-lavender to-white">
 
         <div className="absolute inset-0 neural-bg opacity-10"></div>
         <div className="absolute inset-0 bg-gradient-to-b from-white/0 via-white/0 to-white"></div>
-        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-16 pb-20 lg:pt-24 lg:pb-28">
+<div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center min-h-[100vh]">
           <div className="text-center lg:text-left lg:grid lg:grid-cols-2 lg:gap-12 items-center">
             <div>
               <h1 className="text-4xl tracking-tight font-bold text-white sm:text-5xl md:text-6xl lg:text-5xl xl:text-6xl">

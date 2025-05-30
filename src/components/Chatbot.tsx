@@ -110,8 +110,6 @@ const Chatbot = () => {
         <span>Chat with AI</span>
       </button>
 
-      
-
       {/* Chat Window */}
       {isOpen && (
         <div className="bg-white rounded-lg shadow-xl w-96 h-[500px] flex flex-col">
