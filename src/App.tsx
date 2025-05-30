@@ -2,6 +2,7 @@
 import React, { useEffect, useState } from 'react'
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
 import { useAuthStore } from './store/authStore'
+import BugReportModal from './components/BugReportModal';
 import Navbar from './components/Navbar'
 import Footer from './components/Footer'
 import Chatbot from './components/Chatbot'
@@ -13,6 +14,7 @@ import FlashcardsPage from './pages/FlashcardsPage'
 import ResourcesPage from './pages/ResourcesPage'
 import ProfilePage from './pages/ProfilePage'
 import NotFoundPage from './pages/NotFoundPage'
+import RequestFeatureModal from './components/RequestFeatureModal';
 import PricingSection from './components/PricingSection'
 import LoginPage from './pages/LoginPage'
 import RegisterPage from './pages/RegisterPage'
@@ -23,6 +25,8 @@ import TermsAndConditionsModal from './components/TermsAndConditionsModal'
 import { AuthProvider } from './context/AuthContext'
 import ConfirmPage from './pages/ConfirmPage'
 import EmailLinkSentPage from './pages/EmailLinkSentPage'
+import { BugAntIcon } from '@heroicons/react/24/outline';
+
 
 function App() {
   const {
@@ -35,7 +39,24 @@ function App() {
     setOtpPending,
   } = useAuthStore()
 
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading] = useState(true);
+
+  const [isFeatureModalOpen, setFeatureModalOpen] = useState(false);
+  useEffect(() => {
+    const handleOpenFeatureModal = () => setFeatureModalOpen(true);
+    window.addEventListener('open-feature-modal', handleOpenFeatureModal);
+    return () => window.removeEventListener('open-feature-modal', handleOpenFeatureModal);
+  }, []);
+
+
+  const [isBugModalOpen, setBugModalOpen] = useState(false);
+
+  useEffect(() => {
+    const handleOpenBugModal = () => setBugModalOpen(true);
+    window.addEventListener('open-bug-modal', handleOpenBugModal);
+    return () => window.removeEventListener('open-bug-modal', handleOpenBugModal);
+  }, []);
+
 
   // 1. On mount: load the session (user + otpPending flag)
   useEffect(() => {
@@ -178,7 +199,23 @@ function App() {
             <Route path="*" element={<NotFoundPage />} />
           </Routes>
         )}
+
+        <RequestFeatureModal
+          isOpen={isFeatureModalOpen}
+          onClose={() => setFeatureModalOpen(false)}
+          userId={user?.id || ''}
+        />
+
+
+        <BugReportModal
+          isOpen={isBugModalOpen}
+          onClose={() => setBugModalOpen(false)}
+          userId={user?.id || ''}
+        />
+
       </Router>
+      
+      
     </AuthProvider>
   )
 }

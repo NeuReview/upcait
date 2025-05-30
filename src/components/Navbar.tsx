@@ -5,7 +5,8 @@ import { Bars3Icon, XMarkIcon } from '@heroicons/react/24/outline';
 import { useAuthStore } from '../store/authStore';
 
 const Navbar: React.FC = () => {
-  const [practiceOpen, setPracticeOpen] = useState(false);
+  const [openDropdown, setOpenDropdown] = useState<string | null>(null);
+
   const { user, signOut, otpPending } = useAuthStore();
   const navigate = useNavigate();
   const location = useLocation();
@@ -17,6 +18,12 @@ const Navbar: React.FC = () => {
     { name: 'Flashcards', href: '/flashcards' },
   ];
 
+  const feedbackItems = [
+    { name: 'Request Feature', href: '/#'    },
+    { name: 'Bug Report', href: '/#' },
+  ];
+  
+
   // Top-level navbar items
   const navigation = [
     ...(user
@@ -24,6 +31,7 @@ const Navbar: React.FC = () => {
           // grouped under Practice
           { name: 'Practice', children: practiceItems },
           { name: 'Dashboard', href: '/dashboard' },
+          { name: 'Feedback', children: feedbackItems},
         ]
       : []),
   ];
@@ -41,7 +49,8 @@ const Navbar: React.FC = () => {
             <div className="flex justify-between h-16">
               {/* Brand + Desktop Nav */}
               <div className="flex items-center">
-              <Link to="/home" onClick={() => setPracticeOpen(false)}>
+              <Link to="/home" onClick={() => setOpenDropdown(null)}>
+
                 <img
                   src="/images/logo.png"
                   alt="UPCaiT Logo"
@@ -53,9 +62,10 @@ const Navbar: React.FC = () => {
                     item.children ? (
                       <div key={item.name} className="relative inline-block text-left">
                         <button
-                          onClick={() => setPracticeOpen((o) => !o)}
+                          onClick={() => setOpenDropdown(openDropdown === item.name ? null : item.name)}
                           className={`inline-flex items-center px-1 pt-1 text-sm font-medium ${
-                            practiceItems.some((ci) => location.pathname === ci.href)
+                            item.children?.some((ci) => location.pathname === ci.href)
+
                               ? 'text-neural-purple border-b-2 border-neural-purple'
                               : 'text-gray-500 hover:text-neural-purple hover:border-b-2 hover:border-neural-purple'
                           }`}
@@ -63,7 +73,7 @@ const Navbar: React.FC = () => {
                           {item.name}
                           <svg
                             className="ml-1 h-4 w-4 transform"
-                            style={{ transform: practiceOpen ? 'rotate(180deg)' : undefined }}
+                            style={{ transform: openDropdown === item.name ? 'rotate(180deg)' : undefined }}
                             xmlns="http://www.w3.org/2000/svg"
                             fill="none"
                             viewBox="0 0 24 24"
@@ -73,13 +83,24 @@ const Navbar: React.FC = () => {
                           </svg>
                         </button>
 
-                        {practiceOpen && (
+                        {openDropdown === item.name && (
                           <div className="absolute left-0 mt-2 w-40 bg-white border rounded shadow-lg z-20">
-                            {practiceItems.map((child) => (
+                            {item.children.map((child) => (
                               <Link
                                 key={child.name}
-                                to={child.href}
-                                onClick={() => setPracticeOpen(false)}
+                                to={child.href === '#' ? location.pathname : child.href}
+                                onClick={(e) => {
+                                  setOpenDropdown(null);
+                                  if (child.name === 'Request Feature') {
+                                    e.preventDefault();
+                                    window.dispatchEvent(new Event('open-feature-modal'));
+                                  } 
+
+                                  if (child.name === 'Bug Report') {
+                                    e.preventDefault();
+                                    window.dispatchEvent(new Event('open-bug-modal'));
+                                  }
+                                }}
                                 className={`block px-4 py-2 text-sm ${
                                   location.pathname === child.href
                                     ? 'text-neural-purple'
@@ -96,7 +117,7 @@ const Navbar: React.FC = () => {
                       <Link
                         key={item.name}
                         to={item.href}
-                        onClick={() => setPracticeOpen(false)}
+                        onClick={() => setOpenDropdown(null)}
                         className={`inline-flex items-center px-1 pt-1 text-sm font-medium ${
                           location.pathname === item.href
                             ? 'text-neural-purple border-b-2 border-neural-purple'
@@ -156,8 +177,14 @@ const Navbar: React.FC = () => {
                     {item.children.map((child) => (
                       <Link
                         key={child.name}
-                        to={child.href}
-                        onClick={() => setPracticeOpen(false)}
+                        to={child.href === '#' ? location.pathname : child.href}
+                        onClick={(e) => {
+                          setOpenDropdown(null);
+                          if (child.name === 'Bug Report') {
+                            e.preventDefault();
+                            window.dispatchEvent(new Event('open-bug-modal'));
+                          }
+                        }}
                         className={`block pl-6 pr-4 py-2 text-base font-medium ${
                           location.pathname === child.href
                             ? 'text-neural-purple bg-neural-purple/5'

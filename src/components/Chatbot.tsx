@@ -1,6 +1,8 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { ChatBubbleLeftIcon, XMarkIcon, PaperAirplaneIcon } from '@heroicons/react/24/outline';
 import { generateResponse } from '../lib/openai';
+import { BugAntIcon } from '@heroicons/react/24/outline';
+
 
 interface Message {
   text: string;
@@ -107,6 +109,8 @@ const Chatbot = () => {
         <ChatBubbleLeftIcon className="h-6 w-6" />
         <span>Chat with AI</span>
       </button>
+
+      
 
       {/* Chat Window */}
       {isOpen && (
