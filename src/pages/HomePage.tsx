@@ -1,5 +1,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
+import { useState } from 'react';
 import { 
   AcademicCapIcon, 
   BeakerIcon, 
@@ -82,11 +84,19 @@ const plans = [
   },
 ];
 
+
+
 const HomePage = () => {
+
+  const [loadingProgress, setLoadingProgress] = useState(60); // Initial 60% for animation
+  const [isRedirecting, setIsRedirecting] = useState(false);
+  const navigate = useNavigate();
+
   return (
     <div className="min-h-screen">
       {/* Hero Section with Neural Network Background */}
-      <div className="relative overflow-hidden bg-gradient-to-br from-neural-purple via-tech-lavender to-white">
+      <div className="relative overflow-hidden min-h-screen bg-gradient-to-br from-neural-purple via-tech-lavender to-white">
+
         <div className="absolute inset-0 neural-bg opacity-10"></div>
         <div className="absolute inset-0 bg-gradient-to-b from-white/0 via-white/0 to-white"></div>
         <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-16 pb-20 lg:pt-24 lg:pb-28">
@@ -100,12 +110,26 @@ const HomePage = () => {
                 Transform your UPCAT preparation with personalized AI learning paths, comprehensive study materials, and real-time progress tracking.
               </p>
               <div className="mt-8 sm:flex sm:justify-center lg:justify-start space-x-4">
-                <Link
-                  to="/register"
+                <button
                   className="btn-primary bg-white text-neural-purple hover:bg-success-gold hover:text-white"
+                  onClick={() => {
+                    setIsRedirecting(true);
+
+                    setLoadingProgress(70);
+                    setTimeout(() => {
+                      setLoadingProgress(85);
+                    }, 600);
+                    setTimeout(() => {
+                      setLoadingProgress(100);
+                    }, 1700);
+                    setTimeout(() => {
+                      navigate('/register');
+                    }, 2500); // navigate only after loading completes
+                  }}
                 >
                   Start Free Trial
-                </Link>
+                </button>
+
                 <Link
                   to="/login"
                   className="btn-secondary border-white text-white hover:bg-white/10"
@@ -129,7 +153,11 @@ const HomePage = () => {
                     <div className="bg-gray-50/80 p-4 rounded-lg">
                       <p className="text-sm text-gray-600">Personalizing your study path...</p>
                       <div className="w-full bg-gray-200 rounded-full h-2 mt-2">
-                        <div className="bg-gradient-to-r from-neural-purple to-tech-lavender h-2 rounded-full animate-progress" style={{ width: '60%' }}></div>
+                      <div
+                        className="bg-gradient-to-r from-neural-purple to-tech-lavender h-2 rounded-full transition-all duration-1000 ease-out"
+                        style={{ width: `${loadingProgress}%` }}
+                      ></div>
+
                       </div>
                     </div>
                     {/* Neural Network Animation */}

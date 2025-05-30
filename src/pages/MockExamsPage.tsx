@@ -439,7 +439,7 @@ const examSections = [
     category: 'Language Proficiency',
     icon: LanguageIcon,
     questions: 100,
-    timeLimit: 55,
+    timeLimit: 5.1,
     subsections: [
       { name: 'English', questions: 50 },
       { name: 'Filipino', questions: 50 }
@@ -597,19 +597,34 @@ const MockExamsPage = () => {
       setTimeRemaining((prev) => {
         const newTime = prev - 1;
 
-        // 5‑minute warning
-        if (newTime === 300 && !timerWarning) {
+        // 5-minute mark
+        if (
+          newTime === 300 &&
+          timerWarning !== "Warning: Only 5 minutes remaining in this section!"
+        ) {
           setTimerWarning("Warning: Only 5 minutes remaining in this section!");
+          return newTime;
         }
 
-        // 1‑minute warning + trigger redirect‑warning modal
+        // 3-minute mark
+        if (
+          newTime === 180 &&
+          timerWarning !== "Warning: Only 3 minutes remaining in this section!"
+        ) {
+          setTimerWarning("Warning: Only 3 minutes remaining in this section!");
+          return newTime;
+        }
+
+        // 1-minute mark
         if (
           newTime === 60 &&
           timerWarning !== "Warning: Only 1 minute remaining in this section!"
         ) {
           setTimerWarning("Warning: Only 1 minute remaining in this section!");
           setRedirectWarningModal(true);
+          return newTime;
         }
+
 
         // When time runs out, clear the interval & persist zero
         if (newTime <= 0) {
@@ -786,6 +801,9 @@ const MockExamsPage = () => {
     // 9) Update React state
     setScore(finalScore);
 
+    setSidebarVisible(true);
+    setCollapsedCategories(new Set());
+
     // 10) Persist session end & duration to Supabase
     if (mockSessionId) {
       try {
@@ -952,6 +970,9 @@ const MockExamsPage = () => {
     if (isTimeBased) {
       setTimeRemaining(examSections[0].timeLimit * 60);
     }
+
+    setSidebarVisible(true);
+    setCollapsedCategories(new Set());
   };
   
   const handleRetry = async () => {
@@ -1277,8 +1298,8 @@ const MockExamsPage = () => {
                   </p>
                 </div>
                 {isTimeBased && (
-                  <div className="flex items-center space-x-2 text-gray-600">
-                    <ClockIcon className="w-5 h-5" />
+                  <div className="flex items-center space-x-2 text-gray-600 font-semibold">
+                    <ClockIcon className="w-7 h-7" />
                     <span>{formatTimeRemaining(timeRemaining)}</span>
                   </div>
                 )}
@@ -1678,7 +1699,17 @@ const MockExamsPage = () => {
       {timerWarning && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-6 max-w-sm w-full mx-4 text-center">
-            <p className="text-lg font-semibold mb-4">{timerWarning}</p>
+            <div className="text-center mb-4">
+              <ExclamationTriangleIcon className="w-8 h-8 text-alert-red mx-auto mb-2" />
+              <p className="text-alert-red text-3xl font-extrabold mb-1">
+                {(() => {
+                  const match = timerWarning.match(/\d+/);
+                  const mins = match ? parseInt(match[0]) : null;
+                  return mins !== null ? `${mins} ${mins === 1 ? 'minute' : 'minutes'}` : '';
+                })()}
+              </p>
+              <p className="text-gray-800 text-base">remaining in this section</p>
+            </div>
             <button
               onClick={() => setTimerWarning(null)}
               className="px-4 py-2 bg-neural-purple text-white rounded-lg hover:bg-tech-lavender transition"

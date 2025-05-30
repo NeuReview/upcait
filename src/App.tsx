@@ -172,7 +172,7 @@ function App() {
             <Route path="/login" element={<LoginPage />} />
             <Route path="/register" element={<RegisterPage />} />
             <Route path="/reset-password" element={<ResetPasswordPage />} />
-            <Route path="/pricing" element={<PricingSection />} />
+           {/* <Route path="/pricing" element={<PricingSection />} /> */}
             <Route path="/confirm" element={<ConfirmPage />} />
             <Route path="/email-sent" element={<EmailLinkSentPage />} />
             <Route path="*" element={<NotFoundPage />} />

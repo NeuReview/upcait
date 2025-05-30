@@ -285,7 +285,8 @@ const FlashcardsPage: React.FC = () => {
     if (!selectedTopic) return;
     setCurrentCard(0);
     setSelectedAnswer(null);
-    await fetchFlashcards(selectedTopic);
+    setShowBack(false);
+    await fetchFlashcards(selectedTopic, cardCount);
   };
 
   const finishSession = () => {
@@ -767,11 +768,14 @@ const FlashcardsPage: React.FC = () => {
               {/* Navigation */}
               <div className="flex justify-between items-center">
                   <button
-                    onClick={() => setShowScoreSummary(true)}
-                    className="transition-colors hover:text-red-500"
+                    onClick={handleEndSession}
+                    disabled={hasReturned}
+                    className="hover:text-red-600 disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-1"
                   >
-                    End Session
+                    <ArrowLeftIcon className="w-5 h-5" />
+                    <span>End Session</span>
                   </button>
+
                 <div className="flex space-x-4">
                   <button
                     onClick={previousCard}
@@ -782,10 +786,15 @@ const FlashcardsPage: React.FC = () => {
                   </button>
                   <button
                     onClick={nextCard}
-                    disabled={currentCard===flashcards.length-1 || isFlipping}
-                    className="px-4 py-2 rounded-lg border border-gray-200 text-gray-600 hover:border-neural-purple disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
+                    disabled={currentCard === flashcards.length - 1 || isFlipping}
+                    className={`px-4 py-2 rounded-lg text-white flex items-center space-x-2 transition-colors ${
+                      currentCard === flashcards.length - 1 || isFlipping
+                        ? 'bg-neural-purple/50 cursor-not-allowed'
+                        : 'bg-neural-purple hover:bg-neural-purple/90'
+                    }`}
                   >
-                    <span>Next</span><ArrowRightIcon className="w-5 h-5" />
+                    <span>Next</span>
+                    <ArrowRightIcon className="w-5 h-5" />
                   </button>
                 </div>
               </div>

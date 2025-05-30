@@ -86,6 +86,8 @@ interface EditProfileModalProps {
   userData: UserData;
 }
 
+
+
 function TermsAndConditionsModal({
   userData,
   setShowTOSModal,
@@ -243,13 +245,38 @@ const DashboardPage = () => {
   const [selectedSubject, setSelectedSubject] = useState<'science' | 'mathematics' | 'language' | 'reading'>('science');
   const [hasScrolledToBottom, setHasScrolledToBottom] = useState(false);
   const contentRef = useRef<HTMLDivElement>(null);
-
-
+  const [isLoadingDashboard, setIsLoadingDashboard] = useState(true);
   const [showSuccess, setShowSuccess] = useState(false);
-
-  
   // Add useQuestions hook to access science progress stats
   const { getScienceProgressStats } = useQuestions();
+
+  useEffect(() => {
+  const loadDashboardData = async () => {
+    try {
+      await Promise.all([
+        fetchUserProfile(),
+        fetchScienceProgressData(),
+        fetchAnsweredStats(),
+        fetchStudyTimeAnalytics(),
+        fetchLangQuizStats(),
+        fetchMathQuizStats(),
+        fetchScienceQuizStats(),
+        fetchReadingQuizStats(),
+        fetchMockLangStats(),
+        fetchMockMathStats(),
+        fetchMockScienceStats(),
+        fetchMockReadingStats(), // ✅ now integrated
+      ]);
+    } catch (err) {
+      console.error('Dashboard loading failed:', err);
+    } finally {
+      setIsLoadingDashboard(false);
+    }
+  };
+
+  loadDashboardData();
+}, []);
+
 
 
   interface StudyHoursData { day: string; hours: number }
@@ -447,6 +474,8 @@ const DashboardPage = () => {
     percentage: 0
   });
 
+  
+
   // Add useEffect to update overall progress when answeredStats changes
   useEffect(() => {
     const totalQuestions = Object.values(answeredStats).reduce((sum, stat) => sum + stat.total, 0);
@@ -476,364 +505,31 @@ const DashboardPage = () => {
   }, []);
 
   // Update function to fetch science progress data from Supabase Storage or local storage
-  const fetchScienceProgressData = async () => {
-    try {
-      setLoadingScienceData(true);
-      
-      const user = await supabase.auth.getUser();
-      if (!user.data.user) {
-        console.log('No user logged in, cannot fetch science progress');
-        return;
-      }
-      
-      // Get progress data from storage service
-      const progressData = await getScienceProgressStats(user.data.user.id);
-      
-      // Update state with the data
-      setScienceProgress(progressData);
-      
-      console.log('Science progress data loaded:', progressData);
-    } catch (err) {
-      console.error('Error fetching science progress data:', err);
-    } finally {
-      setLoadingScienceData(false);
-    }
-  };
+  const fetchScienceProgressData = async (): Promise<void> => {
+  try {
+    const { data: userData, error: userError } = await supabase.auth.getUser();
 
-  // Update function to sync localStorage data to database
-  const syncLocalProgressToDatabase = async () => {
-    try {
-      const user = await supabase.auth.getUser();
-      if (!user.data.user) {
-        alert('Hindi ka naka-login.');
-        return;
-      }
-      
-      const userId = user.data.user.id;
-      
-      // Get all local data sources
-      let allLocalRecords: ProgressRecord[] = [];
-      
-      // First from localStorage
-      try {
-        const storedData = localStorage.getItem('science_progress_data');
-        if (storedData) {
-          const records = JSON.parse(storedData) as ProgressRecord[];
-          // Filter to get only this user's records
-          const userRecords = records.filter((record: ProgressRecord) => record.user_id === userId);
-          allLocalRecords = [...allLocalRecords, ...userRecords];
-        }
-      } catch (err) {
-        console.error('Error reading science_progress_data from localStorage:', err);
-      }
-      
-      // Then from scienceProgressStore that was imported at the top of the file
-      try {
-        // Get records from the imported scienceProgressStore
-        const storeRecords = scienceProgressStore.getRecords(userId);
-        // Map to match the expected format
-        const mappedRecords = storeRecords.map((record: { userId: string; questionId: string; isCorrect: boolean; timestamp: string }) => ({
-          user_id: record.userId,
-          question_uuid: record.questionId,
-          correct_question: record.isCorrect ? 1 : 0,
-          timestamp: record.timestamp
-        }));
-        
-        // Add to all records
-        allLocalRecords = [...allLocalRecords, ...mappedRecords];
-      } catch (err) {
-        console.error('Error getting records from scienceProgressStore:', err);
-      }
-      
-      // Check if we have any records to sync
-      if (allLocalRecords.length === 0) {
-        alert('Walang lokal na data na mai-sync sa database.');
-        return;
-      }
-      
-      // Confirm with user
-      if (!confirm(`Nais mo bang i-sync ang ${allLocalRecords.length} (na) lokal na record sa database?`)) {
-        return;
-      }
-      
-      // Show progress indicator
-      setLoadingScienceData(true);
-      
-      // Sync records to database
-      let successCount = 0;
-      let errorCount = 0;
-      
-      for (const record of allLocalRecords) {
-        try {
-          const { error } = await supabase
-            .from('science_progress_report')
-            .insert({
-              user_id: record.user_id,
-              question_uuid: record.question_uuid,
-              correct_question: record.correct_question
-              // created_at will be set by default
-            });
-            
-          if (error) {
-            console.error('Error syncing record to database:', error);
-            errorCount++;
-          } else {
-            successCount++;
-          }
-        } catch (err) {
-          console.error('Exception syncing record to database:', err);
-          errorCount++;
-        }
-      }
-      
-      // Hide progress indicator
-      setLoadingScienceData(false);
-      
-      // Refresh the data
-      fetchScienceProgressData();
-      
-      // Show results
-      alert(`Sync result:\n✅ ${successCount} na record ang matagumpay na na-sync\n❌ ${errorCount} na record ang nagka-error`);
-    } catch (err) {
-      console.error('Error syncing local progress to database:', err);
-      setLoadingScienceData(false);
-      alert('May naganap na error habang nag-sisync ng data.');
+    if (userError) {
+      console.error('Error fetching user info:', userError.message);
+      return;
     }
-  };
 
-  // Update exportScienceProgressData to export from database
-  const exportScienceProgressData = async () => {
-    try {
-      const user = await supabase.auth.getUser();
-      if (!user.data.user) {
-        alert('Hindi ka naka-login.');
-        return;
-      }
-      
-      const userId = user.data.user.id;
-      setLoadingScienceData(true);
-      
-      // Query the database first
-      try {
-        const { data, error } = await supabase
-          .from('science_progress_report')
-          .select('*')
-          .eq('user_id', userId);
-          
-        if (error) {
-          throw error;
-        }
-        
-        if (!data || data.length === 0) {
-          // If no database data, try localStorage
-          const storedData = localStorage.getItem('science_progress_data');
-          if (!storedData) {
-            alert('Walang science progress data na ma-export.');
-            setLoadingScienceData(false);
-            return;
-          }
-          
-          // Create a downloadable file from localStorage
-          const blob = new Blob([storedData], { type: 'application/json' });
-          const url = URL.createObjectURL(blob);
-          
-          // Create a temporary anchor element and trigger download
-          const a = document.createElement('a');
-          a.href = url;
-          a.download = `science_progress_local_${new Date().toISOString().slice(0, 10)}.json`;
-          document.body.appendChild(a);
-          a.click();
-          
-          // Clean up
-          URL.revokeObjectURL(url);
-          document.body.removeChild(a);
-          
-          alert('Matagumpay na na-export ang science progress data mula sa localStorage.');
-          setLoadingScienceData(false);
-          return;
-        }
-        
-        // Format the data for export
-        const jsonData = JSON.stringify(data, null, 2);
-        
-        // Create a downloadable file
-        const blob = new Blob([jsonData], { type: 'application/json' });
-        const url = URL.createObjectURL(blob);
-        
-        // Create a temporary anchor element and trigger download
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `science_progress_db_${new Date().toISOString().slice(0, 10)}.json`;
-        document.body.appendChild(a);
-        a.click();
-        
-        // Clean up
-        URL.revokeObjectURL(url);
-        document.body.removeChild(a);
-        
-        alert(`Matagumpay na na-export ang ${data.length} (na) science progress record mula sa database.`);
-      } catch (dbErr) {
-        console.error('Database export failed, falling back to localStorage:', dbErr);
-        
-        // Fall back to localStorage
-        const storedData = localStorage.getItem('science_progress_data');
-        if (!storedData) {
-          alert('Walang science progress data na ma-export sa localStorage.');
-          setLoadingScienceData(false);
-          return;
-        }
-        
-        // Create a downloadable file
-        const blob = new Blob([storedData], { type: 'application/json' });
-        const url = URL.createObjectURL(blob);
-        
-        // Create a temporary anchor element and trigger download
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `science_progress_local_${new Date().toISOString().slice(0, 10)}.json`;
-        document.body.appendChild(a);
-        a.click();
-        
-        // Clean up
-        URL.revokeObjectURL(url);
-        document.body.removeChild(a);
-        
-        alert('Matagumpay na na-export ang science progress data mula sa localStorage.');
-      }
-    } catch (err) {
-      console.error('Error exporting science progress data:', err);
-      alert('May naganap na error habang ine-export ang data.');
-    } finally {
-      setLoadingScienceData(false);
+    if (!userData?.user) {
+      console.log('No user logged in, cannot fetch science progress');
+      return;
     }
-  };
 
-  // Update importScienceProgressData to import to database
-  const importScienceProgressData = async () => {
-    try {
-      const user = await supabase.auth.getUser();
-      if (!user.data.user) {
-        alert('Hindi ka naka-login.');
-        return;
-      }
-      
-      const userId = user.data.user.id;
-      
-      // Create file input element
-      const fileInput = document.createElement('input');
-      fileInput.type = 'file';
-      fileInput.accept = '.json';
-      fileInput.style.display = 'none';
-      
-      // When a file is selected
-      fileInput.onchange = async (e) => {
-        const target = e.target as HTMLInputElement;
-        if (!target.files || target.files.length === 0) {
-          return;
-        }
-        
-        const file = target.files[0];
-        const reader = new FileReader();
-        
-        reader.onload = async (event) => {
-          try {
-            setLoadingScienceData(true);
-            
-            const result = event.target?.result;
-            if (typeof result !== 'string') {
-              throw new Error('Invalid file format');
-            }
-            
-            // Validate the JSON structure
-            const data = JSON.parse(result);
-            if (!Array.isArray(data)) {
-              throw new Error('Invalid data format: Expected an array');
-            }
-            
-            // Confirm with user
-            if (!confirm(`Nais mo bang i-import ang ${data.length} (na) record?`)) {
-              setLoadingScienceData(false);
-              return;
-            }
-            
-            // Try to import directly to database
-            let successCount = 0;
-            let errorCount = 0;
-            
-            for (const item of data) {
-              // Validate record
-              if (!item.user_id || !item.question_uuid || item.correct_question === undefined) {
-                console.warn('Skipping invalid record:', item);
-                errorCount++;
-                continue;
-              }
-              
-              // Only import records for this user
-              if (item.user_id !== userId) {
-                console.warn('Skipping record for different user:', item.user_id);
-                continue;
-              }
-              
-              try {
-                const { error } = await supabase
-                  .from('science_progress_report')
-                  .insert({
-                    user_id: item.user_id,
-                    question_uuid: item.question_uuid,
-                    correct_question: typeof item.correct_question === 'boolean' 
-                      ? (item.correct_question ? 1 : 0) 
-                      : item.correct_question
-                  });
-                  
-                if (error) {
-                  console.error('Error importing record to database:', error);
-                  errorCount++;
-                } else {
-                  successCount++;
-                }
-              } catch (insertErr) {
-                console.error('Exception importing record:', insertErr);
-                errorCount++;
-              }
-            }
-            
-            // Store in localStorage as backup in case of database failures
-            localStorage.setItem('science_progress_data', result);
-            
-            // Refresh the displayed data
-            await fetchScienceProgressData();
-            
-            alert(`Import result:\n✅ ${successCount} na record ang matagumpay na na-import\n❌ ${errorCount} na record ang nagka-error`);
-          } catch (error) {
-            console.error('Error parsing imported file:', error);
-            alert('Invalid file format o data structure. Siguraduhing tama ang file format.');
-          } finally {
-            setLoadingScienceData(false);
-          }
-        };
-        
-        reader.onerror = () => {
-          alert('Error reading file');
-          setLoadingScienceData(false);
-        };
-        
-        reader.readAsText(file);
-      };
-      
-      // Trigger file selection
-      document.body.appendChild(fileInput);
-      fileInput.click();
-      
-      // Clean up
-      setTimeout(() => {
-        document.body.removeChild(fileInput);
-      }, 1000);
-    } catch (err) {
-      console.error('Error importing science progress data:', err);
-      alert('May naganap na error habang ini-import ang data.');
-      setLoadingScienceData(false);
-    }
-  };
+    // Fetch science progress stats (from your Supabase storage or database)
+    const progressData = await getScienceProgressStats(userData.user.id);
+
+    // Update state
+    setScienceProgress(progressData);
+
+    console.log('Science progress data loaded:', progressData);
+  } catch (err) {
+    console.error('Error fetching science progress data:', err);
+  }
+};
 
   const [userData, setUserData] = useState<UserData>({
     user_fullname: "",
@@ -1451,386 +1147,355 @@ const updateUserProfile = async (updatedData: Partial<UserData>) => {
           }
       : baseSubject;
   // Fetch Reading-Quizzes performance whenever the dropdowns change
-  useEffect(() => {
-    const fetchReadingQuizStats = async () => {
-      if (selectedTestType !== 'quizzes' || selectedSubject !== 'reading') return;
+  const fetchReadingQuizStats = async (): Promise<void> => {
+  if (selectedTestType !== 'quizzes' || selectedSubject !== 'reading') return;
 
-      try {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) {
-          console.warn('[Reading-Quiz] No user logged‑in');
-          return;
-        }
+  try {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      console.warn('[Reading-Quiz] No user logged‑in');
+      return;
+    }
 
-        // 1) Try user-specific rows
-        const { data, error } = await supabase
-          .from('reading_comp_progress_report_quizzes')
-          .select('correct_question')
-          .eq('user_id', user.id);
-        console.log('[Reading-Quiz] post-filter rows →', data, 'error →', error);
+    const { data, error } = await supabase
+      .from('reading_comp_progress_report_quizzes')
+      .select('correct_question')
+      .eq('user_id', user.id);
 
-        // 2) Fallback to all rows if none
-        let quizData = data ?? [];
-        if (!error && quizData.length === 0) {
-          console.warn('[Reading-Quiz] No rows for this user, falling back to all rows...');
-          const { data: allData, error: allError } = await supabase
-            .from('reading_comp_progress_report_quizzes')
-            .select('correct_question');
-          console.log('[Reading-Quiz] fallback rows →', allData, 'error →', allError);
-          if (!allError && allData) quizData = allData;
-        }
+    console.log('[Reading-Quiz] Filtered rows →', data, 'error →', error);
 
-        // 3) Handle error
-        if (error) {
-          console.error('Error fetching reading quiz stats', error);
-          return;
-        }
+    if (error) {
+      console.error('Error fetching reading quiz stats', error);
+      return;
+    }
 
-        // 4) Compute stats
-        const total     = quizData.length;
-        const correct   = quizData.filter(r => Number(r.correct_question) === 1).length;
-        const incorrect = total - correct;
-        console.log('[Reading-Quiz] Computed →', { total, correct, incorrect });
+    const quizData = data ?? [];
 
-        // 5) Update state
-        setQuizReadingStats({ total, correct, incorrect });
-      } catch (err) {
-        console.error('Unexpected error fetching reading quiz stats', err);
-      }
-    };
+    if (quizData.length === 0) {
+      console.warn('[Reading-Quiz] No data found for this user. Setting stats to 0.');
+      setQuizReadingStats({ total: 0, correct: 0, incorrect: 0 });
+      return;
+    }
 
-    fetchReadingQuizStats();
-  }, [selectedTestType, selectedSubject]);
+    const total     = quizData.length;
+    const correct   = quizData.filter(r => Number(r.correct_question) === 1).length;
+    const incorrect = total - correct;
 
-  // Fetch Science-MockExam performance whenever the dropdowns change
-  useEffect(() => {
-    const fetchMockScienceStats = async () => {
-      if (selectedTestType !== 'mock_exams' || selectedSubject !== 'science') return;
+    console.log('[Reading-Quiz] Computed →', { total, correct, incorrect });
 
-      try {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) {
-          console.warn('[Mock-Sci] No user logged-in');
-          return;
-        }
+    setQuizReadingStats({ total, correct, incorrect });
+  } catch (err) {
+    console.error('Unexpected error fetching reading quiz stats', err);
+  }
+};
 
-        const { data, error } = await supabase
-          .from('science_progress_report_mockexam')
-          .select('correct_question')
-          .eq('user_id', user.id);
-
-        console.log('[Mock-Sci] Raw rows →', data, 'error →', error);
-
-        if (error) {
-          console.error('[Mock-Sci] Error fetching mock-exam stats', error);
-          return;
-        }
-
-        const total     = data.length;
-        const correct   = data.filter(r => Number(r.correct_question) === 1).length;
-        const incorrect = total - correct;
-
-        console.log('[Mock-Sci] Computed →', { total, correct, incorrect });
-
-        setMockScienceStats({ total, correct, incorrect });
-      } catch (err) {
-        console.error('[Mock-Sci] Unexpected error fetching mock-exam stats', err);
-      }
-    };
-
-    fetchMockScienceStats();
-  }, [selectedTestType, selectedSubject]);
-  // Fetch Math-MockExam performance whenever the dropdowns change
-  useEffect(() => {
-    const fetchMockMathStats = async () => {
-      if (selectedTestType !== 'mock_exams' || selectedSubject !== 'mathematics') return;
-      try {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) return;
-        const { data, error } = await supabase
-          .from('math_progress_report_mockexam')
-          .select('correct_question')
-          .eq('user_id', user.id);
-        console.log('[Mock-Math] Raw rows →', data, 'error →', error);
-        if (error) {
-          console.error('[Mock-Math] Error fetching mock-exam stats', error);
-          return;
-        }
-        const total     = data.length;
-        const correct   = data.filter(r => Number(r.correct_question) === 1).length;
-        const incorrect = total - correct;
-        console.log('[Mock-Math] Computed →', { total, correct, incorrect });
-        setMockMathStats({ total, correct, incorrect });
-      } catch (err) {
-        console.error('[Mock-Math] Unexpected error fetching mock-exam stats', err);
-      }
-    };
-    fetchMockMathStats();
-  }, [selectedTestType, selectedSubject]);
   // Fetch Language‑Quizzes performance whenever the dropdowns change
-  useEffect(() => {
-    const fetchLangQuizStats = async () => {
-      if (selectedTestType !== 'quizzes' || selectedSubject !== 'language') return;
+  const fetchLangQuizStats = async (): Promise<void> => {
+  try {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      console.warn('[Lang‑Quiz] No user logged‑in');
+      return;
+    }
 
-      try {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) {
-          console.warn('[Lang‑Quiz] No user logged‑in');
-          return;
-        }
+    const { data, error } = await supabase
+      .from('lang_prof_progress_report_quizzes')
+      .select('user_id, correct_question')
+      .eq('user_id', user.id);
 
-        // 1) Try user-specific rows, include user_id in select
-        const { data, error } = await supabase
-          .from('lang_prof_progress_report_quizzes')
-          .select('user_id, correct_question')
-          .eq('user_id', user.id);
-        console.log('[Lang-Quiz] post-filter rows →', data, 'error →', error);
+    console.log('[Lang-Quiz] Filtered rows →', data, 'error →', error);
 
-        // 2) If none found for this user, fetch all rows as fallback (include user_id)
-        let quizData = data ?? [];
-        if (!error && quizData.length === 0) {
-          console.warn('[Lang-Quiz] No rows for this user, falling back to all rows...');
-          const { data: allData, error: allError } = await supabase
-            .from('lang_prof_progress_report_quizzes')
-            .select('user_id, correct_question');
-          console.log('[Lang-Quiz] fallback rows →', allData, 'error →', allError);
-          if (!allError && allData) {
-            quizData = allData;
-          }
-        }
+    if (error) {
+      console.error('Error fetching language quiz stats', error);
+      return;
+    }
 
-        // 3) Handle any real error
-        if (error) {
-          console.error('Error fetching language quiz stats', error);
-          return;
-        }
+    const quizData = data ?? [];
 
-        // 4) Compute stats from the chosen dataset
-        const total     = quizData.length;
-        const correct   = quizData.filter(r => Number(r.correct_question) === 1).length;
-        const incorrect = total - correct;
-        console.log('[Lang-Quiz] Computed →', { total, correct, incorrect });
+    if (quizData.length === 0) {
+      console.warn('[Lang-Quiz] No data found for this user. Setting stats to 0.');
+      setQuizLangStats({ total: 0, correct: 0, incorrect: 0 });
+      return;
+    }
 
-        // 5) Update state
-        setQuizLangStats({ total, correct, incorrect });
-      } catch (err) {
-        console.error('Unexpected error fetching language quiz stats', err);
-      }
-    };
+    const total = quizData.length;
+    const correct = quizData.filter(r => Number(r.correct_question) === 1).length;
+    const incorrect = total - correct;
 
-    fetchLangQuizStats();
-  }, [selectedTestType, selectedSubject]);
+    console.log('[Lang-Quiz] Computed →', { total, correct, incorrect });
+
+    setQuizLangStats({ total, correct, incorrect });
+  } catch (err) {
+    console.error('Unexpected error fetching language quiz stats', err);
+  }
+};
+
+
   // Fetch Science‑Quizzes performance whenever the dropdowns change
-  useEffect(() => {
-    const fetchScienceQuizStats = async () => {
-      if (selectedTestType !== 'quizzes' || selectedSubject !== 'science') return;
+  const fetchScienceQuizStats = async (): Promise<void> => {
+  try {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      console.warn('[Science‑Quiz] No user logged‑in');
+      return;
+    }
 
-      try {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) return;
+    const { data, error } = await supabase
+      .from('science_progress_report_quizzes')
+      .select('correct_question')
+      .eq('user_id', user.id);
 
-        const { data, error } = await supabase
-          .from('science_progress_report_quizzes')
-          .select('correct_question')
-          .eq('user_id', user.id);
+    if (error) {
+      console.error('Error fetching science quiz stats', error);
+      return;
+    }
 
-        if (error) {
-          console.error('Error fetching science quiz stats', error);
-          return;
-        }
+    const total = data.length;
+    const correct = data.filter(r => Number(r.correct_question) === 1).length;
+    const incorrect = total - correct;
 
-        const total = data.length;
-        const correct = data.filter(r => Number(r.correct_question) === 1).length;
-        const incorrect = total - correct;
+    setQuizScienceStats({ total, correct, incorrect });
+  } catch (err) {
+    console.error('Unexpected error fetching science quiz stats', err);
+  }
+};
 
-        setQuizScienceStats({ total, correct, incorrect });
-      } catch (err) {
-        console.error('Unexpected error fetching science quiz stats', err);
-      }
-    };
-
-    fetchScienceQuizStats();
-  }, [selectedTestType, selectedSubject]);
 
   // Fetch Math‑Quizzes performance whenever the dropdowns change
-  useEffect(() => {
-    const fetchMathQuizStats = async () => {
-      if (selectedTestType !== 'quizzes' || selectedSubject !== 'mathematics') return;
+  const fetchMathQuizStats = async (): Promise<void> => {
+  try {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      console.warn('[Math‑Quiz] No user logged‑in');
+      return;
+    }
 
-      try {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) {
-          console.warn('[Math‑Quiz] No user logged‑in');
-          return;
-        }
+    const { data, error } = await supabase
+      .from('math_progress_report_quizzes')
+      .select('correct_question')
+      .eq('user_id', user.id);
 
-        const { data, error } = await supabase
-          .from('math_progress_report_quizzes')
-          .select('correct_question')
-          .eq('user_id', user.id);
+    console.log('[Math‑Quiz] Raw rows →', data);
 
-        console.log('[Math‑Quiz] Raw rows →', data);
+    if (error) {
+      console.error('Error fetching math quiz stats', error);
+      return;
+    }
 
-        if (error) {
-          console.error('Error fetching math quiz stats', error);
-          return;
-        }
+    const total     = data.length;
+    const correct   = data.filter(r => Number(r.correct_question) === 1).length;
+    const incorrect = total - correct;
 
-        const total     = data.length;
-        const correct   = data.filter(r => Number(r.correct_question) === 1).length;
-        const incorrect = total - correct;
+    console.log('[Math‑Quiz] Computed →', { total, correct, incorrect });
 
-        console.log('[Math‑Quiz] Computed →', { total, correct, incorrect });
+    setQuizMathStats({ total, correct, incorrect });
+  } catch (err) {
+    console.error('Unexpected error fetching math quiz stats', err);
+  }
+};
 
-        setQuizMathStats({ total, correct, incorrect });
-      } catch (err) {
-        console.error('Unexpected error fetching math quiz stats', err);
-      }
-    };
+  // Fetch Science-MockExam performance whenever the dropdowns change
+const fetchMockScienceStats = async (): Promise<void> => {
+  if (selectedTestType !== 'mock_exams' || selectedSubject !== 'science') return;
 
-    fetchMathQuizStats();
-  }, [selectedTestType, selectedSubject]);
+  try {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      console.warn('[Mock-Sci] No user logged-in');
+      return;
+    }
+
+    const { data, error } = await supabase
+      .from('science_progress_report_mockexam')
+      .select('correct_question')
+      .eq('user_id', user.id);
+
+    console.log('[Mock-Sci] Raw rows →', data, 'error →', error);
+
+    if (error) {
+      console.error('[Mock-Sci] Error fetching mock-exam stats', error);
+      return;
+    }
+
+    const total     = data.length;
+    const correct   = data.filter(r => Number(r.correct_question) === 1).length;
+    const incorrect = total - correct;
+
+    console.log('[Mock-Sci] Computed →', { total, correct, incorrect });
+
+    setMockScienceStats({ total, correct, incorrect });
+  } catch (err) {
+    console.error('[Mock-Sci] Unexpected error fetching mock-exam stats', err);
+  }
+};
+
+  // Fetch Math-MockExam performance whenever the dropdowns change
+const fetchMockMathStats = async (): Promise<void> => {
+  if (selectedTestType !== 'mock_exams' || selectedSubject !== 'mathematics') return;
+
+  try {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      console.warn('[Mock-Math] No user logged-in');
+      return;
+    }
+
+    const { data, error } = await supabase
+      .from('math_progress_report_mockexam')
+      .select('correct_question')
+      .eq('user_id', user.id);
+
+    console.log('[Mock-Math] Raw rows →', data, 'error →', error);
+
+    if (error) {
+      console.error('[Mock-Math] Error fetching mock-exam stats', error);
+      return;
+    }
+
+    const total     = data.length;
+    const correct   = data.filter(r => Number(r.correct_question) === 1).length;
+    const incorrect = total - correct;
+
+    console.log('[Mock-Math] Computed →', { total, correct, incorrect });
+
+    setMockMathStats({ total, correct, incorrect });
+  } catch (err) {
+    console.error('[Mock-Math] Unexpected error fetching mock-exam stats', err);
+  }
+};
+
+
 
   // Fetch Language-MockExam performance whenever the dropdowns change
-  useEffect(() => {
-    const fetchMockLangStats = async () => {
-      if (selectedTestType !== 'mock_exams' || selectedSubject !== 'language') return;
+  const fetchMockLangStats = async (): Promise<void> => {
+  if (selectedTestType !== 'mock_exams' || selectedSubject !== 'language') return;
 
-      try {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) {
-          console.warn('[Mock-Lang] No user logged-in');
-          return;
-        }
+  try {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      console.warn('[Mock-Lang] No user logged-in');
+      return;
+    }
 
-        const { data, error } = await supabase
-          .from('lang_prof_progress_report_mockexam')
-          .select('correct_question')
-          .eq('user_id', user.id);
+    const { data, error } = await supabase
+      .from('lang_prof_progress_report_mockexam')
+      .select('correct_question')
+      .eq('user_id', user.id);
 
-        console.log('[Mock-Lang] Raw rows →', data, 'error →', error);
+    console.log('[Mock-Lang] Raw rows →', data, 'error →', error);
 
-        if (error) {
-          console.error('[Mock-Lang] Error fetching mock-exam stats', error);
-          return;
-        }
+    if (error) {
+      console.error('[Mock-Lang] Error fetching mock-exam stats', error);
+      return;
+    }
 
-        const total     = data.length;
-        const correct   = data.filter(r => Number(r.correct_question) === 1).length;
-        const incorrect = total - correct;
+    const total     = data.length;
+    const correct   = data.filter(r => Number(r.correct_question) === 1).length;
+    const incorrect = total - correct;
 
-        console.log('[Mock-Lang] Computed →', { total, correct, incorrect });
+    console.log('[Mock-Lang] Computed →', { total, correct, incorrect });
 
-        setMockLangStats({ total, correct, incorrect });
-      } catch (err) {
-        console.error('[Mock-Lang] Unexpected error fetching mock-exam stats', err);
-      }
-    };
-    fetchMockLangStats();
-  }, [selectedTestType, selectedSubject]);
+    setMockLangStats({ total, correct, incorrect });
+  } catch (err) {
+    console.error('[Mock-Lang] Unexpected error fetching mock-exam stats', err);
+  }
+};
+
 
   // Fetch Reading-MockExam performance whenever the dropdowns change
-  useEffect(() => {
-    const fetchMockReadingStats = async () => {
-      if (selectedTestType !== 'mock_exams' || selectedSubject !== 'reading') return;
+  const fetchMockReadingStats = async (): Promise<void> => {
 
-      try {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) {
-          console.warn('[Mock-Read] No user logged-in');
-          return;
-        }
+  try {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      console.warn('[Mock-Read] No user logged-in');
+      return;
+    }
 
-        const { data, error } = await supabase
-          .from('reading_comp_progress_report_mockexam')
-          .select('correct_question')
-          .eq('user_id', user.id);
+    const { data, error } = await supabase
+      .from('reading_comp_progress_report_mockexam')
+      .select('correct_question')
+      .eq('user_id', user.id);
 
-        console.log('[Mock-Read] Raw rows →', data, 'error →', error);
+    console.log('[Mock-Read] Raw rows →', data, 'error →', error);
 
-        if (error) {
-          console.error('[Mock-Read] Error fetching mock-exam stats', error);
-          return;
-        }
+    if (error) {
+      console.error('[Mock-Read] Error fetching mock-exam stats', error);
+      return;
+    }
 
-        const total     = data.length;
-        const correct   = data.filter(r => Number(r.correct_question) === 1).length;
-        const incorrect = total - correct;
+    const total     = data.length;
+    const correct   = data.filter(r => Number(r.correct_question) === 1).length;
+    const incorrect = total - correct;
 
-        console.log('[Mock-Read] Computed →', { total, correct, incorrect });
+    console.log('[Mock-Read] Computed →', { total, correct, incorrect });
 
-        setMockReadingStats({ total, correct, incorrect });
-      } catch (err) {
-        console.error('[Mock-Read] Unexpected error fetching mock-exam stats', err);
-      }
-    };
+    setMockReadingStats({ total, correct, incorrect });
+  } catch (err) {
+    console.error('[Mock-Read] Unexpected error fetching mock-exam stats', err);
+  }
+};
 
-    fetchMockReadingStats();
-  }, [selectedTestType, selectedSubject]);
 
   // Pull answered-question counts for every subject (quizzes + mock)
-  useEffect(() => {
-    const fetchAnsweredStats = async () => {
-      try {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) {
-          console.warn('[Answered] No logged-in user');
-          return;
-        }
-        const uid = user.id;
+  const fetchAnsweredStats = async (): Promise<void> => {
+  try {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      console.warn('[Answered] No logged-in user');
+      return;
+    }
+    const uid = user.id;
 
-        // Helper to get count(*) from a table for this user
-        const countRows = async (table: string) => {
-          const { count, error } = await supabase
-            .from(table)
-            .select('*', { head: true, count: 'exact' })
-            .eq('user_id', uid);
-          if (error) {
-            console.error(`[Answered] ${table} →`, error);
-            return 0;
-          }
-          return count ?? 0;
-        };
-
-        // Map subject → its two tables
-        const tables: Record<SubjectKey, string[]> = {
-          science:     ['science_progress_report_quizzes',     'science_progress_report_mockexam'],
-          mathematics: ['math_progress_report_quizzes',        'math_progress_report_mockexam'],
-          language:    ['lang_prof_progress_report_quizzes',   'lang_prof_progress_report_mockexam'],
-          reading:     ['reading_comp_progress_report_quizzes', 'reading_comp_progress_report_mockexam'],
-        };
-
-        // Fetch all counts in parallel
-        const newStats: Record<SubjectKey, AnswerStats> = { ...answeredStats };
-        await Promise.all(
-          (Object.keys(tables) as SubjectKey[]).map(async (subject) => {
-            const [quizCnt, mockCnt] = await Promise.all(
-              tables[subject].map((tbl) => countRows(tbl))
-            );
-            const total = quizCnt + mockCnt;
-            newStats[subject] = {
-              total,
-              cap: newStats[subject].cap,
-              percentage: newStats[subject].cap
-                ? Math.round((total / newStats[subject].cap) * 100)
-                : 0,
-            };
-            console.log(`[Answered] ${subject} → quizzes=${quizCnt} mock=${mockCnt} total=${total}`);
-          })
-        );
-
-        setAnsweredStats(newStats);
-      } catch (err) {
-        console.error('[Answered] Unexpected error', err);
+    const countRows = async (table: string) => {
+      const { count, error } = await supabase
+        .from(table)
+        .select('*', { head: true, count: 'exact' })
+        .eq('user_id', uid);
+      if (error) {
+        console.error(`[Answered] ${table} →`, error);
+        return 0;
       }
+      return count ?? 0;
     };
 
-    fetchAnsweredStats();
-  }, []);                // ← run once on mount
+    const tables: Record<SubjectKey, string[]> = {
+      science:     ['science_progress_report_quizzes',     'science_progress_report_mockexam'],
+      mathematics: ['math_progress_report_quizzes',        'math_progress_report_mockexam'],
+      language:    ['lang_prof_progress_report_quizzes',   'lang_prof_progress_report_mockexam'],
+      reading:     ['reading_comp_progress_report_quizzes', 'reading_comp_progress_report_mockexam'],
+    };
+
+    const newStats: Record<SubjectKey, AnswerStats> = { ...answeredStats };
+    await Promise.all(
+      (Object.keys(tables) as SubjectKey[]).map(async (subject) => {
+        const [quizCnt, mockCnt] = await Promise.all(
+          tables[subject].map((tbl) => countRows(tbl))
+        );
+        const total = quizCnt + mockCnt;
+        newStats[subject] = {
+          total,
+          cap: newStats[subject].cap,
+          percentage: newStats[subject].cap
+            ? Math.round((total / newStats[subject].cap) * 100)
+            : 0,
+        };
+        console.log(`[Answered] ${subject} → quizzes=${quizCnt} mock=${mockCnt} total=${total}`);
+      })
+    );
+
+    setAnsweredStats(newStats);
+  } catch (err) {
+    console.error('[Answered] Unexpected error', err);
+  }
+};
+               // ← run once on mount
 
   // ──────────────────────────────────────────────────────────────
   // Study‑time analytics state (fetched from Supabase)
   // ──────────────────────────────────────────────────────────────
+
+  
   const [studyHoursData, setStudyHoursData] = useState<StudyHoursData[]>([]);
 
   interface StudyStats {
@@ -1863,96 +1528,80 @@ const updateUserProfile = async (updatedData: Partial<UserData>) => {
 
   // Fetch the last 7 days of study‑time analytics for the logged‑in user
   // --- inside DashboardPage, remove the old useEffect and paste this instead: ---
-  useEffect(() => {
-    const fetchStudyTimeAnalytics = async () => {
-      try {
-        // 1) get current user
-        const { data: authData, error: authErr } = await supabase.auth.getUser();
-        if (authErr || !authData.user) throw authErr ?? new Error("Not authenticated");
-        const uid = authData.user.id;
-  
-        // 2) fetch up to one year of daily totals, newest first
-        const { data, error: fetchErr } = await supabase
-          .from("daily_session_time")
-          .select("day, total_secs")
-          .eq("user_id", uid)
-          .order("day", { ascending: false })
-          .limit(365);
-  
-        if (fetchErr) {
-          console.error("Error fetching daily totals", fetchErr);
-          return;
-        }
-        const allRows = data ?? [];
-        if (allRows.length === 0) {
-          setStudyHoursData([]);
-          setStudyStats(prev => ({ ...prev, currentStreak: 0, improvement: 0 }));
-          return;
-        }
-  
-        // 3) compute calendar-aware streak:
-        //    iterate newest→oldest, require each row.day to be exactly
-        //    one calendar day before the previous, AND total_secs>0.
-        let streak = 0;
-        let prevDate = new Date(allRows[0].day); // most recent day
-        for (const row of allRows) {
-          const d = new Date(row.day);
-          // difference in days
-          const diffMs  = prevDate.getTime() - d.getTime();
-          const diffDay = diffMs / (1000 * 60 * 60 * 24);
-          // first iteration diffDay===0, allow it; subsequent must be ≈1
-          const isConsecutive = streak === 0 ? row.total_secs > 0
-                                 : row.total_secs > 0 && Math.round(diffDay) === 1;
-  
-          if (isConsecutive) {
-            streak++;
-            prevDate = d;
-          } else {
-            break;
-          }
-        }
-  
-        // 4) build chart window: last 7 rows reversed → chronological
-        const last7 = allRows.slice(0, 7).reverse();
-        const mapped: StudyHoursData[] = last7.map(r => ({
-          day:   new Date(r.day).toLocaleDateString("en-US", { month: "short", day: "numeric" }),
-          hours: +(r.total_secs / 3600).toFixed(2)
-        }));
-        setStudyHoursData(mapped);
-  
-        // 5) simple totals & average for those 7 days
-        const totalH = mapped.reduce((sum, d) => sum + d.hours, 0);
-        const avgH   = mapped.length ? totalH / mapped.length : 0;
-  
-        // 6) best day in that window
-        const best = mapped.reduce((b, d) => (d.hours > b.hours ? d : b), { day: "", hours: 0 });
-  
-        // 7) improvement vs. the prior 7-day block
-        const sumHours = (rows: { total_secs: number }[]) =>
-          rows.reduce((acc, r) => acc + r.total_secs / 3600, 0);
-        const thisTotal = sumHours(allRows.slice(0, 7));
-        const lastTotal = sumHours(allRows.slice(7, 14));
-        const improvement =
-          lastTotal === 0
-            ? thisTotal === 0 ? 0 : 100
-            : ((thisTotal - lastTotal) / lastTotal) * 100;
-  
-        // 8) commit
-        setStudyStats(prev => ({
-          ...prev,
-          currentStreak: streak,
-          totalHours:   totalH,
-          averageHours: avgH,
-          bestDay:      best,
-          improvement:  Math.round(improvement)
-        }));
-      } catch (err) {
-        console.error("Unexpected error fetching study analytics", err);
+const fetchStudyTimeAnalytics = async (): Promise<void> => {
+  try {
+    const { data: authData, error: authErr } = await supabase.auth.getUser();
+    if (authErr || !authData.user) throw authErr ?? new Error("Not authenticated");
+    const uid = authData.user.id;
+
+    const { data, error: fetchErr } = await supabase
+      .from("daily_session_time")
+      .select("day, total_secs")
+      .eq("user_id", uid)
+      .order("day", { ascending: false })
+      .limit(365);
+
+    if (fetchErr) {
+      console.error("Error fetching daily totals", fetchErr);
+      return;
+    }
+
+    const allRows = data ?? [];
+    if (allRows.length === 0) {
+      setStudyHoursData([]);
+      setStudyStats(prev => ({ ...prev, currentStreak: 0, improvement: 0 }));
+      return;
+    }
+
+    let streak = 0;
+    let prevDate = new Date(allRows[0].day);
+    for (const row of allRows) {
+      const d = new Date(row.day);
+      const diffMs  = prevDate.getTime() - d.getTime();
+      const diffDay = diffMs / (1000 * 60 * 60 * 24);
+      const isConsecutive = streak === 0 ? row.total_secs > 0
+                             : row.total_secs > 0 && Math.round(diffDay) === 1;
+
+      if (isConsecutive) {
+        streak++;
+        prevDate = d;
+      } else {
+        break;
       }
-    };
-  
-    fetchStudyTimeAnalytics();
-  }, []);
+    }
+
+    const last7 = allRows.slice(0, 7).reverse();
+    const mapped: StudyHoursData[] = last7.map(r => ({
+      day:   new Date(r.day).toLocaleDateString("en-US", { month: "short", day: "numeric" }),
+      hours: +(r.total_secs / 3600).toFixed(2)
+    }));
+    setStudyHoursData(mapped);
+
+    const totalH = mapped.reduce((sum, d) => sum + d.hours, 0);
+    const avgH   = mapped.length ? totalH / mapped.length : 0;
+    const best = mapped.reduce((b, d) => (d.hours > b.hours ? d : b), { day: "", hours: 0 });
+
+    const sumHours = (rows: { total_secs: number }[]) =>
+      rows.reduce((acc, r) => acc + r.total_secs / 3600, 0);
+    const thisTotal = sumHours(allRows.slice(0, 7));
+    const lastTotal = sumHours(allRows.slice(7, 14));
+    const improvement =
+      lastTotal === 0
+        ? thisTotal === 0 ? 0 : 100
+        : ((thisTotal - lastTotal) / lastTotal) * 100;
+
+    setStudyStats(prev => ({
+      ...prev,
+      currentStreak: streak,
+      totalHours:   totalH,
+      averageHours: avgH,
+      bestDay:      best,
+      improvement:  Math.round(improvement)
+    }));
+  } catch (err) {
+    console.error("Unexpected error fetching study analytics", err);
+  }
+};
   
   
   // Graph dimensions and settings
@@ -1972,7 +1621,16 @@ const updateUserProfile = async (updatedData: Partial<UserData>) => {
 
     
   return (
-    <div className="min-h-screen bg-gray-50 py-8">
+    <>
+    {isLoadingDashboard ? (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-neural-purple mx-auto"></div>
+          <p className="mt-4 text-gray-600">Loading dashboard...</p>
+        </div>
+      </div>
+    ) : (
+      <div className="min-h-screen bg-gray-50 py-8">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Left Column */}
@@ -2199,8 +1857,7 @@ const updateUserProfile = async (updatedData: Partial<UserData>) => {
 
                   <button
         onClick={() => setIsStudyGoalModalOpen(true)}
-        className="px-3 py-1.5 text-xs font-semibold border border-purple-600 text-purple-600 rounded-md hover:bg-purple-50 transition"
-      >
+        className="px-3 py-1.5 text-xs font-semibold bg-purple-600 text-white rounded-md hover:bg-purple-700 transition">
         Set Study Goal
       </button>
 
@@ -2347,6 +2004,8 @@ const updateUserProfile = async (updatedData: Partial<UserData>) => {
       />
 
     </div>
+    )}
+</>
   );
 };
 
