@@ -41,11 +41,6 @@ const Footer = () => {
                   Flashcards
                 </Link>
               </li>
-              <li>
-                <Link to="/pricing" className="text-gray-500 hover:text-neural-purple">
-                  Pricing
-                </Link>
-              </li>
             </ul>
           </div>
 
